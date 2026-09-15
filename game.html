@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starshade</title>
+    <link rel="icon" href="starshade.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="game.css" />
+  </head>
+  <body>
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Fading Level Text -->
+    <div id="levelText" class="fading-text"></div>
+
+    <!-- Shown when there is no next level to load -->
+    <div id="gameCompleteMenu" class="menu hidden">
+      <h1>You beat Starshade!</h1>
+      <button id="game-complete-menu-button">Back to Main Menu</button>
+    </div>
+
+    <!--
+      Level scripts are NOT included here directly. Each levelN.js file
+      declares top-level `const`/`let` bindings (platforms, checkpoints,
+      levelText, etc.) with the SAME names — script tags in an HTML page
+      share one global lexical scope, so loading two of them side by side
+      throws "Identifier has already been declared" and silently breaks
+      the second level's data. game.js's loadLevel() instead injects
+      exactly one levelN.js <script> at a time, swapping it out as the
+      player progresses.
+    -->
+    <script src="game.js"></script>
+  </body>
+</html>

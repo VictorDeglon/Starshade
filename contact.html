@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Starshade</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="contact.css" />
+    <link rel="icon" href="starshade.png" type="image/png" />
+  </head>
+  <body>
+    <div class="background-overlay"></div>
+    <div class="contact-section">
+      <h2>Contact Form</h2>
+      <form class="contact-form">
+        <div class="form-group">
+          <label for="name">Your Name:</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="Enter your name"
+          />
+        </div>
+        <div class="form-group">
+          <label for="email">Your Email:</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="Enter your email"
+          />
+        </div>
+        <div class="form-group">
+          <label for="problem">What problems have you faced?</label>
+          <textarea
+            id="problem"
+            name="problem"
+            rows="4"
+            placeholder="Describe the issue"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="suggestions">Any suggestions for improvement?</label>
+          <textarea
+            id="suggestions"
+            name="suggestions"
+            rows="3"
+            placeholder="Share your ideas"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="rate-experience"
+            >How would you rate your experience ( 1 - 10 )?</label
+          >
+          <input
+            type="number"
+            id="rate-experience"
+            name="rate-experience"
+            min="1"
+            max="10"
+          />
+        </div>
+        <div class="form-group">
+          <label for="issues-resolved"
+            >Have you had issues resolved before?</label
+          >
+          <select id="issues-resolved" name="issues-resolved">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="additional-comments"
+            >Additional comments or feedback:</label
+          >
+          <textarea
+            id="additional-comments"
+            name="additional-comments"
+            rows="4"
+            placeholder="Anything else you want to share?"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="submit-button">Submit</button>
+        </div>
+      </form>
+      <div class="contact-info">
+        <h3>Developer Contact Info</h3>
+        <p>victor.deglon@gmail.com</p>
+      </div>
+    </div>
+    <button class="menu-button" id="back-button">Back to Menu</button>
+    <br />
+    <br />
+
+    <script src="contact.js"></script>
+  </body>
+</html>

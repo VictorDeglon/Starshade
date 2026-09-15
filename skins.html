@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starshade Skins</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="skins.css" />
+    <link rel="icon" href="starshade.png" type="image/png" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Starshade Skins</h1>
+    </header>
+
+    <main class="carousel" id="carousel">
+      <button class="carousel-arrow" id="prev-button" aria-label="Previous skin">
+        &#10094;
+      </button>
+
+      <div class="showcase">
+        <div class="showcase-track" id="showcase-track">
+          <!-- Skin cards are rendered here by skins.js -->
+        </div>
+      </div>
+
+      <button class="carousel-arrow" id="next-button" aria-label="Next skin">
+        &#10095;
+      </button>
+    </main>
+
+    <div class="dots" id="dots"></div>
+
+    <button class="back-button" id="back-button">Back to Menu</button>
+
+    <script src="skins.js"></script>
+  </body>
+</html>

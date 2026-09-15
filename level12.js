@@ -1,0 +1,66 @@
+// Level 12 Data — "Starshade's Reach"
+// The finale: every hazard type from the previous eleven levels, back to
+// back, with the tightest margins in the game. Reaching the last
+// checkpoint here (there is no level13.js) shows the "You beat
+// Starshade!" screen — see game.js's loadLevel().catch().
+
+let levelText = "Level 12";
+
+const platforms = [
+  { x: 50, y: 400, width: 250, height: 20 }, // Start
+
+  // Spike bed
+  { x: 380, y: 400, width: 400, height: 20 },
+
+  // Deadly decoys among narrow real ledges
+  { x: 850, y: 360, width: 90, height: 20 },
+  { x: 1120, y: 320, width: 90, height: 20 },
+  { x: 1390, y: 280, width: 90, height: 20 },
+
+  { x: 1600, y: 280, width: 220, height: 20 }, // breather
+
+  // Twin-pillar double jumps
+  { x: 1970, y: 230, width: 70, height: 20 },
+  { x: 2150, y: 180, width: 70, height: 20 },
+  { x: 2330, y: 140, width: 70, height: 20 },
+
+  { x: 2520, y: 140, width: 220, height: 20 }, // breather
+
+  // Void bridge — wide double-jump gaps
+  { x: 3000, y: 170, width: 150, height: 20 },
+  { x: 3450, y: 200, width: 150, height: 20 },
+
+  // Final spike-and-decoy gauntlet
+  { x: 3800, y: 200, width: 400, height: 20 },
+
+  { x: 4400, y: 160, width: 350, height: 20 }, // Final
+];
+
+const deadlyPlatforms = [
+  { x: 980, y: 360, width: 90, height: 20 },
+  { x: 1250, y: 320, width: 90, height: 20 },
+  { x: 3970, y: 200, width: 90, height: 20 },
+  { x: 900, y: 600, width: 3800, height: 20 }, // catch-net under the whole gauntlet
+];
+
+const spikes = [
+  { x: 450, y: 400, size: 30 },
+  { x: 560, y: 400, size: 30 },
+  { x: 670, y: 400, size: 30 },
+  { x: 780, y: 400, size: 30 },
+
+  { x: 1650, y: 280, size: 25 },
+  { x: 2570, y: 140, size: 25 },
+
+  { x: 3840, y: 200, size: 30 },
+  { x: 4120, y: 200, size: 35 },
+];
+
+const checkpoints = [
+  { x: 150, y: 370, reached: false },
+  { x: 1650, y: 250, reached: false }, // after the decoy stretch
+  { x: 2570, y: 110, reached: false }, // after the pillars
+  { x: 3075, y: 140, reached: false }, // mid void bridge
+  { x: 3900, y: 170, reached: false }, // after the bridge
+  { x: 4550, y: 130, reached: false }, // Final — beats the game
+];
