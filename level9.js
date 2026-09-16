@@ -24,13 +24,30 @@ window.platforms = [
   { x: 2910, y: 260, width: 130, height: 20 }, // one more dip
   { x: 3150, y: 340, width: 130, height: 20 },
 
-  { x: 3400, y: 300, width: 300, height: 20 }, // Final
+  { x: 3400, y: 300, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: one more zig-zag, with a vertical moving platform ---
+  { x: 3830, y: 340, width: 200, height: 20 },
+  {
+    x: 4150,
+    y: 260,
+    width: 150,
+    height: 20,
+    moveAxis: "y",
+    moveRange: 50,
+    moveSpeed: 0.03,
+  },
+  { x: 4400, y: 320, width: 150, height: 20 },
+  { x: 4700, y: 220, width: 250, height: 20 }, // breather before the steep climb
+
+  { x: 5080, y: 270, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
   { x: 990, y: 220, width: 90, height: 20 }, // wrong turn off peak 1
   { x: 2560, y: 180, width: 90, height: 20 }, // wrong turn off peak 2
   { x: 3060, y: 260, width: 70, height: 20 },
+  { x: 4570, y: 380, width: 90, height: 20 }, // wrong turn under the moving platform
 ];
 
 window.spikes = [
@@ -38,6 +55,7 @@ window.spikes = [
   { x: 1620, y: 480, size: 30 },
   { x: 1700, y: 480, size: 25 },
   { x: 2660, y: 180, size: 20 },
+  { x: 4760, y: 220, size: 25 },
 ];
 
 window.checkpoints = [
@@ -45,5 +63,7 @@ window.checkpoints = [
   { x: 910, y: 190, reached: false }, // peak 1
   { x: 1700, y: 450, reached: false }, // valley
   { x: 2720, y: 150, reached: false }, // peak 2
-  { x: 3550, y: 270, reached: false }, // Final
+  { x: 3550, y: 270, reached: false },
+  { x: 4225, y: 230, reached: false }, // after the moving platform
+  { x: 5250, y: 240, reached: false }, // Final
 ];

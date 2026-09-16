@@ -24,7 +24,23 @@ window.platforms = [
   // Long gap here — comfortable with a double jump
   { x: 2860, y: 170, width: 250, height: 20 },
 
-  { x: 3160, y: 120, width: 300, height: 20 }, // Final
+  { x: 3160, y: 120, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: first moving platform in the game ---
+  { x: 3590, y: 140, width: 200, height: 20 },
+  {
+    x: 3910,
+    y: 100,
+    width: 150,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 50,
+    moveSpeed: 0.02,
+  },
+  { x: 4180, y: 130, width: 200, height: 20 },
+  { x: 4520, y: 80, width: 250, height: 20 }, // breather
+
+  { x: 4890, y: 80, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
@@ -36,6 +52,7 @@ window.deadlyPlatforms = [
 window.spikes = [
   { x: 1400, y: 250, size: 30 },
   { x: 2640, y: 140, size: 30 },
+  { x: 4600, y: 80, size: 25 },
 ];
 
 window.checkpoints = [
@@ -43,5 +60,7 @@ window.checkpoints = [
   { x: 1050, y: 220, reached: false },
   { x: 1780, y: 170, reached: false },
   { x: 2560, y: 110, reached: false },
-  { x: 3300, y: 90, reached: false }, // Final
+  { x: 3300, y: 90, reached: false },
+  { x: 4230, y: 100, reached: false }, // after the moving platform
+  { x: 5040, y: 50, reached: false }, // Final
 ];

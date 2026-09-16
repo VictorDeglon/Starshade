@@ -24,23 +24,42 @@ window.platforms = [
   { x: 2600, y: 130, width: 70, height: 20 },
   { x: 2790, y: 160, width: 70, height: 20 },
 
-  { x: 3000, y: 160, width: 300, height: 20 }, // Final
+  { x: 3000, y: 160, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: a moving narrow pillar, then one more pillar pair ---
+  { x: 3430, y: 190, width: 200, height: 20 },
+  {
+    x: 3740,
+    y: 120,
+    width: 70,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 70,
+    moveSpeed: 0.025,
+  },
+  { x: 3910, y: 80, width: 70, height: 20 },
+  { x: 4110, y: 80, width: 250, height: 20 }, // breather
+
+  { x: 4500, y: 100, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
   { x: 1200, y: 500, width: 700, height: 20 },
   { x: 2100, y: 500, width: 700, height: 20 },
+  { x: 3650, y: 500, width: 700, height: 20 },
 ];
 
 window.spikes = [
   { x: 1000, y: 260, size: 25 },
   { x: 1900, y: 140, size: 25 },
+  { x: 4160, y: 80, size: 25 },
 ];
 
 window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1050, y: 230, reached: false },
   { x: 1950, y: 110, reached: false },
-  { x: 2900, y: 130, reached: false },
-  { x: 3150, y: 130, reached: false }, // Final
+  { x: 2820, y: 130, reached: false }, // On the pillar before the final approach
+  { x: 3945, y: 50, reached: false }, // after the moving pillar
+  { x: 4680, y: 70, reached: false }, // Final
 ];

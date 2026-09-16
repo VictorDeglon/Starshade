@@ -12,6 +12,11 @@
 // skin is equipped: 'square' | 'circle' | 'triangle' | 'image'. 'image'
 // skins also set `image` to an asset path and are drawn with drawImage()
 // clipped to a circle instead of a flat fill.
+//
+// `trail: true` makes game.js spawn a continuous particle trail behind
+// the player while moving/airborne (see spawnParticles() call sites).
+// `animated: true` is a hint for the shop UI (skins.css) to apply a CSS
+// animation to that skin's preview — it has no effect on gameplay.
 const STARSHADE_SKINS = [
   {
     id: "square-default",
@@ -96,6 +101,32 @@ const STARSHADE_SKINS = [
     stroke: "rgba(12, 46, 74, 0.9)",
   },
   {
+    id: "comet",
+    name: "Comet",
+    shape: "triangle",
+    unlockType: "coins",
+    cost: 2000,
+    trail: true,
+    preview:
+      "radial-gradient(circle at 35% 30%, #fff2e0, #ff9d3d 45%, #7a2f00 100%)",
+    glow: "rgba(255, 157, 61, 0.6)",
+    fill: "rgba(255, 157, 61, 0.85)",
+    stroke: "rgba(122, 47, 0, 0.9)",
+  },
+  {
+    id: "void-walker",
+    name: "Void Walker",
+    shape: "circle",
+    unlockType: "coins",
+    cost: 2500,
+    trail: true,
+    preview:
+      "radial-gradient(circle at 35% 30%, #cdeaff, #2a6f9e 45%, #041018 100%)",
+    glow: "rgba(42, 111, 158, 0.6)",
+    fill: "rgba(42, 111, 158, 0.85)",
+    stroke: "rgba(4, 16, 24, 0.9)",
+  },
+  {
     id: "shadow-stalker",
     name: "Shadow Stalker",
     shape: "circle",
@@ -113,6 +144,7 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "completion",
     achievement: 'Achievement: "Conqueror of Shadows"',
+    trail: true,
     preview:
       "radial-gradient(circle at 35% 30%, #6a2fa0, #1a0a2e 55%, #000000 100%)",
     glow: "rgba(106, 47, 160, 0.6)",
@@ -126,7 +158,23 @@ const STARSHADE_SKINS = [
     image: "assets/skins/EclipseSkin.png",
     unlockType: "completion",
     achievement: 'Achievement: "The End?"',
+    trail: true,
     glow: "rgba(160, 66, 211, 0.6)",
+    fill: "rgba(160, 66, 211, 0.7)",
+  },
+  {
+    id: "starshade-prime",
+    name: "Starshade Prime",
+    shape: "square",
+    unlockType: "completion",
+    achievement: 'Achievement: "True Ending"',
+    trail: true,
+    animated: true,
+    preview:
+      "conic-gradient(from 0deg, #a042d3, #ffcf4d, #4fb3e0, #e8542f, #a042d3)",
+    glow: "rgba(255, 255, 255, 0.7)",
+    fill: "rgba(230, 220, 255, 0.9)",
+    stroke: "rgba(160, 66, 211, 0.95)",
   },
 ];
 

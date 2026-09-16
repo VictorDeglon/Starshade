@@ -27,18 +27,36 @@ window.platforms = [
   { x: 3130, y: 320, width: 130, height: 20 },
   { x: 3370, y: 260, width: 130, height: 20 },
 
-  { x: 3650, y: 220, width: 300, height: 20 }, // Final
+  { x: 3650, y: 220, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: a vertical moving platform, then a second, steeper climb ---
+  { x: 4080, y: 250, width: 200, height: 20 },
+  {
+    x: 4400,
+    y: 180,
+    width: 150,
+    height: 20,
+    moveAxis: "y",
+    moveRange: 50,
+    moveSpeed: 0.025,
+  },
+  { x: 4680, y: 230, width: 200, height: 20 },
+  { x: 5030, y: 140, width: 250, height: 20 }, // breather before the steep climb
+
+  { x: 5410, y: 170, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
   // Sits directly under the staggered drop — overshoot a ledge and you
   // land here instead of the void.
   { x: 1700, y: 560, width: 500, height: 20 },
+  { x: 4200, y: 600, width: 700, height: 20 }, // catch-net under the new moving platform
 ];
 
 window.spikes = [
   { x: 1240, y: 160, size: 25 },
   { x: 3700, y: 220, size: 30 },
+  { x: 5100, y: 140, size: 25 },
 ];
 
 window.checkpoints = [
@@ -47,5 +65,6 @@ window.checkpoints = [
   { x: 2100, y: 470, reached: false }, // bottom of the fall
   { x: 2400, y: 470, reached: false },
   { x: 3420, y: 230, reached: false },
-  { x: 3800, y: 190, reached: false }, // Final
+  { x: 4475, y: 150, reached: false }, // after the moving platform
+  { x: 5580, y: 140, reached: false }, // Final
 ];

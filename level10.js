@@ -33,11 +33,28 @@ window.platforms = [
   { x: 3350, y: 180, width: 70, height: 20 },
   { x: 3530, y: 150, width: 70, height: 20 },
 
-  { x: 3700, y: 150, width: 300, height: 20 }, // Final
+  { x: 3700, y: 150, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: a moving platform, another decoy, and a third spike bed ---
+  { x: 4130, y: 180, width: 200, height: 20 },
+  {
+    x: 4450,
+    y: 110,
+    width: 150,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 80,
+    moveSpeed: 0.03,
+  },
+  { x: 4700, y: 150, width: 150, height: 20 },
+  { x: 5000, y: 180, width: 350, height: 20 }, // spike bed #3
+
+  { x: 5480, y: 220, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
   { x: 1030, y: 360, width: 100, height: 20 }, // decoy between the two real ledges
+  { x: 4830, y: 260, width: 100, height: 20 }, // decoy beneath the moving platform
 ];
 
 window.spikes = [
@@ -50,6 +67,11 @@ window.spikes = [
   { x: 2950, y: 220, size: 30 },
   { x: 3060, y: 220, size: 30 },
   { x: 3170, y: 220, size: 30 },
+
+  { x: 5020, y: 180, size: 30 },
+  { x: 5130, y: 180, size: 30 },
+  { x: 5240, y: 180, size: 30 },
+  { x: 5310, y: 180, size: 30 },
 ];
 
 window.checkpoints = [
@@ -58,5 +80,7 @@ window.checkpoints = [
   { x: 1800, y: 170, reached: false }, // top of the pillars
   { x: 2000, y: 170, reached: false },
   { x: 3400, y: 150, reached: false },
-  { x: 3850, y: 120, reached: false }, // Final
+  { x: 3850, y: 120, reached: false },
+  { x: 4525, y: 80, reached: false }, // after the moving platform
+  { x: 5650, y: 190, reached: false }, // Final
 ];

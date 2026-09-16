@@ -23,7 +23,23 @@ window.platforms = [
   { x: 2910, y: 180, width: 100, height: 20 },
   { x: 3140, y: 160, width: 100, height: 20 },
 
-  { x: 3450, y: 160, width: 300, height: 20 }, // Final
+  { x: 3450, y: 160, width: 300, height: 20 }, // was Final, now mid-level
+
+  // --- Act 2: a vertically-moving platform, plus more decoys ---
+  { x: 3880, y: 180, width: 200, height: 20 },
+  {
+    x: 4190,
+    y: 120,
+    width: 150,
+    height: 20,
+    moveAxis: "y",
+    moveRange: 40,
+    moveSpeed: 0.02,
+  },
+  { x: 4520, y: 160, width: 200, height: 20 },
+  { x: 4870, y: 110, width: 250, height: 20 }, // breather
+
+  { x: 5250, y: 110, width: 350, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
@@ -35,11 +51,13 @@ window.deadlyPlatforms = [
   { x: 2800, y: 220, width: 60, height: 20 },
   { x: 3030, y: 200, width: 60, height: 20 },
   { x: 3260, y: 180, width: 100, height: 20 },
+  { x: 4340, y: 260, width: 120, height: 20 }, // under the moving platform
 ];
 
 window.spikes = [
   { x: 2150, y: 220, size: 25 },
   { x: 3350, y: 160, size: 35 },
+  { x: 4950, y: 110, size: 25 },
 ];
 
 window.checkpoints = [
@@ -47,5 +65,6 @@ window.checkpoints = [
   { x: 900, y: 250, reached: false },
   { x: 2150, y: 190, reached: false },
   { x: 3180, y: 130, reached: false },
-  { x: 3600, y: 130, reached: false }, // Final
+  { x: 3980, y: 150, reached: false }, // before the moving platform
+  { x: 5400, y: 80, reached: false }, // Final
 ];

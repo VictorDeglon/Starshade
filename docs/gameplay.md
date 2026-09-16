@@ -75,54 +75,144 @@ solid collision, so the tunneling concern doesn't apply the same way.
   exact. Insetting the stroke keeps its outer edge exactly on the
   collision boundary.
 - Checkpoints idle-pulse (a slow sine wave on their radius) when unreached
-  and briefly "pop" larger the moment they're reached.
+  and briefly "pop" larger the moment they're reached. The **last**
+  checkpoint in every level is drawn as a spinning gold star instead of a
+  plain circle (`starPath()` in `game.js`) — green once reached — so the
+  actual goal reads as visually distinct from an ordinary checkpoint.
 - Missing a jump triggers a short screen shake (`shakeTime`/
-  `shakeMagnitude` in `draw()`) in addition to respawning at the last
-  checkpoint.
+  `shakeMagnitude` in `draw()`) plus a small particle burst, in addition
+  to respawning at the last checkpoint.
+- The player's shape and color come from whichever skin is equipped (see
+  [Skins & the coin economy](#skins--the-coin-economy) below), not a
+  hardcoded look.
+
+## Particles
+
+`spawnParticles(x, y, count, options)` in `game.js` adds plain objects to
+a `particles` array (gravity, velocity, a life counter), updated in
+`updateParticles()` and drawn in `drawParticles()`. It's used for:
+
+- **Jump dust** — a small puff under the player's feet on every jump and
+  double jump (`spawnJumpDust()`).
+- **Landing impact** — a slightly bigger burst the frame the player
+  actually lands (transitions from airborne to grounded), not on every
+  frame spent standing still.
+- **Death shatter** — a 20-particle burst in the equipped skin's color
+  plus white/red, in `resetPlayer()`.
+- **Checkpoint sparkle** — a green/white burst the moment any checkpoint
+  is reached.
+- **Skin trails** — skins that declare `trail: true` in `skinsData.js`
+  (Comet, Void Walker, Eclipse, Obsidian Wraith, Starshade Prime) spawn a
+  faint particle in their own fill color every frame the player is moving
+  or airborne, for a continuous motion trail.
+
+## Moving platforms
+
+A platform opts in with `moveAxis: 'x'|'y'`, `moveRange` (px of travel
+from its base position), and optionally `moveSpeed` (default `0.03`) and
+`movePhase`. `updateMovingPlatforms()` computes a sine-wave offset each
+frame (`platformX()`/`platformY()` read it back), and `resolveAxis()` uses
+that current position for collision instead of the platform's static
+`x`/`y`. When the player is grounded on a moving platform, `updatePlayer()`
+adds that frame's positional delta to the player too — without that step,
+standing still on a moving platform would mean sliding off the instant it
+moved, since collision resolution only ever stops relative penetration; it
+has no notion of "bring the resting object along." First appears in level
+2 (a slow, small-range platform used to introduce the mechanic safely) and
+recurs with increasing speed/range through the later levels — see the
+level table below.
 
 ## World objects (defined per-level in `levelN.js`)
 
 - **`platforms`** — solid rectangles, see collision section above.
+  Optionally moving (see above).
 - **`deadlyPlatforms`** — visually identical to platforms but drawn red;
-  kill on any overlap (`resetPlayer()`), no solid collision.
+  kill on any overlap (`resetPlayer()`), no solid collision, always
+  static.
 - **`spikes`** — drawn as a triangle (`{x, y, size}`, apex pointing up at
   `size` px above `y`); dying requires the player's bounding box to cross
   the triangle's actual slope, not just its bounding rectangle, so grazing
   a spike's outer corner is forgiving.
-- **`checkpoints`** — circles; touching one within 20px marks it
-  `reached: true` (turns green) and becomes the respawn point after death.
-  Reaching the **last** checkpoint in a level triggers a 1-second
-  fade-to-black, then advances to the next level (see
-  [architecture.md](architecture.md) for how that reload/advance works).
+- **`checkpoints`** — circles (the last one a star, see above); touching
+  one within 20px marks it `reached: true` and becomes the respawn point
+  after death. Reaching the **last** checkpoint in a level triggers the
+  fade-out/advance sequence below.
 - Falling below the bottom of the canvas also triggers `resetPlayer()`.
 
 `resetPlayer()` returns the player to the most recently reached checkpoint
-(or the level start, `(100, 300)`, if none reached yet).
+(or the level start, `(100, 300)`, if none reached yet). Every checkpoint
+in every level is verified safe by `.claude/audit-checkpoints.js` (see
+[known-issues.md](known-issues.md)) — the respawn point can't overlap a
+hazard or drop the player into an unbroken fall, which is what an
+"eternal death loop" would actually be: a checkpoint that just kills you
+again the instant you respawn, forever.
 
-## Level text & fade overlay
+## Level text & the fade-out/fade-in transition
 
 `levelText` (e.g. `"Level 1"`) fades out over ~1 second starting 1 second
-after the level loads (`updateLevelText()`). The fade-to-black between
-levels is a simple full-canvas `rgba(0,0,0,alpha)` rectangle whose alpha
-ramps up by `0.016`/frame (~1 second at 60fps) before the level-advance
-callback fires.
+after the level loads (`updateLevelText()`). Reaching a level's final
+checkpoint starts a full-canvas fade to black (`drawFadeOverlay()`,
+`fadeDirection = 1`), which — once fully black — calls
+`advanceToNextLevel()` to load the next level **in-page** (no
+`location.reload()`; see [architecture.md](architecture.md)), then fades
+back in (`fadeDirection = -1`) once it's ready. Gameplay updates are
+paused for the whole black period so nothing moves behind the curtain.
+Because there's no reload, the same `Audio` element (and `AudioContext`)
+keeps playing across every level change — the music never restarts or
+cuts out.
 
-## The 12 levels
+## Pause menu
 
-| # | Name | Theme |
-|---|---|---|
-| 1 | Level 1 | Introductory — platforms, a couple of spikes, one deadly-platform gauntlet late on |
-| 2 | Level 2 | Staggered climb, a "risky run," floating islands with dense spikes |
-| 3 | Nebula Steps | Tighter gaps, first narrow stepping-stone section |
-| 4 | Ashfall Ruins | Safe platforms interleaved with same-height deadly decoys |
-| 5 | Spike Gardens | Long ground-level spike beds; first gap sized for a double jump |
-| 6 | The Long Fall | A climb, then a staggered multi-stage drop, then a climb back up |
-| 7 | Twin Pillars | Narrow (60-70px) pillar-top platforms, a couple of double-jump gaps |
-| 8 | Void Bridge | Small stepping platforms over open void, mostly flat/descending gaps |
-| 9 | Ember Labyrinth | Zig-zagging path with deadly "wrong turn" decoys at direction changes |
-| 10 | Starfall Gauntlet | Combines the previous hazard types into one longer run |
-| 11 | The Ascent | Sustained double-jump chaining up a long staircase |
-| 12 | Starshade's Reach | Finale — every hazard type, tightest margins in the game |
+`Escape` toggles `isPaused` (`setPaused()` in `game.js`), which freezes
+`updatePlayer()`/`updateLevelText()`/particles but keeps `draw()` running
+so the current frame stays visible (blurred) behind the pause overlay.
+Disabled during a level transition or once the game-complete screen is up,
+so it can't get gameplay state stuck mid-fade.
+
+## Skins & the coin economy
+
+`skinsData.js` (loaded by both `game.html` and `skins.html`, so the shop
+and the in-game renderer never drift apart) defines `STARSHADE_SKINS` and
+a `StarshadeEconomy` object backed by `localStorage`:
+
+- **Coins**: 75 for a level's first-ever completion (replaying an
+  already-completed level doesn't pay out again), plus a 1000 bonus for
+  beating all 12.
+- **Skins** unlock three ways: `free` (the starting square), `coins`
+  (buy once you can afford it), or `completion` (beat the game once).
+  Each declares a `shape` — `square`/`circle`/`triangle`/`image` — that
+  `drawPlayer()` actually renders in-game, not just a shop preview.
+- **Shop** (`skins.html`/`skins.js`): a carousel showing lock state, cost
+  or achievement text, and a Buy/Equip/Equipped/Locked button per skin,
+  plus the current coin balance.
+
+## The 12 levels — a deliberate difficulty curve
+
+Levels 1-2 are intentionally the easiest in the game (single-jump gaps
+only, sparse hazards, no moving platforms in level 1) — they used to be
+harder than several of the levels that followed, which was backwards, so
+they were rebuilt as a gentle on-ramp. From level 3 on, difficulty climbs
+steadily: moving platforms appear with increasing speed/range, hazard
+density rises, and double-jump-required gaps become more frequent, up to
+level 12's finale (two fast moving platforms back to back, the densest
+hazards, tightest margins). Every level also got a length pass — most
+roughly doubled — via a consistent "Act 2" extension appended after the
+original level's endpoint (see the length column).
+
+| # | Name | Length | Moving platforms | Theme |
+|---|---|---|---|---|
+| 1 | First Light | 4420px | 0 | Tutorial — gentle single-jump gaps, minimal hazards |
+| 2 | Steady Climb | 4210px | 1 (slow) | First moving platform, introduced safely with a checkpoint right before it |
+| 3 | Nebula Steps | 5240px | 1 | Tighter gaps, narrow stepping-stones, the game's first double-jump-only gap |
+| 4 | Ashfall Ruins | 5600px | 1 (vertical) | Safe platforms interleaved with same-height deadly decoys |
+| 5 | Spike Gardens | 6440px | 1 | Long ground-level spike beds; a second wide double-jump gap |
+| 6 | The Long Fall | 5760px | 1 (vertical) | A climb, a staggered multi-stage drop, then a second, steeper climb |
+| 7 | Twin Pillars | 4850px | 1 (moving pillar) | Narrow (60-70px) pillar-top platforms |
+| 8 | Void Bridge | 5200px | 1 | Small stepping platforms over open void; the level's widest gap yet |
+| 9 | Ember Labyrinth | 5430px | 1 (vertical) | Zig-zagging path with deadly "wrong turn" decoys |
+| 10 | Starfall Gauntlet | 5830px | 1 | Combines every earlier hazard type into one longer run |
+| 11 | The Ascent | 4900px | 1 (moving pillar) | Sustained double-jump/precision chaining at altitude |
+| 12 | Starshade's Reach | 6830px | 2 (fast) | Finale — every hazard type, the hardest margins in the game |
 
 Reaching level 12's final checkpoint (there's no `level13.js`) triggers the
 "You beat Starshade!" screen instead of trying to load a level that doesn't
@@ -132,12 +222,26 @@ exist — see
 ## Adding a level
 
 Create `level13.js` following the pattern in the existing files — it must
-declare exactly `platforms`, `deadlyPlatforms`, `spikes`, `checkpoints`,
-and `levelText` as top-level bindings. Keep every `y` value within the
-visible band described above (no vertical scroll!), and if you add a gap
-that requires climbing while jumping, sanity-check it against the ~235px
-(single jump) / ~465px (jump + double jump) horizontal limits noted above
-rather than eyeballing it — a couple of the simulation snippets used to
-verify these levels are straightforward to rerun in a browser console
-against `game.js`'s actual `gravity`/`jumpStrength`/`horizontalSpeed`
-constants.
+assign `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
+`window.checkpoints`, and `window.levelText` (plain property assignment,
+not `const`/`let` — see [architecture.md](architecture.md) for why that
+distinction matters). Keep every `y` value within the visible band
+described above (no vertical scroll!).
+
+Then run both audit scripts from the project root — they're the actual
+mechanism used to design and verify every level above, not just a
+suggestion:
+
+```bash
+node .claude/audit-gaps.js         # flags any horizontal gap+climb that's
+                                    # impossible even with a double jump
+node .claude/audit-checkpoints.js  # flags any checkpoint whose respawn
+                                    # point overlaps a hazard, or never
+                                    # lands on solid ground at all — i.e.
+                                    # an eternal death loop
+```
+
+Both simulate the real per-frame physics (`gravity`/`jumpStrength`/
+`horizontalSpeed`) and the real `resetPlayer()` respawn logic rather than
+eyeballing pixel distances — every gap and every checkpoint in the current
+12 levels passes both.

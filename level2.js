@@ -1,69 +1,54 @@
-// Level 2 Data
+// Level 2 Data — "Steady Climb"
+// Still easy, but introduces two things for the first time: a gentle
+// moving platform (small range, slow), and a short stretch of narrower
+// footing. Both are safe to fail — checkpoints sit right before each.
 
-window.levelText = "Level 2"; // The text to display
+window.levelText = "Level 2";
 
-// Platforms (taller climbs, spaced jumps, moving-style layouts)
 window.platforms = [
-  // Starting ground
-  { x: 50, y: 500, width: 300, height: 20 },
-  { x: 400, y: 450, width: 150, height: 20 },
+  { x: 50, y: 460, width: 300, height: 20 }, // Start
 
-  // Staggered climb
-  { x: 650, y: 400, width: 150, height: 20 },
-  { x: 850, y: 350, width: 150, height: 20 },
-  { x: 1050, y: 300, width: 150, height: 20 },
+  { x: 430, y: 420, width: 180, height: 20 },
+  { x: 700, y: 380, width: 180, height: 20 },
+  { x: 970, y: 340, width: 180, height: 20 },
 
-  // Long risky run
-  { x: 1350, y: 250, width: 400, height: 20 },
+  { x: 1250, y: 340, width: 280, height: 20 }, // breather 1
 
-  // Floating islands
-  { x: 1900, y: 400, width: 120, height: 20 },
-  { x: 2100, y: 350, width: 120, height: 20 },
-  { x: 2300, y: 300, width: 120, height: 20 },
-  { x: 2500, y: 250, width: 120, height: 20 },
+  // First moving platform — small, slow, easy to read and time.
+  {
+    x: 1650,
+    y: 320,
+    width: 160,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 50,
+    moveSpeed: 0.018,
+  },
 
-  // Final stretch
-  { x: 2800, y: 200, width: 300, height: 20 },
-  { x: 3200, y: 150, width: 400, height: 20 },
+  { x: 1980, y: 300, width: 220, height: 20 },
+
+  { x: 2300, y: 260, width: 150, height: 20 },
+  { x: 2560, y: 260, width: 150, height: 20 },
+
+  { x: 2870, y: 260, width: 300, height: 20 }, // breather 2
+
+  { x: 3270, y: 220, width: 180, height: 20 },
+  { x: 3560, y: 180, width: 180, height: 20 },
+
+  { x: 3860, y: 180, width: 350, height: 20 }, // Final
 ];
 
-// Deadly red kill platforms (placed where it hurts)
-window.deadlyPlatforms = [
-  { x: 1500, y: 230, width: 150, height: 20 },
-  { x: 2600, y: 230, width: 120, height: 20 },
-  { x: 3350, y: 130, width: 150, height: 20 },
-];
+window.deadlyPlatforms = [{ x: 1140, y: 420, width: 90, height: 20 }];
 
-// Spikes (small traps + big spike walls)
 window.spikes = [
-  // Early bait spikes
-  { x: 500, y: 448, size: 30 },
-  { x: 700, y: 398, size: 30 },
-
-  // Mid section spike traps
-  { x: 1150, y: 280, size: 40 },
-  { x: 1400, y: 230, size: 30 },
-  { x: 1600, y: 230, size: 30 },
-
-  // Floating islands — precision spike hell
-  { x: 1950, y: 380, size: 25 },
-  { x: 2150, y: 330, size: 25 },
-  { x: 2350, y: 280, size: 25 },
-
-  // Final gauntlet
-  { x: 2850, y: 180, size: 35 },
-  { x: 3000, y: 180, size: 35 },
-  { x: 3450, y: 130, size: 50 },
+  { x: 830, y: 380, size: 25 },
+  { x: 2140, y: 300, size: 25 },
+  { x: 3420, y: 220, size: 25 },
 ];
 
-// Checkpoints
-// Added two mid-points — the gaps between the original 3 checkpoints
-// (1250px, then 1800px through the floating islands' spike gauntlet) were
-// long enough that one death near the end meant redoing a lot of the level.
 window.checkpoints = [
-  { x: 200, y: 470, reached: false }, // Start
-  { x: 1150, y: 270, reached: false }, // Top of the staggered climb
-  { x: 1450, y: 210, reached: false }, // Mid-point before the hell run
-  { x: 2300, y: 270, reached: false }, // Mid floating islands
-  { x: 3250, y: 120, reached: false }, // Near the finish
+  { x: 150, y: 430, reached: false },
+  { x: 1300, y: 310, reached: false }, // before the moving platform
+  { x: 2920, y: 230, reached: false },
+  { x: 3960, y: 150, reached: false }, // Final
 ];
