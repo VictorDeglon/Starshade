@@ -1,9 +1,9 @@
 // Level 2 Data
 
-let levelText = "Level 2"; // The text to display
+window.levelText = "Level 2"; // The text to display
 
 // Platforms (taller climbs, spaced jumps, moving-style layouts)
-const platforms = [
+window.platforms = [
   // Starting ground
   { x: 50, y: 500, width: 300, height: 20 },
   { x: 400, y: 450, width: 150, height: 20 },
@@ -28,14 +28,14 @@ const platforms = [
 ];
 
 // Deadly red kill platforms (placed where it hurts)
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 1500, y: 230, width: 150, height: 20 },
   { x: 2600, y: 230, width: 120, height: 20 },
   { x: 3350, y: 130, width: 150, height: 20 },
 ];
 
 // Spikes (small traps + big spike walls)
-const spikes = [
+window.spikes = [
   // Early bait spikes
   { x: 500, y: 448, size: 30 },
   { x: 700, y: 398, size: 30 },
@@ -60,7 +60,7 @@ const spikes = [
 // Added two mid-points — the gaps between the original 3 checkpoints
 // (1250px, then 1800px through the floating islands' spike gauntlet) were
 // long enough that one death near the end meant redoing a lot of the level.
-const checkpoints = [
+window.checkpoints = [
   { x: 200, y: 470, reached: false }, // Start
   { x: 1150, y: 270, reached: false }, // Top of the staggered climb
   { x: 1450, y: 210, reached: false }, // Mid-point before the hell run

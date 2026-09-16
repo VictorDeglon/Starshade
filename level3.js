@@ -2,9 +2,9 @@
 // Tighter gaps than levels 1-2, a first stretch of narrow stepping-stone
 // platforms, and one gap near the end long enough to want a double jump.
 
-let levelText = "Level 3";
+window.levelText = "Level 3";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 400, y: 350, width: 150, height: 20 },
@@ -27,18 +27,18 @@ const platforms = [
   { x: 3160, y: 120, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   // Danger strip beneath the stepping stones — mistiming a jump there
   // drops you onto this instead of falling all the way to the void.
   { x: 1930, y: 320, width: 480, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 1400, y: 250, size: 30 },
   { x: 2640, y: 140, size: 30 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1050, y: 220, reached: false },
   { x: 1780, y: 170, reached: false },

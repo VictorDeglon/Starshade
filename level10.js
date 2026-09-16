@@ -2,9 +2,9 @@
 // Everything so far in one longer run: spike beds, deadly decoys, narrow
 // pillars, and a couple of double-jump-only gaps, roughly in that order.
 
-let levelText = "Level 10";
+window.levelText = "Level 10";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   // Spike bed
@@ -36,11 +36,11 @@ const platforms = [
   { x: 3700, y: 150, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 1030, y: 360, width: 100, height: 20 }, // decoy between the two real ledges
 ];
 
-const spikes = [
+window.spikes = [
   { x: 450, y: 400, size: 30 },
   { x: 560, y: 400, size: 30 },
   { x: 670, y: 400, size: 30 },
@@ -52,7 +52,7 @@ const spikes = [
   { x: 3170, y: 220, size: 30 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1210, y: 290, reached: false }, // right after the decoy stretch
   { x: 1800, y: 170, reached: false }, // top of the pillars

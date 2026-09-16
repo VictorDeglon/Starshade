@@ -4,9 +4,9 @@
 // checkpoint here (there is no level13.js) shows the "You beat
 // Starshade!" screen — see game.js's loadLevel().catch().
 
-let levelText = "Level 12";
+window.levelText = "Level 12";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   // Spike bed
@@ -36,14 +36,14 @@ const platforms = [
   { x: 4400, y: 160, width: 350, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 980, y: 360, width: 90, height: 20 },
   { x: 1250, y: 320, width: 90, height: 20 },
   { x: 3970, y: 200, width: 90, height: 20 },
   { x: 900, y: 600, width: 3800, height: 20 }, // catch-net under the whole gauntlet
 ];
 
-const spikes = [
+window.spikes = [
   { x: 450, y: 400, size: 30 },
   { x: 560, y: 400, size: 30 },
   { x: 670, y: 400, size: 30 },
@@ -56,7 +56,7 @@ const spikes = [
   { x: 4120, y: 200, size: 35 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1650, y: 250, reached: false }, // after the decoy stretch
   { x: 2570, y: 110, reached: false }, // after the pillars

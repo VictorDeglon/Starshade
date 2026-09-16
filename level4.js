@@ -3,9 +3,9 @@
 // heights — they're always visually distinct, so this is a test of
 // paying attention under time pressure, not a memory puzzle.
 
-let levelText = "Level 4";
+window.levelText = "Level 4";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 380, y: 360, width: 120, height: 20 },
@@ -26,7 +26,7 @@ const platforms = [
   { x: 3450, y: 160, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 1000, y: 300, width: 100, height: 20 }, // decoy between 860 and 1150
   { x: 1320, y: 300, width: 100, height: 20 }, // decoy between 1150 and 1470
   { x: 1610, y: 280, width: 100, height: 20 }, // decoy between 1470 and 1750
@@ -37,12 +37,12 @@ const deadlyPlatforms = [
   { x: 3260, y: 180, width: 100, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 2150, y: 220, size: 25 },
   { x: 3350, y: 160, size: 35 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 900, y: 250, reached: false },
   { x: 2150, y: 190, reached: false },

@@ -3,9 +3,9 @@
 // the void below — most gaps are flat or gently descending (easier to
 // clear with a long jump), but a few climb and need the double jump.
 
-let levelText = "Level 8";
+window.levelText = "Level 8";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 480, y: 400, width: 100, height: 20 }, // flat, wide gap
@@ -21,14 +21,14 @@ const platforms = [
   { x: 3280, y: 260, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [];
+window.deadlyPlatforms = [];
 
-const spikes = [
+window.spikes = [
   { x: 1730, y: 380, size: 25 },
   { x: 2930, y: 300, size: 25 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1330, y: 410, reached: false },
   { x: 1780, y: 350, reached: false },

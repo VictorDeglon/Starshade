@@ -4,9 +4,9 @@
 // only fall damage in this game is falling off the bottom of the world),
 // so this level is about aiming your fall, not avoiding it.
 
-let levelText = "Level 6";
+window.levelText = "Level 6";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 380, y: 340, width: 150, height: 20 },
@@ -30,18 +30,18 @@ const platforms = [
   { x: 3650, y: 220, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   // Sits directly under the staggered drop — overshoot a ledge and you
   // land here instead of the void.
   { x: 1700, y: 560, width: 500, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 1240, y: 160, size: 25 },
   { x: 3700, y: 220, size: 30 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1290, y: 130, reached: false }, // top of the climb
   { x: 2100, y: 470, reached: false }, // bottom of the fall

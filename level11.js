@@ -9,9 +9,9 @@
 // smaller windows. This level is "tall" in feel (lots of double-jump
 // chaining) but not in absolute pixels.
 
-let levelText = "Level 11";
+window.levelText = "Level 11";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 500, width: 250, height: 20 }, // Start
 
   { x: 380, y: 460, width: 100, height: 20 },
@@ -33,17 +33,17 @@ const platforms = [
   { x: 3000, y: 100, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 900, y: 560, width: 2200, height: 20 }, // catch-net far below the whole climb
 ];
 
-const spikes = [
+window.spikes = [
   { x: 1000, y: 380, size: 25 },
   { x: 1980, y: 220, size: 25 },
   { x: 2980, y: 100, size: 25 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 470, reached: false },
   { x: 1150, y: 350, reached: false }, // breather 1
   { x: 2100, y: 190, reached: false }, // breather 2

@@ -18,21 +18,29 @@
     <!-- Fading Level Text -->
     <div id="levelText" class="fading-text"></div>
 
+    <!-- Coin-earned toast -->
+    <div id="coinToast" class="coin-toast"></div>
+
     <!-- Shown when there is no next level to load -->
     <div id="gameCompleteMenu" class="menu hidden">
       <h1>You beat Starshade!</h1>
+      <p id="gameCompleteCoins"></p>
       <button id="game-complete-menu-button">Back to Main Menu</button>
     </div>
 
+    <script src="skinsData.js"></script>
     <!--
       Level scripts are NOT included here directly. Each levelN.js file
-      declares top-level `const`/`let` bindings (platforms, checkpoints,
-      levelText, etc.) with the SAME names — script tags in an HTML page
-      share one global lexical scope, so loading two of them side by side
-      throws "Identifier has already been declared" and silently breaks
-      the second level's data. game.js's loadLevel() instead injects
-      exactly one levelN.js <script> at a time, swapping it out as the
-      player progresses.
+      assigns its data to `window.platforms`, `window.checkpoints`, etc.
+      (plain property assignment, not `const`/`let`) specifically so that
+      loadLevel() in game.js can swap in a new levelN.js <script> tag
+      in-page, as many times as needed, without ever reloading the whole
+      page. A `const`/`let` re-declared by a second <script> tag in the
+      same document throws — see docs/architecture.md — but re-assigning
+      `window.foo` is just a normal property write and can happen any
+      number of times. This is what lets level transitions keep the same
+      Audio element (and AudioContext) playing across levels instead of
+      the page reload silently cutting the music.
     -->
     <script src="game.js"></script>
   </body>

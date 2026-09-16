@@ -3,9 +3,9 @@
 // them rather than around them — the first level where a gap is wide
 // enough that it wants the double jump, not just a well-timed single one.
 
-let levelText = "Level 5";
+window.levelText = "Level 5";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 380, y: 400, width: 500, height: 20 }, // long ground strip #1 (spike bed)
@@ -22,9 +22,9 @@ const platforms = [
   { x: 3600, y: 220, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [];
+window.deadlyPlatforms = [];
 
-const spikes = [
+window.spikes = [
   { x: 450, y: 400, size: 30 },
   { x: 560, y: 400, size: 30 },
   { x: 670, y: 400, size: 30 },
@@ -42,7 +42,7 @@ const spikes = [
   { x: 3460, y: 260, size: 30 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1650, y: 320, reached: false },
   { x: 2050, y: 270, reached: false },

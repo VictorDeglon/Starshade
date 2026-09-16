@@ -2,9 +2,9 @@
 // Narrow pillar-top platforms (as little as 60px wide) with a few gaps
 // large enough, combined with the height gained, to need a double jump.
 
-let levelText = "Level 7";
+window.levelText = "Level 7";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 380, y: 360, width: 70, height: 20 },
@@ -27,17 +27,17 @@ const platforms = [
   { x: 3000, y: 160, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 1200, y: 500, width: 700, height: 20 },
   { x: 2100, y: 500, width: 700, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 1000, y: 260, size: 25 },
   { x: 1900, y: 140, size: 25 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1050, y: 230, reached: false },
   { x: 1950, y: 110, reached: false },

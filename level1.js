@@ -1,9 +1,9 @@
 // Level 1 Data
 
-let levelText = "Level 1"; // The text to display
+window.levelText = "Level 1"; // The text to display
 
 // Platforms and spikes setup
-const platforms = [
+window.platforms = [
   { x: 65, y: 400, width: 250, height: 20 },
   { x: 400, y: 350, width: 200, height: 20 },
   { x: 700, y: 300, width: 250, height: 20 },
@@ -29,14 +29,14 @@ const platforms = [
   { x: 5000, y: 250, width: 300, height: 20 },
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 3600, y: 375, width: 75, height: 20 },
   { x: 4000, y: 325, width: 75, height: 20 },
   { x: 4400, y: 275, width: 75, height: 20 },
   { x: 4800, y: 225, width: 75, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 650, y: 380, size: 30 },
   { x: 1000, y: 250, size: 30 },
   { x: 2001, y: 299, size: 20 },
@@ -52,7 +52,7 @@ const spikes = [
 // that whole stretch was dead space you could never "finish" from. Added
 // checkpoints at 1600 and 3400 for pacing, and a real final one on the
 // last platform so reaching the end of the level actually completes it.
-const checkpoints = [
+window.checkpoints = [
   { x: 200, y: 370, reached: false },
   { x: 875, y: 240, reached: false },
   { x: 1600, y: 470, reached: false },

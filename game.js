@@ -24,9 +24,11 @@ let squashX = 1;
 let squashY = 1;
 let wasGrounded = false;
 
-//Fade Settings
+// Fade settings — direction 1 = fading to black, -1 = fading back in,
+// 0 = pinned at full black waiting for the next level to finish loading.
 let isFading = false;
 let fadeOpacity = 0;
+let fadeDirection = 1;
 let fadeCallback = null;
 
 // Audio
@@ -54,11 +56,14 @@ document.addEventListener("keydown", startAudioOnInteraction);
 let textOpacity = 1;
 let textFadeStartTime = null;
 
-// Set current level from saved data if it exists, otherwise start at 1
-let currentLevel = parseInt(localStorage.getItem("savedLevel")) || 1;
-localStorage.removeItem("savedLevel"); // optional: clear after loading
+// Set current level from saved data if it exists, otherwise start at 1.
+// Unlike the old reload-based flow, this is now only a "resume after a
+// manual browser refresh" convenience — normal level-to-level progress
+// happens in-page via advanceToNextLevel() and never touches this read.
+let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
 
-// Player setup
+// Player setup — shape/color now comes from the equipped skin (see
+// drawPlayer()), so there's nothing skin-related to set up here.
 const player = {
   x: 100,
   y: 300,
@@ -66,10 +71,7 @@ const player = {
   height: 25,
   dx: 0,
   dy: 0,
-  color: ctx.createLinearGradient(15, 15, 30, 30),
 };
-player.color.addColorStop(1, "rgba(160, 66, 211, 0.79)");
-player.color.addColorStop(0, "rgba(79, 0, 128, 0.81)");
 
 // Controls
 const keys = {};
@@ -91,14 +93,23 @@ function loadLevel(levelNumber) {
     window.levelText = "";
 
     const script = document.createElement("script");
-    script.src = `level${levelNumber}.js`;
+    // Cache-busted: level files just changed from `const`/`let` to
+    // `window.x = ...` assignments (see the comment in game.html) so that
+    // levels can be swapped in-page without a reload. A browser that had
+    // already cached an old copy of this exact URL under the previous
+    // format would hit the very SyntaxError that change was meant to fix
+    // the moment a second level loads — the query string forces a fresh
+    // fetch instead of serving that stale, incompatible copy.
+    script.src = `level${levelNumber}.js?v=2`;
     script.id = "activeLevelScript";
     script.onload = () => {
       resetLevelState();
       resolve();
     };
-    script.onerror = () =>
+    script.onerror = () => {
+      script.remove();
       reject(new Error(`Failed to load level${levelNumber}.js`));
+    };
     document.body.appendChild(script);
   });
 }
@@ -110,36 +121,160 @@ function resetLevelState() {
   player.y = 300;
   player.dx = 0;
   player.dy = 0;
+  doubleJumpUsed = false;
+  wasGrounded = false;
+  squashX = 1;
+  squashY = 1;
+  shakeTime = 0;
+  // Snap (don't smoothly lerp) the camera to the new level's start — this
+  // runs while the screen is fully black mid-transition, so a lerp would
+  // just be wasted motion nobody sees, and skipping it means the fade-in
+  // never has to "catch up" to the player.
+  cameraOffsetX = player.x - canvas.width / 2;
 
   if (typeof checkpoints !== "undefined") {
     checkpoints.forEach((c) => (c.reached = false));
   }
 }
 
+function advanceToNextLevel() {
+  const coinsEarned = StarshadeEconomy.markLevelCompleted(currentLevel);
+  if (coinsEarned > 0) showCoinToast(`+${coinsEarned} Coins`);
+
+  currentLevel++;
+  localStorage.setItem("savedLevel", String(currentLevel));
+
+  return loadLevel(currentLevel).catch(() => {
+    // No levelN.js exists for this number — the player has finished the
+    // last level.
+    const bonus = StarshadeEconomy.setGameCompleted();
+    showGameCompleteScreen(bonus);
+    // So the next "Play" from the main menu starts a fresh run instead of
+    // immediately hitting this same "no next level" case forever.
+    localStorage.setItem("savedLevel", "1");
+    isFading = false;
+  });
+}
+
+function showGameCompleteScreen(bonus) {
+  const totalCoins = StarshadeEconomy.getCoins();
+  document.getElementById("gameCompleteCoins").textContent =
+    bonus > 0
+      ? `+${bonus} bonus coins — ${totalCoins} total`
+      : `${totalCoins} coins`;
+  document.getElementById("gameCompleteMenu").classList.remove("hidden");
+}
+
+document
+  .getElementById("game-complete-menu-button")
+  .addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+
+// -------------------------------------------------------------
+// COIN TOAST
+// -------------------------------------------------------------
+let coinToastTimeout = null;
+function showCoinToast(text) {
+  const toast = document.getElementById("coinToast");
+  toast.textContent = text;
+  toast.classList.add("show");
+  clearTimeout(coinToastTimeout);
+  coinToastTimeout = setTimeout(() => toast.classList.remove("show"), 2500);
+}
+
+// -------------------------------------------------------------
+// SKIN RENDERING
+// -------------------------------------------------------------
+const skinImageCache = {};
+function getSkinImage(src) {
+  if (!skinImageCache[src]) {
+    const img = new Image();
+    img.src = src;
+    skinImageCache[src] = img;
+  }
+  return skinImageCache[src];
+}
+
 // -------------------------------------------------------------
 // DRAWING
 // -------------------------------------------------------------
 function drawPlayer() {
+  const skin = StarshadeEconomy.getEquippedSkin();
+  const halfW = player.width / 2;
+  const halfH = player.height / 2;
+  const lineWidth = 3;
+
   ctx.save();
   ctx.translate(player.x - cameraOffsetX, player.y);
   ctx.scale(squashX, squashY);
-  ctx.fillStyle = player.color;
-  ctx.strokeStyle = "rgba(93, 26, 145, 0.85)";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.rect(-player.width / 2, -player.height / 2, player.width, player.height);
-  ctx.fill();
-  // Inset the stroke so its outer edge lands exactly on the collision
-  // boundary instead of straddling it — a centered stroke used to draw
-  // ~1.5px outside the fill, making the player look like it overlapped
-  // whatever it was standing on/against by a couple of pixels.
-  ctx.strokeRect(
-    -player.width / 2 + ctx.lineWidth / 2,
-    -player.height / 2 + ctx.lineWidth / 2,
-    player.width - ctx.lineWidth,
-    player.height - ctx.lineWidth
-  );
+
+  if (skin.shape === "image" && skin.image) {
+    drawImageSkin(skin, halfW, lineWidth);
+    ctx.restore();
+    return;
+  }
+
+  ctx.fillStyle = skin.fill;
+  ctx.strokeStyle = skin.stroke;
+  ctx.lineWidth = lineWidth;
+
+  // Every shape is drawn slightly inset from the collision box's true
+  // extents so a centered stroke's outer edge lands exactly on the
+  // collision boundary instead of sticking out past it (see
+  // docs/known-issues.md #4 for why that matters).
+  if (skin.shape === "circle") {
+    ctx.beginPath();
+    ctx.arc(0, 0, halfW - lineWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (skin.shape === "triangle") {
+    const inset = (halfW - lineWidth / 2) / halfW;
+    ctx.beginPath();
+    ctx.moveTo(0, -halfH * inset);
+    ctx.lineTo(halfW * inset, halfH * inset);
+    ctx.lineTo(-halfW * inset, halfH * inset);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.rect(-halfW, -halfH, player.width, player.height);
+    ctx.fill();
+    ctx.strokeRect(
+      -halfW + lineWidth / 2,
+      -halfH + lineWidth / 2,
+      player.width - lineWidth,
+      player.height - lineWidth
+    );
+  }
+
   ctx.restore();
+}
+
+function drawImageSkin(skin, halfW, lineWidth) {
+  const img = getSkinImage(skin.image);
+  const r = halfW - lineWidth / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  if (img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, -r, -r, r * 2, r * 2);
+  } else {
+    // Image hasn't loaded yet — fall back to the default look for now.
+    ctx.fillStyle = "rgba(160, 66, 211, 0.79)";
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+  }
+  ctx.restore();
+
+  ctx.strokeStyle = skin.glow || "rgba(160, 66, 211, 0.85)";
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
@@ -244,22 +379,36 @@ function drawLevelText() {
 }
 
 // -------------------------------------------------------------
-// FADE-TO-BLACK OVERLAY
+// FADE-TO-BLACK / FADE-BACK-IN OVERLAY
 // -------------------------------------------------------------
 function drawFadeOverlay() {
-  if (isFading) {
-    fadeOpacity += 0.016; // ~1 second fade at 60fps
+  if (!isFading) return;
+
+  if (fadeDirection === 1) {
+    fadeOpacity += 0.02;
     if (fadeOpacity >= 1) {
       fadeOpacity = 1;
-      isFading = false;
-      if (fadeCallback) {
-        fadeCallback();
-        fadeCallback = null;
+      fadeDirection = 0; // pinned at black until the next level finishes loading
+      const cb = fadeCallback;
+      fadeCallback = null;
+      if (cb) {
+        Promise.resolve(cb()).then(() => {
+          fadeDirection = -1;
+        });
+      } else {
+        fadeDirection = -1;
       }
     }
-    ctx.fillStyle = `rgba(0, 0, 0, ${fadeOpacity})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (fadeDirection === -1) {
+    fadeOpacity -= 0.02;
+    if (fadeOpacity <= 0) {
+      fadeOpacity = 0;
+      isFading = false;
+    }
   }
+
+  ctx.fillStyle = `rgba(0, 0, 0, ${fadeOpacity})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 // -------------------------------------------------------------
@@ -369,11 +518,8 @@ function updatePlayer() {
       if (index === checkpoints.length - 1 && !isFading) {
         isFading = true;
         fadeOpacity = 0;
-        fadeCallback = () => {
-          const nextLevel = currentLevel + 1;
-          localStorage.setItem("savedLevel", nextLevel);
-          window.location.reload();
-        };
+        fadeDirection = 1;
+        fadeCallback = advanceToNextLevel;
       }
     }
   });
@@ -448,8 +594,14 @@ function resetPlayer() {
 // GAME LOOP
 // -------------------------------------------------------------
 function update() {
-  updatePlayer();
-  updateLevelText();
+  // While pinned at black between levels (fadeDirection === 0) or actively
+  // fading, the outgoing level's platforms/checkpoints/etc. may already
+  // have been cleared by loadLevel() — skip gameplay updates and just let
+  // the overlay run until the new level is ready.
+  if (!isFading || fadeDirection === -1) {
+    updatePlayer();
+    updateLevelText();
+  }
   draw();
 }
 
@@ -464,12 +616,14 @@ function draw() {
     );
   }
 
-  drawPlatforms();
-  drawSpikes();
-  drawCheckpoints();
-  drawPlayer();
-  drawLevelText();
-  drawDeadlyPlatforms();
+  if (typeof platforms !== "undefined") {
+    drawPlatforms();
+    drawSpikes();
+    drawCheckpoints();
+    drawPlayer();
+    drawLevelText();
+    drawDeadlyPlatforms();
+  }
 
   ctx.restore();
   drawFadeOverlay(); // <-- overlay on top of everything, unaffected by shake
@@ -521,13 +675,11 @@ loadLevel(currentLevel)
     gameLoop();
   })
   .catch(() => {
-    // No levelN.js exists for this number — the player has finished the
-    // last level. Show a completion screen instead of a frozen blank canvas.
-    localStorage.removeItem("savedLevel");
-    document.getElementById("gameCompleteMenu").classList.remove("hidden");
-    document
-      .getElementById("game-complete-menu-button")
-      .addEventListener("click", () => {
-        window.location.href = "index.html";
-      });
+    // Saved progress points past the last level (the player already beat
+    // the game and came back to game.html directly). Show the completion
+    // screen rather than a frozen blank canvas, and reset progress so the
+    // next Play starts a fresh run.
+    const bonus = StarshadeEconomy.setGameCompleted();
+    showGameCompleteScreen(bonus);
+    localStorage.setItem("savedLevel", "1");
   });

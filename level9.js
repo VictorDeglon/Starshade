@@ -3,9 +3,9 @@
 // then dropping, then ascending again — with deadly "wrong turn" ledges
 // and dense spikes at the direction changes.
 
-let levelText = "Level 9";
+window.levelText = "Level 9";
 
-const platforms = [
+window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
   { x: 380, y: 340, width: 130, height: 20 },
@@ -27,20 +27,20 @@ const platforms = [
   { x: 3400, y: 300, width: 300, height: 20 }, // Final
 ];
 
-const deadlyPlatforms = [
+window.deadlyPlatforms = [
   { x: 990, y: 220, width: 90, height: 20 }, // wrong turn off peak 1
   { x: 2560, y: 180, width: 90, height: 20 }, // wrong turn off peak 2
   { x: 3060, y: 260, width: 70, height: 20 },
 ];
 
-const spikes = [
+window.spikes = [
   { x: 850, y: 220, size: 20 },
   { x: 1620, y: 480, size: 30 },
   { x: 1700, y: 480, size: 25 },
   { x: 2660, y: 180, size: 20 },
 ];
 
-const checkpoints = [
+window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 910, y: 190, reached: false }, // peak 1
   { x: 1700, y: 450, reached: false }, // valley
