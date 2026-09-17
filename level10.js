@@ -95,7 +95,9 @@ window.spikes = [
   { x: 4280, y: 180, size: 30 },
   { x: 4390, y: 180, size: 30 },
   { x: 4500, y: 180, size: 30 },
+  { x: 4560, y: 180, size: 30 },
   { x: 5050, y: 100, size: 20 },
+  { x: 5700, y: 90, size: 20 },
 ];
 
 window.checkpoints = [

@@ -7,13 +7,22 @@ of how level data is loaded (see below).
 ## Page flow
 
 ```
-index.html --Play--> loading.html --(1.5s fake progress)--> game.html
-    |------Skins----> skins.html --Back to Menu--> index.html
-    |----Settings---> settings.html --Back to Menu--> index.html
-    '----Contact----> contact.html --Back to Menu--> index.html
+index.html --Play------> loading.html --(1.5s fake progress)--> game.html
+    |------Levels------> levels.html --pick a level--> loading.html --> game.html
+    |                        '--Back to Menu--> index.html
+    |------Skins-------> skins.html --Back to Menu--> index.html
+    |----Settings------> settings.html --Back to Menu--> index.html
+    '----Contact-------> contact.html --Back to Menu--> index.html
 
+game.html --pause menu--> Level Map (levels.html) / Settings / Quit to Menu
 game.html --(no next level)--> "You beat Starshade!" screen --Back--> index.html
 ```
+
+`levels.html` picking a level just writes `localStorage.savedLevel` and
+goes through the same `loading.html` → `game.html` path as Play — it's not
+a separate way to enter the game, just a way to aim Play at a different
+level. A level is unlocked once the one before it is in
+`StarshadeEconomy.getCompletedLevels()`; level 1 is always unlocked.
 
 Each page is a standalone HTML file with its own `<link>`/`<script>` tags —
 there's no shared header/nav component, so navigation buttons are wired up
