@@ -144,12 +144,36 @@ verified via `.claude/audit-gaps.js`.
 
 There was no actual difficulty curve — levels 3-12 were designed in an
 earlier pass without being checked against 1-2's difficulty, and ended up
-easier in places. **Fix:** rebuilt levels 1-2 as a genuinely gentle
-tutorial (single-jump gaps only, minimal hazards, no moving platforms in
-level 1), and lengthened every level 3-12 with an "Act 2" section that
-escalates hazard density, moving-platform speed/range, and gap difficulty
-so the climb from level 3 to 12 is steady. See the level table in
+easier in places. **Fix:** all 12 levels were rewritten from scratch (not
+just extended) for a genuine escalating curve — gentle single-jump-only
+tutorial at 1-2, moving platforms introduced at 3 and growing steadily
+faster/more numerous through 12, hazard density and gap difficulty rising
+throughout. Every level has a distinct visual identity (a rollercoaster
+fall level, a moving-pillar precision level, a maze level, etc.) rather
+than reusing the same shape repeatedly. See the level table in
 [gameplay.md](gameplay.md#the-12-levels--a-deliberate-difficulty-curve).
+
+### 15. The canvas could get stuck at 0×0 and never recover
+
+`canvas.width`/`canvas.height` were set once from `window.innerWidth`/
+`innerHeight` at script load, with nothing watching for a resize — so a
+page that started with `window.innerWidth === 0` (observed in one
+environment where the viewport hadn't finished laying out yet at the
+moment `game.js` ran) stayed at 0×0 forever, rendering nothing, even once
+the window reported a real size a moment later. It also meant an actual
+browser window resize was silently ignored the whole game. **Fix:** wrapped
+the sizing in `resizeCanvas()` and added a `window.resize` listener.
+
+### 16. Settings had no way to actually change how the game plays
+
+Sound/music volume were the only settings with any effect; "Graphics
+Quality" had nothing in a flat 2D canvas renderer for it to control.
+**Fix:** replaced that slot with a real Difficulty setting (Easy/Normal/
+Hard) that scales moving-platform speed, checkpoint touch forgiveness, and
+coin rewards — see [gameplay.md](gameplay.md#difficulty-setting). Also
+added a visible pause button in `game.html` (Escape alone isn't
+discoverable) and made "Settings" from the pause menu return to the game
+in progress afterward instead of dropping back to the main menu.
 
 ## Known, not fixed (out of scope / needs a real decision)
 
@@ -157,11 +181,14 @@ so the climb from level 3 to 12 is steady. See the level table in
   `<form>` has no `action` — clicking Submit just reloads the page. Wiring
   this up needs an actual endpoint (a serverless function, a form service,
   a `mailto:`, etc.), which is a product decision, not a bug fix.
-- **Graphics Quality and Screen Resolution are still placeholders.**
-  Sound/music volume, controls preset, and key rebinding are all fully
-  wired up (`settings.js`) — but a 2D canvas game doesn't have an obvious
-  meaning for "Low/Medium/High/Ultra" graphics or a resolution picker
-  without deciding what those would actually change first.
+- **Screen Resolution is still a placeholder.** Sound/music volume,
+  controls preset, key rebinding, and Difficulty are all fully wired up
+  (`settings.js`/`game.js`) — but the canvas always fills the browser
+  window (see `resizeCanvas()` in `game.js`), so there's no fixed
+  "resolution" for a picker to control without breaking that responsive
+  sizing. The old "Graphics Quality" slot was replaced outright by
+  Difficulty rather than left as a placeholder, since a flat-shaded 2D
+  canvas renderer has no quality-scalable effects to gate behind tiers.
 - **`assets/sfx/` is empty and level music is single-track.** There are no
   discrete sound effects anywhere in the game (jump/land/death are all
   silent aside from the particle-effect visuals), and

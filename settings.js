@@ -1,6 +1,14 @@
+// Opened from the pause menu (game.html links here with ?from=pause) goes
+// back to the game instead of all the way to the main menu — otherwise
+// checking a setting mid-run meant losing your place in the level.
+const cameFromPause = new URLSearchParams(location.search).get("from") === "pause";
+
 document.getElementById("back-button").addEventListener("click", () => {
-  window.location.href = "index.html"; // Navigates to index page
+  window.location.href = cameFromPause ? "game.html" : "index.html";
 });
+if (cameFromPause) {
+  document.getElementById("back-button").textContent = "Back to Game";
+}
 
 // Persist the volume sliders to localStorage so game.js (and future pages)
 // can read and apply them.
@@ -136,4 +144,17 @@ controlsSelect.addEventListener("change", () => {
   keyBindings = { ...preset };
   saveKeyBindings();
   renderBindingLabels();
+});
+
+// -------------------------------------------------------------
+// DIFFICULTY
+// -------------------------------------------------------------
+// Mirrors DIFFICULTY_SETTINGS in game.js — kept in sync manually since
+// these are plain scripts with no shared module system.
+const difficultySelect = document.getElementById("difficulty");
+const savedDifficulty = localStorage.getItem("difficulty");
+if (savedDifficulty) difficultySelect.value = savedDifficulty;
+
+difficultySelect.addEventListener("change", () => {
+  localStorage.setItem("difficulty", difficultySelect.value);
 });

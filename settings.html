@@ -50,13 +50,16 @@
           />
         </div>
 
-        <!-- Graphics Quality — not implemented: the game is a flat-shaded
-             canvas 2D renderer with no quality-scalable effects (no
-             shadows/blur/particles) to gate behind these tiers yet. -->
+        <!-- Difficulty — actually changes gameplay, see game.js's
+             DIFFICULTY_SETTINGS: moving platforms speed up/slow down,
+             checkpoints get more/less forgiving to touch, and coin
+             rewards scale with the risk. -->
         <div class="setting-item">
-          <label for="graphics">Graphics Quality: <span class="tbd-tag">(TBD)</span></label>
-          <select id="graphics" name="graphics" disabled>
-            <option value="medium" selected>Medium</option>
+          <label for="difficulty">Difficulty:</label>
+          <select id="difficulty" name="difficulty">
+            <option value="easy">Easy — slower hazards, forgiving checkpoints</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard — faster hazards, more coins</option>
           </select>
         </div>
 

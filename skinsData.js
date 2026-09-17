@@ -191,6 +191,19 @@ const StarshadeEconomy = (() => {
   const LEVEL_COMPLETION_REWARD = 75;
   const GAME_COMPLETION_BONUS = 1000;
 
+  // Difficulty (set on the Settings page) scales coin rewards — Hard pays
+  // more since hazards move faster and checkpoints are less forgiving
+  // there (see DIFFICULTY_SETTINGS in game.js for the other two effects).
+  const DIFFICULTY_COIN_MULTIPLIERS = { easy: 0.75, normal: 1, hard: 1.5 };
+
+  function getDifficulty() {
+    return localStorage.getItem("difficulty") || "normal";
+  }
+
+  function getCoinMultiplier() {
+    return DIFFICULTY_COIN_MULTIPLIERS[getDifficulty()] || 1;
+  }
+
   function getCoins() {
     return parseInt(localStorage.getItem(COINS_KEY), 10) || 0;
   }
@@ -255,7 +268,9 @@ const StarshadeEconomy = (() => {
     if (completed.includes(levelNumber)) return 0;
     completed.push(levelNumber);
     localStorage.setItem(COMPLETED_LEVELS_KEY, JSON.stringify(completed));
-    return addCoins(LEVEL_COMPLETION_REWARD) && LEVEL_COMPLETION_REWARD;
+    const reward = Math.round(LEVEL_COMPLETION_REWARD * getCoinMultiplier());
+    addCoins(reward);
+    return reward;
   }
 
   function isGameCompleted() {
@@ -265,8 +280,9 @@ const StarshadeEconomy = (() => {
   function setGameCompleted() {
     if (isGameCompleted()) return 0;
     localStorage.setItem(GAME_COMPLETED_KEY, "true");
-    addCoins(GAME_COMPLETION_BONUS);
-    return GAME_COMPLETION_BONUS;
+    const bonus = Math.round(GAME_COMPLETION_BONUS * getCoinMultiplier());
+    addCoins(bonus);
+    return bonus;
   }
 
   return {
@@ -283,5 +299,7 @@ const StarshadeEconomy = (() => {
     getCompletedLevels,
     isGameCompleted,
     setGameCompleted,
+    getDifficulty,
+    getCoinMultiplier,
   };
 })();

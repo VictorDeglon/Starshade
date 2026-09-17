@@ -1,60 +1,78 @@
 // Level 10 Data — "Starfall Gauntlet"
-// Everything so far in one longer run: spike beds, deadly decoys, narrow
-// pillars, and a couple of double-jump-only gaps, roughly in that order.
+// Everything from the previous levels in one longer run: spike beds,
+// deadly decoys, narrow moving pillars, and double-jump-only gaps.
 
 window.levelText = "Level 10";
 
 window.platforms = [
   { x: 50, y: 400, width: 250, height: 20 }, // Start
 
-  // Spike bed
-  { x: 380, y: 400, width: 450, height: 20 },
+  { x: 380, y: 400, width: 450, height: 20 }, // spike bed #1
 
-  // A real safe platform sits right next to a deadly decoy at the same
-  // height (see deadlyPlatforms below) — jump clear over both rather than
-  // landing partway.
-  { x: 900, y: 360, width: 100, height: 20 },
+  { x: 900, y: 360, width: 100, height: 20 }, // real, next to a decoy
   { x: 1160, y: 320, width: 100, height: 20 },
 
-  // Narrow pillars
-  { x: 1400, y: 280, width: 70, height: 20 },
-  { x: 1580, y: 240, width: 70, height: 20 },
-  { x: 1760, y: 200, width: 70, height: 20 },
-
-  { x: 1950, y: 200, width: 250, height: 20 }, // breather
-
-  // Double-jump gap
-  { x: 2450, y: 220, width: 200, height: 20 },
-
-  // Second spike bed
-  { x: 2800, y: 220, width: 400, height: 20 },
-
-  // Final narrow approach
-  { x: 3350, y: 180, width: 70, height: 20 },
-  { x: 3530, y: 150, width: 70, height: 20 },
-
-  { x: 3700, y: 150, width: 300, height: 20 }, // was Final, now mid-level
-
-  // --- Act 2: a moving platform, another decoy, and a third spike bed ---
-  { x: 4130, y: 180, width: 200, height: 20 },
   {
-    x: 4450,
-    y: 110,
-    width: 150,
+    x: 1400,
+    y: 280,
+    width: 65,
     height: 20,
     moveAxis: "x",
-    moveRange: 80,
-    moveSpeed: 0.03,
+    moveRange: 55,
+    moveSpeed: 0.022,
   },
-  { x: 4700, y: 150, width: 150, height: 20 },
-  { x: 5000, y: 180, width: 350, height: 20 }, // spike bed #3
+  { x: 1620, y: 240, width: 65, height: 20 },
+  {
+    x: 1840,
+    y: 200,
+    width: 65,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 45,
+    moveSpeed: 0.026,
+  },
 
-  { x: 5480, y: 220, width: 350, height: 20 }, // Final
+  { x: 2060, y: 200, width: 250, height: 20 }, // breather
+
+  // Double-jump gap
+  { x: 2570, y: 220, width: 200, height: 20 },
+
+  { x: 2920, y: 220, width: 400, height: 20 }, // spike bed #2
+
+  {
+    x: 3470,
+    y: 170,
+    width: 130,
+    height: 20,
+    moveAxis: "y",
+    moveRange: 40,
+    moveSpeed: 0.024,
+  },
+
+  { x: 3750, y: 150, width: 100, height: 20 }, // decoy nearby
+  { x: 4000, y: 180, width: 100, height: 20 },
+
+  { x: 4250, y: 180, width: 350, height: 20 }, // spike bed #3
+
+  {
+    x: 4750,
+    y: 130,
+    width: 130,
+    height: 20,
+    moveAxis: "x",
+    moveRange: 70,
+    moveSpeed: 0.028,
+  },
+
+  { x: 5030, y: 100, width: 70, height: 20 },
+  { x: 5210, y: 70, width: 70, height: 20 },
+
+  { x: 5430, y: 90, width: 400, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
   { x: 1030, y: 360, width: 100, height: 20 }, // decoy between the two real ledges
-  { x: 4830, y: 260, width: 100, height: 20 }, // decoy beneath the moving platform
+  { x: 3890, y: 150, width: 100, height: 20 }, // decoy beneath the moving platform
 ];
 
 window.spikes = [
@@ -63,24 +81,21 @@ window.spikes = [
   { x: 670, y: 400, size: 30 },
   { x: 780, y: 400, size: 30 },
 
-  { x: 2840, y: 220, size: 30 },
-  { x: 2950, y: 220, size: 30 },
-  { x: 3060, y: 220, size: 30 },
-  { x: 3170, y: 220, size: 30 },
+  { x: 2960, y: 220, size: 30 },
+  { x: 3070, y: 220, size: 30 },
+  { x: 3180, y: 220, size: 30 },
+  { x: 3290, y: 220, size: 30 },
 
-  { x: 5020, y: 180, size: 30 },
-  { x: 5130, y: 180, size: 30 },
-  { x: 5240, y: 180, size: 30 },
-  { x: 5310, y: 180, size: 30 },
+  { x: 4280, y: 180, size: 30 },
+  { x: 4390, y: 180, size: 30 },
+  { x: 4500, y: 180, size: 30 },
 ];
 
 window.checkpoints = [
   { x: 150, y: 370, reached: false },
   { x: 1210, y: 290, reached: false }, // right after the decoy stretch
-  { x: 1800, y: 170, reached: false }, // top of the pillars
-  { x: 2000, y: 170, reached: false },
-  { x: 3400, y: 150, reached: false },
-  { x: 3850, y: 120, reached: false },
-  { x: 4525, y: 80, reached: false }, // after the moving platform
-  { x: 5650, y: 190, reached: false }, // Final
+  { x: 2100, y: 170, reached: false }, // top of the pillars
+  { x: 2650, y: 190, reached: false }, // after the double-jump gap
+  { x: 4050, y: 100, reached: false }, // after the vertical moving platform
+  { x: 5580, y: 40, reached: false }, // Final
 ];

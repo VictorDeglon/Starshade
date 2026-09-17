@@ -1,15 +1,35 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Set canvas dimensions
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// Set canvas dimensions, and keep them in sync with the window — this used
+// to run once at load, which (rarely) could pick up a 0x0 size if the
+// viewport hadn't finished laying out yet, and never noticed an actual
+// window resize either since nothing re-ran it.
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
 // Game settings
 const gravity = 0.5;
 const jumpStrength = -12;
 const horizontalSpeed = 5;
 let doubleJumpUsed = false;
+
+// Difficulty (set on the Settings page, StarshadeEconomy.getDifficulty()
+// reads the same localStorage key) — Easy slows hazards down and widens
+// the checkpoint touch radius; Hard speeds hazards up and tightens it.
+// Coin rewards scale to match (see skinsData.js).
+const DIFFICULTY_SETTINGS = {
+  easy: { platformSpeedMultiplier: 0.7, checkpointRadius: 28 },
+  normal: { platformSpeedMultiplier: 1, checkpointRadius: 20 },
+  hard: { platformSpeedMultiplier: 1.3, checkpointRadius: 14 },
+};
+const difficultySettings =
+  DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
+  DIFFICULTY_SETTINGS.normal;
 
 // Camera settings
 let cameraOffsetX = 0;
@@ -198,6 +218,14 @@ function loadLevel(levelNumber) {
 }
 
 function resetLevelState() {
+  // Re-check the canvas size here too, not just on an actual window
+  // resize — if the very first frame happened to run before the viewport
+  // had finished laying out (see known-issues.md #15), canvas.width/height
+  // could still be stuck at 0 by now with no resize event ever having
+  // fired to fix it, and a 0-height canvas makes the "fell off the
+  // bottom" check (`player.y > canvas.height`) trip on frame one.
+  resizeCanvas();
+
   textOpacity = 1;
   textFadeStartTime = null;
   player.x = 100;
@@ -259,13 +287,20 @@ document
 // -------------------------------------------------------------
 // PAUSE MENU
 // -------------------------------------------------------------
+document.getElementById("pause-open-button").addEventListener("click", () => {
+  setPaused(!isPaused);
+});
 document.getElementById("resume-button").addEventListener("click", () => {
   setPaused(false);
 });
 document
   .getElementById("pause-settings-button")
   .addEventListener("click", () => {
-    window.location.href = "settings.html";
+    // ?from=pause tells settings.js to send "Back" to game.html instead of
+    // all the way to the main menu, since currentLevel is saved on every
+    // transition anyway (see advanceToNextLevel) — checking a setting
+    // mid-run resumes close to where you left off instead of losing it.
+    window.location.href = "settings.html?from=pause";
   });
 document.getElementById("pause-quit-button").addEventListener("click", () => {
   window.location.href = "index.html";
@@ -566,7 +601,10 @@ function updateMovingPlatforms() {
   platforms.forEach((p) => {
     if (!p.moveAxis) return;
     const prevOffset = p._offset || 0;
-    const t = levelFrameCount * (p.moveSpeed || 0.03);
+    const t =
+      levelFrameCount *
+      (p.moveSpeed || 0.03) *
+      difficultySettings.platformSpeedMultiplier;
     const newOffset = Math.sin(t + (p.movePhase || 0)) * (p.moveRange || 0);
     p._deltaOffset = newOffset - prevOffset;
     p._offset = newOffset;
@@ -712,7 +750,8 @@ function updatePlayer() {
   // Checkpoints
   checkpoints.forEach((checkpoint, index) => {
     if (
-      Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) < 20 &&
+      Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) <
+        difficultySettings.checkpointRadius &&
       !checkpoint.reached
     ) {
       checkpoint.reached = true;

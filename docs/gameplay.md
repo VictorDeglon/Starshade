@@ -189,30 +189,48 @@ a `StarshadeEconomy` object backed by `localStorage`:
 ## The 12 levels — a deliberate difficulty curve
 
 Levels 1-2 are intentionally the easiest in the game (single-jump gaps
-only, sparse hazards, no moving platforms in level 1) — they used to be
-harder than several of the levels that followed, which was backwards, so
-they were rebuilt as a gentle on-ramp. From level 3 on, difficulty climbs
-steadily: moving platforms appear with increasing speed/range, hazard
-density rises, and double-jump-required gaps become more frequent, up to
-level 12's finale (two fast moving platforms back to back, the densest
-hazards, tightest margins). Every level also got a length pass — most
-roughly doubled — via a consistent "Act 2" extension appended after the
-original level's endpoint (see the length column).
+only, sparse hazards, no moving platforms in level 1) — a deliberate
+gentle on-ramp. From level 3 on, difficulty climbs steadily: moving
+platforms grow more numerous and faster, hazard density rises, and
+double-jump-required gaps become more frequent, up to level 12's finale
+(five moving platforms, two of them fast and back-to-back, the densest
+hazards and tightest margins in the game). All 12 were rewritten from
+scratch (not just extended) for a genuine escalating curve with distinct
+visual identity per level — see the table below — and every gap and
+checkpoint is verified safe by the two audit scripts described in
+[Adding a level](#adding-a-level).
 
 | # | Name | Length | Moving platforms | Theme |
 |---|---|---|---|---|
-| 1 | First Light | 4420px | 0 | Tutorial — gentle single-jump gaps, minimal hazards |
-| 2 | Steady Climb | 4210px | 1 (slow) | First moving platform, introduced safely with a checkpoint right before it |
-| 3 | Nebula Steps | 5240px | 1 | Tighter gaps, narrow stepping-stones, the game's first double-jump-only gap |
-| 4 | Ashfall Ruins | 5600px | 1 (vertical) | Safe platforms interleaved with same-height deadly decoys |
-| 5 | Spike Gardens | 6440px | 1 | Long ground-level spike beds; a second wide double-jump gap |
-| 6 | The Long Fall | 5760px | 1 (vertical) | A climb, a staggered multi-stage drop, then a second, steeper climb |
-| 7 | Twin Pillars | 4850px | 1 (moving pillar) | Narrow (60-70px) pillar-top platforms |
-| 8 | Void Bridge | 5200px | 1 | Small stepping platforms over open void; the level's widest gap yet |
-| 9 | Ember Labyrinth | 5430px | 1 (vertical) | Zig-zagging path with deadly "wrong turn" decoys |
-| 10 | Starfall Gauntlet | 5830px | 1 | Combines every earlier hazard type into one longer run |
-| 11 | The Ascent | 4900px | 1 (moving pillar) | Sustained double-jump/precision chaining at altitude |
-| 12 | Starshade's Reach | 6830px | 2 (fast) | Finale — every hazard type, the hardest margins in the game |
+| 1 | First Light | 4490px | 0 | Tutorial — a gentle rise-dip-rise wave, minimal hazards |
+| 2 | Steady Climb | 4810px | 2 | First moving platforms (one horizontal, one vertical), each telegraphed with a checkpoint right before it |
+| 3 | Nebula Steps | 4660px | 2 | Alternating small/large stepping stones in a loose spiral; the game's first double-jump-only gap |
+| 4 | Ashfall Ruins | 4370px | 2 | A rubble field — nearly every real platform has a same-height deadly decoy right next to it |
+| 5 | Spike Gardens | 5080px | 2 | Ground-level spike beds alternating with clear ledges, climbing overall; two wide double-jump gaps |
+| 6 | The Long Fall | 5860px | 2 | A dramatic rollercoaster — climb, huge fall, climb, even bigger fall |
+| 7 | Twin Pillars | 4280px | 4 | Narrow (60-80px) pillars, several of which move — precision landing on a moving target is the whole point |
+| 8 | Void Bridge | 5230px | 3 | A long crossing over open void on stepping platforms, some moving, some static |
+| 9 | Ember Labyrinth | 4930px | 4 | A zig-zag that doubles back on itself vertically, with deadly "wrong turn" decoys and moving platforms right at each turn |
+| 10 | Starfall Gauntlet | 5830px | 4 | Combines every earlier hazard type — spike beds, decoys, moving pillars, double jumps — into one longer run |
+| 11 | The Ascent | 4350px | 3 | Sustained double-jump/precision chaining, right up against the top of the visible band |
+| 12 | Starshade's Reach | 6850px | 5 | Finale — every hazard type, two fast moving platforms back to back, the hardest margins in the game |
+
+## Difficulty setting
+
+The Settings page's Difficulty option (Easy/Normal/Hard) reads/writes
+`localStorage.difficulty`, applied via `DIFFICULTY_SETTINGS` in `game.js`
+and mirrored in `StarshadeEconomy` (skinsData.js) for the coin multiplier:
+
+| | Moving platform speed | Checkpoint touch radius | Coin reward |
+|---|---|---|---|
+| Easy | ×0.7 | 28px (more forgiving) | ×0.75 |
+| Normal | ×1 | 20px | ×1 |
+| Hard | ×1.3 | 14px (less forgiving) | ×1.5 |
+
+It's readable from `game.html` directly (a visible pause button, top-left,
+plus `Escape`) via Settings in the pause menu — which returns to the game
+in progress afterward (`settings.html?from=pause`) instead of dropping you
+back at the main menu.
 
 Reaching level 12's final checkpoint (there's no `level13.js`) triggers the
 "You beat Starshade!" screen instead of trying to load a level that doesn't

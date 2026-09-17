@@ -107,6 +107,29 @@ canvas {
   transform: translateY(0);
 }
 
+/* Visible pause trigger */
+#pause-open-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #4d3f91;
+  background: rgba(0, 0, 0, 0.6);
+  color: #dcd4ff;
+  font-size: 0.9rem;
+  letter-spacing: -2px;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+#pause-open-button:hover {
+  background-color: rgba(30, 15, 63, 0.9);
+  transform: scale(1.08);
+}
+
 #gameCompleteCoins {
   font-family: 'Staatliches', sans-serif;
   font-size: 1.3rem;
