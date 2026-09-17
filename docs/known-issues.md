@@ -181,14 +181,16 @@ in progress afterward instead of dropping back to the main menu.
   `<form>` has no `action` — clicking Submit just reloads the page. Wiring
   this up needs an actual endpoint (a serverless function, a form service,
   a `mailto:`, etc.), which is a product decision, not a bug fix.
-- **Screen Resolution is still a placeholder.** Sound/music volume,
-  controls preset, key rebinding, and Difficulty are all fully wired up
-  (`settings.js`/`game.js`) — but the canvas always fills the browser
-  window (see `resizeCanvas()` in `game.js`), so there's no fixed
-  "resolution" for a picker to control without breaking that responsive
-  sizing. The old "Graphics Quality" slot was replaced outright by
-  Difficulty rather than left as a placeholder, since a flat-shaded 2D
-  canvas renderer has no quality-scalable effects to gate behind tiers.
+- **Screen Resolution and "Mouse Clicks" controls were removed outright**
+  rather than left as placeholders, for the same reason the old "Graphics
+  Quality" slot was: the canvas always fills the browser window (see
+  `resizeCanvas()`), so there's no fixed "resolution" for a picker to
+  control, and a physics-platformer's movement isn't sensible to drive with
+  a mouse. Their slots on the Settings page now hold two settings that
+  actually do something — Screen Shake (on/off) and Click/Tap to Jump
+  (on/off) — alongside the already-working volume, Difficulty, controls
+  preset, and key rebinding. See
+  [gameplay.md](gameplay.md#settings-that-actually-do-something).
 - **`assets/sfx/` is empty and level music is single-track.** There are no
   discrete sound effects anywhere in the game (jump/land/death are all
   silent aside from the particle-effect visuals), and

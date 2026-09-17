@@ -24,22 +24,32 @@
     <div id="coinToast" class="coin-toast"></div>
 
     <!-- Visible pause trigger — Escape does the same thing, but that's not
-         discoverable on its own. -->
-    <button id="pause-open-button" aria-label="Pause">&#10074;&#10074;</button>
+         discoverable on its own. An inline SVG glyph instead of a unicode
+         character so it's crisp and perfectly centered at any size. -->
+    <button id="pause-open-button" aria-label="Pause">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor" />
+        <rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor" />
+      </svg>
+    </button>
 
     <!-- Pause menu (Esc to toggle) -->
     <div id="pauseMenu" class="menu hidden">
-      <h1>Paused</h1>
-      <button id="resume-button">Resume</button>
-      <button id="pause-settings-button">Settings</button>
-      <button id="pause-quit-button">Quit to Menu</button>
+      <div class="menu-panel">
+        <h1>Paused</h1>
+        <button id="resume-button" class="menu-button">Resume</button>
+        <button id="pause-settings-button" class="menu-button">Settings</button>
+        <button id="pause-quit-button" class="menu-button">Quit to Menu</button>
+      </div>
     </div>
 
     <!-- Shown when there is no next level to load -->
     <div id="gameCompleteMenu" class="menu hidden">
-      <h1>You beat Starshade!</h1>
-      <p id="gameCompleteCoins"></p>
-      <button id="game-complete-menu-button">Back to Main Menu</button>
+      <div class="menu-panel">
+        <h1>You beat Starshade!</h1>
+        <p id="gameCompleteCoins"></p>
+        <button id="game-complete-menu-button" class="menu-button">Back to Main Menu</button>
+      </div>
     </div>
 
     <script src="skinsData.js"></script>

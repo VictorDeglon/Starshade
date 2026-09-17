@@ -24,6 +24,19 @@
           <h2>Settings</h2>
         </div>
 
+        <!-- Display Name — saved locally, used for the "Welcome back"
+             greeting on the main menu (see script.js). -->
+        <div class="setting-item">
+          <label for="player-name">Display Name:</label>
+          <input
+            type="text"
+            id="player-name"
+            name="player-name"
+            maxlength="20"
+            placeholder="Explorer"
+          />
+        </div>
+
         <!-- Sound Volume Control -->
         <div class="setting-item">
           <label for="volume">Sound Volume:</label>
@@ -69,7 +82,18 @@
           <select id="controls" name="controls">
             <option value="wasd">WASD</option>
             <option value="arrowkeys">Arrow Keys</option>
-            <option value="mouseclicks">Mouse Clicks (TBD)</option>
+          </select>
+        </div>
+
+        <!-- Click/Tap to Jump — a real, working supplement to the keyboard
+             bindings above (not a movement scheme, since a platformer's
+             gravity/jump-arc movement isn't sensible to drive with a mouse;
+             this only adds jump/double-jump on click or tap). -->
+        <div class="setting-item">
+          <label for="click-to-jump">Click/Tap to Jump:</label>
+          <select id="click-to-jump" name="click-to-jump">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
           </select>
         </div>
 
@@ -94,13 +118,17 @@
           </div>
         </div>
 
-        <!-- Screen Resolution — not implemented: the canvas always fills the
-             browser window (see game.js), so there's no fixed "resolution"
-             for this to control without breaking that responsive sizing. -->
+        <!-- Screen Shake — a real, scalable effect (unlike the old
+             "Graphics Quality"/"Screen Resolution" placeholders, which had
+             nothing in a flat 2D canvas renderer for them to actually
+             control): toggles the camera-shake/particle-heavy hit-feedback
+             in game.js's resetPlayer()/draw() on death, for anyone who
+             finds it distracting or motion-sensitive. -->
         <div class="setting-item">
-          <label for="resolution">Screen Resolution: <span class="tbd-tag">(TBD)</span></label>
-          <select id="resolution" name="resolution" disabled>
-            <option value="auto" selected>Matches window size</option>
+          <label for="screen-shake">Screen Shake:</label>
+          <select id="screen-shake" name="screen-shake">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
           </select>
         </div>
 

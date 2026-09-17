@@ -76,9 +76,13 @@ solid collision, so the tunneling concern doesn't apply the same way.
   collision boundary.
 - Checkpoints idle-pulse (a slow sine wave on their radius) when unreached
   and briefly "pop" larger the moment they're reached. The **last**
-  checkpoint in every level is drawn as a spinning gold star instead of a
-  plain circle (`starPath()` in `game.js`) — green once reached — so the
-  actual goal reads as visually distinct from an ordinary checkpoint.
+  checkpoint in every level is drawn as the Starshade logo itself (the
+  same image as the main menu's) inside a slowly-spinning glow ring,
+  instead of a plain circle — purple/blue while unreached, tinted green
+  (`source-atop` compositing over the logo, in `drawCheckpoints()`) the
+  moment it's reached, the same "you're teleporting" color language every
+  other checkpoint uses — so the actual goal reads as visually distinct
+  from an ordinary checkpoint.
 - Missing a jump triggers a short screen shake (`shakeTime`/
   `shakeMagnitude` in `draw()`) plus a small particle burst, in addition
   to respawning at the last checkpoint.
@@ -167,7 +171,14 @@ cuts out.
 `updatePlayer()`/`updateLevelText()`/particles but keeps `draw()` running
 so the current frame stays visible (blurred) behind the pause overlay.
 Disabled during a level transition or once the game-complete screen is up,
-so it can't get gameplay state stuck mid-fade.
+so it can't get gameplay state stuck mid-fade. The pause and "You beat
+Starshade!" overlays share a `.menu-panel` card (violet border, dark
+purple fill, the same pulsing `.menu-button`s) matching the main menu's
+look — `game.html`/`game.css` duplicate rather than share those rules with
+`styles.css`, since game.html never loads that stylesheet. The visible
+pause trigger (top-left, for players who don't know `Escape`) is an inline
+SVG icon rather than a unicode glyph, centered in its button via flex
+instead of font-metric hacks.
 
 ## Skins & the coin economy
 
@@ -214,6 +225,109 @@ checkpoint is verified safe by the two audit scripts described in
 | 10 | Starfall Gauntlet | 5830px | 4 | Combines every earlier hazard type — spike beds, decoys, moving pillars, double jumps — into one longer run |
 | 11 | The Ascent | 4350px | 3 | Sustained double-jump/precision chaining, right up against the top of the visible band |
 | 12 | Starshade's Reach | 6850px | 5 | Finale — every hazard type, two fast moving platforms back to back, the hardest margins in the game |
+
+## Ghost and melt platforms
+
+Two more platform types, both yellow but visually and behaviorally
+distinct, layered on top of the same `platforms` array as ordinary solid
+platforms and moving platforms:
+
+- **Ghost platforms** (`ghost: true`, plus `ghostPeriod`, `ghostOnRatio`,
+  `ghostPhase`) cycle solid/intangible on a timer (`updateGhostPlatforms()`
+  in `game.js`), drawn bright yellow with a fast flicker warning just
+  before every flip. `resolveAxis()` skips collision against one entirely
+  while intangible. Most are optional bonus routes across a gap that's
+  already crossable by double jump alone — level 3 has the one exception:
+  the gap right after its second breather is wide enough that a double
+  jump genuinely can't clear it, so that ghost platform is the only way
+  across, not a shortcut. `.claude/audit-gaps.js` excludes ghost platforms
+  from its "is this level completable" check for exactly this reason (an
+  intermittent platform can't be part of the *guaranteed* path) — a level
+  showing an "IMPOSSIBLE even with a double jump" result for a gap that
+  has a ghost platform in it is expected, not a bug.
+- **Melt platforms** (`melt: true`, optional `meltDelay`, default 28
+  frames) look and behave like ordinary solid ground until you actually
+  stand on one — then a short countdown starts, and it crumbles away for
+  good (drawn as a deepening, shaking orange right up until it goes).
+  `resetPlayer()` restores every melted platform on death, so a section
+  that needs one is never permanently lost to an earlier attempt. Unlike
+  ghost platforms, melt platforms count as guaranteed-solid in
+  `audit-gaps.js`/`audit-checkpoints.js`, since they're always there the
+  *first* time you reach them.
+
+## Anti-cheat ceiling and level centering
+
+`applyLevelVerticalLayout()` in `game.js` runs once per level load (from
+`resetLevelState()`), after the level script has populated
+`platforms`/`deadlyPlatforms`/`spikes`/`checkpoints` but before the first
+frame renders, and does two things — both pure translations/additions of
+already-verified geometry, so neither can turn a previously-safe checkpoint
+or previously-possible jump into a bad one:
+
+1. **Centers the level vertically** on the actual viewport instead of
+   wherever a level file happened to author its numbers — `window.innerHeight`
+   varies per player, but every level was written against one nominal
+   band. It shifts every platform/hazard/checkpoint y (and the player's
+   start y) by the same constant, so every gap's rise and every
+   checkpoint's relative safety survive unchanged (`.claude/audit-*.js`
+   both check relative distances, not absolute ones).
+2. **Adds an invisible ceiling** 240px above the level's own highest
+   platform (`ROOF_CLEARANCE` — comfortably more than a single jump's
+   ~144px rise, but less than the ~280px a double jump can reach if timed
+   to maximize height). Since nothing in a level is ever *above* its own
+   topmost platform, this can only cap climbing past where the level
+   already ends — it's what stops a double jump from being chained to
+   soar above the intended platforms and skip past hazards below, drawn as
+   a dark, hazard-striped boundary (`drawRoofPlatforms()`) distinct from
+   every hand-placed platform color.
+
+## First-playthrough tutorial tips
+
+`level1.js` defines `window.tutorialTips`, a list of `{x, text}` pairs —
+`updateTutorialTips()` in `game.js` pops up each one (as a small captioned
+pill, `drawTutorialTip()`) the first time the player's x actually reaches
+that point, one at a time, covering just the basics (movement, jump,
+spikes, deadly/red platforms, checkpoints, the finish) before leaving the
+player to figure out everything else on their own. No other level defines
+`tutorialTips`, so nothing shows past level 1.
+
+## Adaptive leniency
+
+After several deaths in a row *without* reaching a new checkpoint
+(`consecutiveDeaths` in `game.js`, reset to 0 the moment a new checkpoint
+is reached), `leniencyLevel()` (capped at 3) quietly widens the checkpoint
+touch radius, insets spikes' effective hitbox, and adds a couple of px of
+landing forgiveness when catching a platform — small enough at every step
+that it never feels like the level itself changed, there purely so a
+stretch that's genuinely giving someone trouble eases off a little rather
+than staying maximally punishing forever.
+
+## Settings that actually do something
+
+Every option on the Settings page changes real behavior — no disabled or
+"(TBD)" placeholders. Sound/music volume, Difficulty, the WASD/Arrow Keys
+controls preset, and key rebinding were already wired up; on top of those:
+
+- **Click/Tap to Jump** (default on) — adds jump/double-jump on a canvas
+  click or tap, alongside whatever's bound to Jump, via the same
+  `tryJump()` both paths call.
+- **Screen Shake** (default on) — toggles the camera-shake hit-feedback on
+  death (`draw()`'s `shakeTime` check); death itself, and the particle
+  burst, are unaffected.
+- **Display Name** — saved to `localStorage.playerName`, read back by
+  `script.js` for a "Welcome back, {name}" line under the main menu's
+  subtitle. Nothing shows for a nameless/first-time visitor.
+
+## Per-shape cosmetic movement
+
+Every skin shares the *exact same* 25×25 hitbox regardless of its shape —
+none of this touches collision. Purely in `drawPlayer()`/`updatePlayer()`:
+circle skins roll (rotate proportional to horizontal speed, with a small
+rim mark so the roll is actually visible on an otherwise-symmetric fill)
+and get a tiny extra vertical rebound the instant they land, on top of the
+squash/stretch every skin already has; triangle skins sometimes (not
+every jump — `Math.random() < 0.5`) tumble through the air, settling back
+to point-up the moment they land.
 
 ## Difficulty setting
 

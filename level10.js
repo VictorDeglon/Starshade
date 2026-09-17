@@ -34,6 +34,10 @@ window.platforms = [
 
   { x: 2060, y: 200, width: 250, height: 20 }, // breather
 
+  // A melt platform — safe to land on, but don't linger: it crumbles away
+  // a moment after you step on it.
+  { x: 2380, y: 210, width: 90, height: 20, melt: true, meltDelay: 24 },
+
   // Double-jump gap
   { x: 2570, y: 220, width: 200, height: 20 },
 
@@ -81,6 +85,8 @@ window.spikes = [
   { x: 670, y: 400, size: 30 },
   { x: 780, y: 400, size: 30 },
 
+  { x: 920, y: 360, size: 20 },
+
   { x: 2960, y: 220, size: 30 },
   { x: 3070, y: 220, size: 30 },
   { x: 3180, y: 220, size: 30 },
@@ -89,6 +95,7 @@ window.spikes = [
   { x: 4280, y: 180, size: 30 },
   { x: 4390, y: 180, size: 30 },
   { x: 4500, y: 180, size: 30 },
+  { x: 5050, y: 100, size: 20 },
 ];
 
 window.checkpoints = [

@@ -6,6 +6,20 @@
 
 window.levelText = "Level 1";
 
+// A first-playthrough-only rundown of the basics — one short caption per
+// new kind of thing, triggered as the player actually reaches it rather
+// than dumped all at once. Only level 1 defines these (see game.js's
+// updateTutorialTips()); everything past this point, the player figures
+// out on their own.
+window.tutorialTips = [
+  { x: 110, text: "Move with A/D or the Arrow Keys" },
+  { x: 330, text: "Press Space, W, or ↑ to jump" },
+  { x: 860, text: "Spikes are instant death — jump over them" },
+  { x: 1150, text: "Red platforms are deadly — never land on one" },
+  { x: 1420, text: "Checkpoints save your progress here" },
+  { x: 3850, text: "Reach the glowing emblem to finish the level" },
+];
+
 window.platforms = [
   { x: 50, y: 420, width: 280, height: 20 }, // Start
 
@@ -22,6 +36,19 @@ window.platforms = [
   { x: 2470, y: 300, width: 150, height: 20 },
 
   { x: 2720, y: 280, width: 300, height: 20 }, // breather 2
+
+  // A gentle first taste of a ghost platform — mostly solid, long warning
+  // flicker before it flips, easy to read. A bonus hop just off the main
+  // path, not required to clear the level.
+  {
+    x: 2860,
+    y: 190,
+    width: 90,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 220,
+    ghostOnRatio: 0.7,
+  },
 
   { x: 3120, y: 250, width: 150, height: 20 },
   { x: 3350, y: 220, width: 150, height: 20 },
@@ -40,8 +67,11 @@ window.deadlyPlatforms = [
 
 window.spikes = [
   { x: 970, y: 400, size: 22 },
+  { x: 1180, y: 430, size: 20 },
+  { x: 1850, y: 360, size: 20 },
   { x: 2330, y: 350, size: 22 },
   { x: 3670, y: 250, size: 25 },
+  { x: 3900, y: 200, size: 22 },
 ];
 
 window.checkpoints = [

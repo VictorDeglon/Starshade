@@ -36,6 +36,19 @@ window.platforms = [
 
   { x: 2000, y: 140, width: 240, height: 20 }, // breather 2
 
+  // A ghost pillar — solid about half the time, flickering fair warning
+  // before it flips, fitting right in with this level's precision-landing
+  // identity.
+  {
+    x: 2300,
+    y: 130,
+    width: 70,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 150,
+    ghostOnRatio: 0.5,
+  },
+
   { x: 2380, y: 120, width: 65, height: 20 },
   {
     x: 2600,
@@ -72,7 +85,9 @@ window.deadlyPlatforms = [
 
 window.spikes = [
   { x: 1000, y: 260, size: 25 },
+  { x: 1120, y: 260, size: 20 },
   { x: 2050, y: 140, size: 25 },
+  { x: 3200, y: 110, size: 20 },
   { x: 3970, y: 100, size: 25 },
 ];
 

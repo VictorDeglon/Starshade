@@ -73,7 +73,14 @@ function canClearDouble(dx, riseNeeded) {
 const results = [];
 for (let n = 1; n <= 12; n++) {
   const level = loadLevel(n);
-  const solid = [...level.platforms].sort((a, b) => a.x - b.x);
+  // Ghost platforms (see game.js's updateGhostPlatforms()) are only
+  // sometimes solid, so the level must be completable without ever relying
+  // on one being there — they're an optional bonus route, not part of the
+  // guaranteed path. Excluding them here checks exactly that: the original,
+  // always-solid skeleton is still fully traversable on its own.
+  const solid = level.platforms
+    .filter((p) => !p.ghost)
+    .sort((a, b) => a.x - b.x);
   for (let i = 0; i < solid.length - 1; i++) {
     const cur = solid[i];
     const next = solid[i + 1];

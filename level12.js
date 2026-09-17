@@ -44,6 +44,19 @@ window.platforms = [
 
   // Void bridge — wide double-jump gaps
   { x: 3010, y: 170, width: 140, height: 20 },
+
+  // A ghost platform over the void — fast cycle, short solid window, the
+  // hardest-timed one in the game, fitting the finale.
+  {
+    x: 3200,
+    y: 185,
+    width: 90,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 140,
+    ghostOnRatio: 0.4,
+  },
+
   {
     x: 3450,
     y: 200,
@@ -105,6 +118,10 @@ window.spikes = [
 
   { x: 3870, y: 200, size: 30 },
   { x: 4150, y: 200, size: 35 },
+
+  { x: 4450, y: 160, size: 20 },
+
+  { x: 5700, y: 120, size: 20 },
 
   { x: 5960, y: 140, size: 30 },
   { x: 6070, y: 140, size: 30 },

@@ -41,6 +41,14 @@ function startMusic() {
   localStorage.setItem("musicPlaying", "true");
 }
 
+// "Welcome back" greeting using the Display Name set on the Settings page
+// (see settings.js) — nothing shown for a first-time/nameless visitor.
+const playerName = localStorage.getItem("playerName");
+if (playerName) {
+  document.getElementById("welcome-message").textContent =
+    `Welcome back, ${playerName}!`;
+}
+
 // Check if music should be playing when the page is loaded
 window.addEventListener("load", () => {
   if (localStorage.getItem("musicPlaying") === "true") {

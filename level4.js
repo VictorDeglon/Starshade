@@ -26,6 +26,19 @@ window.platforms = [
   },
 
   { x: 1800, y: 200, width: 110, height: 20 },
+
+  // A ghost platform hovering over the rubble — solid a bit more than half
+  // the time, with the usual flicker warning before it flips.
+  {
+    x: 1960,
+    y: 165,
+    width: 80,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 180,
+    ghostOnRatio: 0.55,
+  },
+
   { x: 2050, y: 180, width: 110, height: 20 },
   { x: 2300, y: 160, width: 110, height: 20 },
 
@@ -59,7 +72,9 @@ window.deadlyPlatforms = [
 ];
 
 window.spikes = [
+  { x: 950, y: 280, size: 20 },
   { x: 1230, y: 260, size: 25 },
+  { x: 2100, y: 180, size: 20 },
   { x: 2650, y: 150, size: 25 },
   { x: 3870, y: 160, size: 30 },
 ];

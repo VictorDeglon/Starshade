@@ -31,11 +31,24 @@ window.platforms = [
 
   { x: 2720, y: 160, width: 260, height: 20 }, // breather 2
 
-  // Double-jump gap — comfortable with a well-timed double jump.
-  { x: 3220, y: 130, width: 220, height: 20 },
+  // The void here is too wide for even a well-timed double jump — this
+  // ghost platform isn't a bonus shortcut like the others, it's the only
+  // way across. Miss its solid window and there's nothing to do but wait
+  // for the next one.
+  {
+    x: 3180,
+    y: 145,
+    width: 100,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 190,
+    ghostOnRatio: 0.6,
+  },
+
+  { x: 3500, y: 130, width: 220, height: 20 },
 
   {
-    x: 3600,
+    x: 3880,
     y: 100,
     width: 120,
     height: 20,
@@ -44,9 +57,9 @@ window.platforms = [
     moveSpeed: 0.024,
   },
 
-  { x: 3900, y: 90, width: 250, height: 20 },
+  { x: 4180, y: 90, width: 250, height: 20 },
 
-  { x: 4280, y: 90, width: 380, height: 20 }, // Final
+  { x: 4560, y: 90, width: 380, height: 20 }, // Final
 ];
 
 window.deadlyPlatforms = [
@@ -55,15 +68,18 @@ window.deadlyPlatforms = [
 ];
 
 window.spikes = [
+  { x: 750, y: 340, size: 20 },
   { x: 1000, y: 300, size: 25 },
+  { x: 2150, y: 170, size: 20 },
   { x: 2200, y: 140, size: 25 },
-  { x: 3980, y: 90, size: 25 },
+  { x: 4260, y: 90, size: 25 },
+  { x: 4340, y: 90, size: 20 },
 ];
 
 window.checkpoints = [
   { x: 150, y: 390, reached: false },
   { x: 1470, y: 210, reached: false },
-  { x: 2770, y: 130, reached: false }, // before the double-jump gap
-  { x: 3950, y: 60, reached: false },
-  { x: 4460, y: 60, reached: false }, // Final
+  { x: 2770, y: 130, reached: false }, // right before the ghost-only gap
+  { x: 4230, y: 60, reached: false },
+  { x: 4740, y: 60, reached: false }, // Final
 ];

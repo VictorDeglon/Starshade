@@ -28,6 +28,18 @@ window.platforms = [
 
   { x: 2140, y: 320, width: 210, height: 20 },
 
+  // A yellow ghost platform — solid most of the time, with a brief flicker
+  // warning before it flips. A bonus arc over the gap, not required.
+  {
+    x: 2390,
+    y: 230,
+    width: 90,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 200,
+    ghostOnRatio: 0.65,
+  },
+
   { x: 2460, y: 290, width: 130, height: 20 },
   { x: 2690, y: 290, width: 130, height: 20 },
   { x: 2920, y: 260, width: 130, height: 20 },
@@ -54,8 +66,11 @@ window.deadlyPlatforms = [{ x: 1200, y: 500, width: 100, height: 20 }];
 
 window.spikes = [
   { x: 860, y: 400, size: 25 },
+  { x: 1230, y: 400, size: 20 },
+  { x: 2160, y: 320, size: 20 },
   { x: 2340, y: 320, size: 25 },
   { x: 3730, y: 190, size: 25 },
+  { x: 3900, y: 190, size: 20 },
 ];
 
 window.checkpoints = [

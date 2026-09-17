@@ -114,7 +114,12 @@ for (let n = 1; n <= 12; n++) {
       });
     }
 
-    const fall = simulateFall(spawnX, spawnY, level.platforms, 600);
+    // Ghost platforms (see game.js's updateGhostPlatforms()) are only
+    // sometimes solid — a checkpoint must be safe to land on regardless of
+    // where a ghost platform's cycle happens to be, so they're excluded
+    // here rather than treated as guaranteed ground.
+    const solidPlatforms = level.platforms.filter((p) => !p.ghost);
+    const fall = simulateFall(spawnX, spawnY, solidPlatforms, 600);
     if (!fall.landed) {
       issues.push({
         level: n,
