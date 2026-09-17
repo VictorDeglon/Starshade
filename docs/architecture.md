@@ -78,7 +78,7 @@ statically include both `level1.js` and `level2.js` and hit exactly this
 (see [known-issues.md](known-issues.md)). Plain `window.foo = ...`
 assignment has no such restriction — it can be repeated any number of
 times — which is what actually lets `loadLevel()` be called again and
-again, in-page, as the player advances through all 12 levels.
+again, in-page, as the player advances through all 25 levels.
 
 Reaching a level's final checkpoint doesn't reload the page at all
 anymore. It starts a fade-to-black (`isFading`/`fadeDirection` in

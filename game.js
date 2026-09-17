@@ -22,10 +22,12 @@ let doubleJumpUsed = false;
 // reads the same localStorage key) — Easy slows hazards down and widens
 // the checkpoint touch radius; Hard speeds hazards up and tightens it.
 // Coin rewards scale to match (see skinsData.js).
+// Checkpoint radii nudged up a bit across the board (was 28/20/14) — easier
+// to actually trigger without changing where checkpoints are placed.
 const DIFFICULTY_SETTINGS = {
-  easy: { platformSpeedMultiplier: 0.7, checkpointRadius: 28 },
-  normal: { platformSpeedMultiplier: 1, checkpointRadius: 20 },
-  hard: { platformSpeedMultiplier: 1.3, checkpointRadius: 14 },
+  easy: { platformSpeedMultiplier: 0.7, checkpointRadius: 32 },
+  normal: { platformSpeedMultiplier: 1, checkpointRadius: 24 },
+  hard: { platformSpeedMultiplier: 1.3, checkpointRadius: 18 },
 };
 const difficultySettings =
   DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||

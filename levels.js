@@ -20,6 +20,19 @@ const LEVEL_NAMES = [
   "Starfall Gauntlet",
   "The Ascent",
   "Starshade's Reach",
+  "Crimson Descent",
+  "Glass Causeway",
+  "Wraith's Crossing",
+  "The Hollow Spiral",
+  "Emberfall Reach",
+  "Phantom Causeway",
+  "The Shattered Path",
+  "Void Marrow",
+  "Starlit Precipice",
+  "The Last Bastion",
+  "Eclipse Corridor",
+  "The Abyssal Climb",
+  "Starshade's Zenith",
 ];
 const TOTAL_LEVELS = LEVEL_NAMES.length;
 

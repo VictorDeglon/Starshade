@@ -5,7 +5,7 @@
 // Unlock types:
 //   'free'       — always unlocked (the starting skin)
 //   'coins'      — unlocked by spending `cost` coins, once
-//   'completion' — unlocked by beating all 12 levels once
+//   'completion' — unlocked by beating all 25 levels once
 //     (StarshadeEconomy.isGameCompleted())
 //
 // `shape` controls how game.js's drawPlayer() renders the player when this
