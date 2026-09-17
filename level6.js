@@ -21,6 +21,11 @@ window.platforms = [
 
   { x: 2150, y: 500, width: 280, height: 20 }, // bottom floor #1
 
+  // A melt platform — looks like solid ground, but standing on it starts a
+  // short countdown before it crumbles away (the catch-net far below is
+  // what you'd fall into). Cross it quickly rather than resting on it.
+  { x: 2470, y: 470, width: 80, height: 20, melt: true, meltDelay: 26 },
+
   {
     x: 2520,
     y: 440,
@@ -32,6 +37,18 @@ window.platforms = [
   },
 
   { x: 2820, y: 380, width: 130, height: 20 },
+
+  // A ghost platform on the second climb — solid about half the time.
+  {
+    x: 2975,
+    y: 350,
+    width: 80,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 160,
+    ghostOnRatio: 0.5,
+  },
+
   { x: 3060, y: 320, width: 130, height: 20 },
   { x: 3300, y: 260, width: 250, height: 20 }, // top of climb #2
 
@@ -66,8 +83,10 @@ window.deadlyPlatforms = [
 ];
 
 window.spikes = [
+  { x: 900, y: 220, size: 20 },
   { x: 1150, y: 160, size: 25 },
   { x: 3350, y: 260, size: 25 },
+  { x: 5060, y: 400, size: 20 },
   { x: 5530, y: 280, size: 25 },
 ];
 

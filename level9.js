@@ -36,6 +36,18 @@ window.platforms = [
   },
 
   { x: 2200, y: 340, width: 120, height: 20 },
+
+  // A ghost platform mid-climb toward peak 2.
+  {
+    x: 2350,
+    y: 300,
+    width: 70,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 160,
+    ghostOnRatio: 0.5,
+  },
+
   { x: 2440, y: 260, width: 120, height: 20 },
   { x: 2680, y: 180, width: 120, height: 20 }, // peak 2
 
@@ -76,10 +88,12 @@ window.deadlyPlatforms = [
 ];
 
 window.spikes = [
+  { x: 400, y: 340, size: 20 },
   { x: 830, y: 220, size: 20 },
   { x: 1620, y: 480, size: 30 },
   { x: 1700, y: 480, size: 25 },
   { x: 2660, y: 180, size: 20 },
+  { x: 3200, y: 340, size: 20 },
   { x: 4260, y: 180, size: 20 },
 ];
 

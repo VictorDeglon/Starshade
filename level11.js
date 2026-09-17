@@ -36,6 +36,17 @@ window.platforms = [
 
   { x: 2080, y: 220, width: 250, height: 20 }, // breather 2
 
+  // A ghost platform partway up the ascent.
+  {
+    x: 2380,
+    y: 195,
+    width: 70,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 150,
+    ghostOnRatio: 0.5,
+  },
+
   { x: 2450, y: 170, width: 75, height: 20 },
   {
     x: 2670,
@@ -61,9 +72,11 @@ window.deadlyPlatforms = [
 ];
 
 window.spikes = [
+  { x: 650, y: 420, size: 20 },
   { x: 1000, y: 380, size: 25 },
   { x: 2130, y: 220, size: 25 },
   { x: 3170, y: 100, size: 25 },
+  { x: 3550, y: 70, size: 20 },
 ];
 
 window.checkpoints = [

@@ -68,6 +68,13 @@ body {
   font-family: 'Staatliches', sans-serif; /* Same as main menu */
 }
 
+.welcome-message {
+  font-size: 15px;
+  color: #b7a0ff;
+  margin: -14px 0 20px;
+  font-family: 'Staatliches', sans-serif;
+}
+
 /* Button styles with cosmic feel */
 .menu-button {
   font-size: 22px;
@@ -159,6 +166,23 @@ select {
   font-weight: bold; /* Making the select options bold */
 }
 
+.setting-item input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 8px;
+  font-family: 'Almendra Display', serif;
+  font-size: 16px;
+}
+
+.setting-item input[type="text"]:focus {
+  outline: none;
+  background-color: #29234f;
+}
+
 select:hover {
   background-color: #0e2338; /* Updated blue hover effect */
 }
@@ -178,18 +202,6 @@ button.edit-button {
 button.edit-button:hover {
   background-color: #0e2338; /* Updated blue hover effect */
   transform: scale(1.05);
-}
-
-/* Not-yet-implemented settings (Graphics Quality, Screen Resolution) */
-.tbd-tag {
-  color: #8a7ec9;
-  font-weight: normal;
-  font-size: 0.85em;
-}
-
-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Key Bindings edit panel */

@@ -31,6 +31,22 @@ const difficultySettings =
   DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
   DIFFICULTY_SETTINGS.normal;
 
+// Accessibility/preference toggles set on the Settings page (see
+// settings.js) — both default to on so existing behavior doesn't change
+// for anyone who's never touched these.
+const screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
+const clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+
+// Subtle rubber-banding: after several deaths in a row without reaching a
+// *new* checkpoint, nudge the odds back in the player's favor a little —
+// a slightly wider checkpoint radius and slightly smaller spike/slightly
+// bigger landing hitboxes (see resolveAxis()/the spike check below) —
+// capped low enough that it never feels like the level itself changed.
+let consecutiveDeaths = 0;
+function leniencyLevel() {
+  return Math.min(3, Math.floor(consecutiveDeaths / 4));
+}
+
 // Camera settings
 let cameraOffsetX = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
@@ -43,6 +59,15 @@ let shakeMagnitude = 0;
 let squashX = 1;
 let squashY = 1;
 let wasGrounded = false;
+
+// Per-shape cosmetic movement flourishes (see drawPlayer()) — purely
+// visual, never touch player.width/height or any collision math, so every
+// skin shares the exact same hitbox regardless of how it's animated.
+let triangleSpinActive = false;
+let triangleSpinAngle = 0;
+let triangleSpinSpeed = 0;
+let circleRollAngle = 0;
+let circleBounceOffset = 0;
 
 // -------------------------------------------------------------
 // PARTICLES
@@ -135,6 +160,16 @@ document.addEventListener("keydown", startAudioOnInteraction);
 let textOpacity = 1;
 let textFadeStartTime = null;
 
+// First-playthrough tutorial tips (see level1.js's window.tutorialTips) —
+// short captions that pop up the first time the player reaches each new
+// kind of thing (a gap, a spike, a deadly platform, a checkpoint, the
+// finish), one at a time, then fade. Only level 1 defines any.
+let tutorialTipTriggered = [];
+let tutorialTipQueue = [];
+let currentTutorialTip = null;
+let tutorialTipOpacity = 0;
+let tutorialTipShownAt = 0;
+
 // Set current level from saved data if it exists, otherwise start at 1.
 // Unlike the old reload-based flow, this is now only a "resume after a
 // manual browser refresh" convenience — normal level-to-level progress
@@ -194,6 +229,7 @@ function loadLevel(levelNumber) {
     window.spikes = [];
     window.checkpoints = [];
     window.levelText = "";
+    window.tutorialTips = [];
 
     const script = document.createElement("script");
     // Cache-busted: level files just changed from `const`/`let` to
@@ -239,6 +275,14 @@ function resetLevelState() {
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
+  consecutiveDeaths = 0;
+  tutorialTipTriggered = (tutorialTips || []).map(() => false);
+  tutorialTipQueue = [];
+  currentTutorialTip = null;
+  tutorialTipOpacity = 0;
+
+  applyLevelVerticalLayout();
+
   // Snap (don't smoothly lerp) the camera to the new level's start — this
   // runs while the screen is fully black mid-transition, so a lerp would
   // just be wasted motion nobody sees, and skipping it means the fade-in
@@ -248,6 +292,78 @@ function resetLevelState() {
   if (typeof checkpoints !== "undefined") {
     checkpoints.forEach((c) => (c.reached = false));
   }
+}
+
+// Anti-cheat clearance above a level's own highest platform: comfortably
+// more than a single jump's ~144px rise (so ordinary jumps near the top of
+// a level are untouched) but less than the ~280-290px a double jump can
+// reach if timed to maximize height rather than distance — the only way a
+// player could reach that much height is by standing on the level's own
+// topmost platform (there's nothing higher to legitimately reach for) and
+// deliberately chaining straight up, which is exactly the "climb on top of
+// everything and skip the intended path" cheese this caps.
+const ROOF_CLEARANCE = 240;
+// How far the ceiling extends past the level's own platforms on each side
+// — comfortably more than any camera/backtracking range.
+const ROOF_MARGIN = 1000;
+
+// Re-centers a level's vertical layout on the *actual* viewport instead of
+// wherever level authors happened to place it (window.innerHeight varies
+// per player, but every levelN.js was authored against one nominal band —
+// see docs/gameplay.md), then caps how high the player can climb above the
+// level's own highest platform. Both are pure translations/additions of
+// already-verified geometry: shifting every y by the same amount preserves
+// every gap's rise and every checkpoint's relative safety (the audits in
+// .claude/ check *relative* distances), and the roof sits above the
+// highest legitimate point in the level, so neither can turn a
+// previously-safe checkpoint or previously-possible jump into a bad one.
+function applyLevelVerticalLayout() {
+  if (typeof platforms === "undefined" || !platforms.length) return;
+
+  const tops = [];
+  const bottoms = [];
+  platforms.forEach((p) => {
+    tops.push(p.y);
+    bottoms.push(p.y + p.height);
+  });
+  deadlyPlatforms.forEach((p) => {
+    tops.push(p.y);
+    bottoms.push(p.y + p.height);
+  });
+  spikes.forEach((s) => {
+    tops.push(s.y - s.size);
+    bottoms.push(s.y);
+  });
+  checkpoints.forEach((c) => {
+    tops.push(c.y - 20);
+    bottoms.push(c.y + 20);
+  });
+
+  const levelCenterY = (Math.min(...tops) + Math.max(...bottoms)) / 2;
+  const shiftY = Math.round(canvas.height / 2 - levelCenterY);
+
+  if (shiftY !== 0) {
+    platforms.forEach((p) => (p.y += shiftY));
+    deadlyPlatforms.forEach((p) => (p.y += shiftY));
+    spikes.forEach((s) => (s.y += shiftY));
+    checkpoints.forEach((c) => (c.y += shiftY));
+    player.y += shiftY;
+  }
+
+  const topPlatformY = Math.min(...platforms.map((p) => p.y));
+  const allX = platforms
+    .concat(deadlyPlatforms)
+    .flatMap((p) => [p.x, p.x + p.width]);
+  const roofLeft = Math.min(0, ...allX) - ROOF_MARGIN;
+  const roofRight = Math.max(...allX) + ROOF_MARGIN;
+
+  platforms.push({
+    x: roofLeft,
+    y: topPlatformY - ROOF_CLEARANCE,
+    width: roofRight - roofLeft,
+    height: 30,
+    roof: true,
+  });
 }
 
 function advanceToNextLevel() {
@@ -359,12 +475,27 @@ function drawPlayer() {
   // collision boundary instead of sticking out past it (see
   // docs/known-issues.md #4 for why that matters).
   if (skin.shape === "circle") {
+    const r = halfW - lineWidth / 2;
+    ctx.save();
+    // A small rebound on landing and a roll proportional to horizontal
+    // speed — cosmetic only, the hitbox stays the fixed 25x25 box.
+    ctx.translate(0, circleBounceOffset);
+    ctx.rotate(circleRollAngle);
     ctx.beginPath();
-    ctx.arc(0, 0, halfW - lineWidth / 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    // A rim mark so the roll is actually visible — a plain filled circle
+    // looks identical at every rotation otherwise.
+    ctx.beginPath();
+    ctx.arc(r * 0.55, 0, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = skin.stroke;
+    ctx.fill();
+    ctx.restore();
   } else if (skin.shape === "triangle") {
     const inset = (halfW - lineWidth / 2) / halfW;
+    ctx.save();
+    ctx.rotate(triangleSpinAngle); // sometimes tumbles in the air
     ctx.beginPath();
     ctx.moveTo(0, -halfH * inset);
     ctx.lineTo(halfW * inset, halfH * inset);
@@ -372,6 +503,7 @@ function drawPlayer() {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
   } else {
     ctx.beginPath();
     ctx.rect(-halfW, -halfH, player.width, player.height);
@@ -430,6 +562,7 @@ function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
 
 function drawPlatforms() {
   platforms.forEach((platform) => {
+    if (platform.ghost || platform.roof || platform.melt) return; // drawn separately, see below
     drawInsetRect(
       platformX(platform),
       platformY(platform),
@@ -437,6 +570,80 @@ function drawPlatforms() {
       platform.height,
       "rgba(15, 100, 156, 0.63)",
       "rgba(31, 113, 168, 0.77)"
+    );
+  });
+}
+
+// Ghost platforms flicker solid/intangible on a timer (see
+// updateGhostPlatforms()) — drawn bright yellow and mostly opaque while
+// solid, a faint yellow outline while intangible, with a fast flicker in
+// the last few frames of either state so the flip is always telegraphed.
+function drawGhostPlatforms() {
+  platforms.forEach((platform) => {
+    if (!platform.ghost) return;
+    const solid = platform._solid !== false;
+    let alpha = solid ? 0.85 : 0.2;
+    if (platform._ghostWarning) {
+      alpha = Math.floor(Date.now() / 90) % 2 === 0 ? alpha : alpha * 0.35;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    drawInsetRect(
+      platformX(platform),
+      platformY(platform),
+      platform.width,
+      platform.height,
+      "rgba(255, 209, 46, 0.8)",
+      "rgba(255, 236, 140, 0.95)"
+    );
+    ctx.restore();
+  });
+}
+
+// Melt platforms (`melt: true`) — a second, distinct yellow platform type
+// from ghost platforms: solid and safe to land on, but standing on one
+// starts a short countdown (see the melt-timer block in updatePlayer())
+// that ends with it crumbling away for good (until the next respawn). A
+// deeper, cracked orange (vs. a ghost's clean bright yellow) with a
+// shake/flicker that intensifies as the countdown runs out, so it reads as
+// "get off me" rather than just another safe platform.
+function drawMeltPlatforms() {
+  platforms.forEach((platform) => {
+    if (!platform.melt || platform._melted) return;
+    const timer = platform._meltTimer || 0;
+    const delay = platform.meltDelay || 28;
+    const urgency = Math.min(1, timer / delay);
+    const shakeX = urgency > 0.35 ? (Math.random() - 0.5) * urgency * 5 : 0;
+    const alpha = urgency > 0.35 && Math.random() < urgency * 0.5 ? 0.45 : 0.85;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    drawInsetRect(
+      platformX(platform) + shakeX,
+      platformY(platform),
+      platform.width,
+      platform.height,
+      `rgba(255, ${Math.round(190 - urgency * 110)}, 30, 0.8)`,
+      "rgba(255, 150, 40, 0.9)"
+    );
+    ctx.restore();
+  });
+}
+
+// The anti-cheat ceiling added by applyLevelVerticalLayout() — drawn as a
+// dark, hazard-striped boundary (distinct from every hand-placed platform
+// color) so if a player ever does bump it, it reads as "the top of the
+// world," not a bug.
+function drawRoofPlatforms() {
+  platforms.forEach((platform) => {
+    if (!platform.roof) return;
+    drawInsetRect(
+      platform.x,
+      platform.y,
+      platform.width,
+      platform.height,
+      "rgba(20, 18, 28, 0.85)",
+      "rgba(120, 60, 160, 0.5)"
     );
   });
 }
@@ -472,20 +679,10 @@ function drawSpikes() {
   });
 }
 
-// Draws an n-pointed star path centered at the origin, alternating
-// between outerRadius and innerRadius, rotated by `rotation` radians.
-function starPath(points, outerRadius, innerRadius, rotation) {
-  ctx.beginPath();
-  for (let i = 0; i < points * 2; i++) {
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-    const angle = (Math.PI / points) * i + rotation;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-}
+// The finish checkpoint's logo image (see index.html's main-menu logo) —
+// cached the same way skin images are (see getSkinImage()) so it's only
+// ever loaded once no matter how many levels draw it.
+const finishLogoImage = getSkinImage("starshade.png");
 
 function drawCheckpoints() {
   const now = Date.now();
@@ -509,23 +706,55 @@ function drawCheckpoints() {
     ctx.translate(checkpoint.x - cameraOffsetX, checkpoint.y);
 
     if (isFinish) {
-      // The level's finish is a slowly-spinning gold star (green once
-      // reached) instead of a plain circle, so it reads as a distinct
-      // "goal," not just another checkpoint along the way.
-      const rotation = now / 1000;
+      // The level's finish is the Starshade logo itself instead of a plain
+      // circle, so it reads as a distinct "goal" — slowly spinning, with
+      // the same gold-idle/green-reached glow language as every other
+      // checkpoint, tinted green once reached instead of staying its
+      // native purple/blue so "you're teleporting" reads the same way it
+      // does everywhere else in the game.
+      const rotation = now / 4000;
       const outer = 18 + pulse + pop;
-      ctx.fillStyle = checkpoint.reached
-        ? "rgba(80, 255, 120, 0.9)"
-        : "rgba(255, 207, 77, 0.9)";
-      ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "#e8a800";
-      ctx.shadowColor = checkpoint.reached
+      // Purple/blue while unreached — matches the game's cosmic theme
+      // (and the logo's own colors) instead of the gold used for ordinary
+      // checkpoints — then green on reach, same "you're teleporting"
+      // language as every other checkpoint.
+      const glowColor = checkpoint.reached
         ? "rgba(80,255,120,0.8)"
-        : "rgba(255,207,77,0.8)";
+        : "rgba(122,110,255,0.8)";
+      const ringColor = checkpoint.reached ? "#32cd32" : "#7a6eff";
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, outer, 0, Math.PI * 2);
+      ctx.strokeStyle = ringColor;
+      ctx.shadowColor = glowColor;
       ctx.shadowBlur = 15;
       ctx.lineWidth = 3;
-      starPath(5, outer, outer * 0.45, rotation);
-      ctx.fill();
       ctx.stroke();
+      ctx.restore();
+
+      if (finishLogoImage.complete && finishLogoImage.naturalWidth > 0) {
+        ctx.save();
+        ctx.rotate(rotation);
+        ctx.beginPath();
+        ctx.arc(0, 0, outer - 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(finishLogoImage, -outer, -outer, outer * 2, outer * 2);
+        if (checkpoint.reached) {
+          ctx.globalCompositeOperation = "source-atop";
+          ctx.fillStyle = "rgba(60, 220, 100, 0.55)";
+          ctx.fillRect(-outer, -outer, outer * 2, outer * 2);
+        }
+        ctx.restore();
+      } else {
+        // Fallback for the one frame or two before the image finishes
+        // loading.
+        ctx.beginPath();
+        ctx.arc(0, 0, outer, 0, Math.PI * 2);
+        ctx.fillStyle = glowColor;
+        ctx.fill();
+      }
     } else {
       ctx.fillStyle = checkpoint.reached ? "rgba(50, 255, 50, 0.8)" : "#fff";
       ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "#ccc";
@@ -619,6 +848,32 @@ function platformY(p) {
   return p.y + (p.moveAxis === "y" ? p._offset || 0 : 0);
 }
 
+// -------------------------------------------------------------
+// GHOST PLATFORMS
+// -------------------------------------------------------------
+// A platform opts in with `ghost: true` and cycles solid/intangible on a
+// timer: `ghostPeriod` (total cycle length in frames, default 180),
+// `ghostOnRatio` (fraction of the cycle it's solid, default 0.55) and
+// `ghostPhase` (frame offset, lets several ghost platforms in one level be
+// out of sync with each other). resolveAxis() skips collision against one
+// entirely while it's intangible, so standing on one the instant it flips
+// just means falling through — no special-casing needed there.
+function updateGhostPlatforms() {
+  platforms.forEach((p) => {
+    if (!p.ghost) return;
+    const period = p.ghostPeriod || 180;
+    const onFrames = Math.round(
+      period * (p.ghostOnRatio != null ? p.ghostOnRatio : 0.55)
+    );
+    const t = (levelFrameCount + (p.ghostPhase || 0)) % period;
+    p._solid = t < onFrames;
+    // A short flicker window before every flip so the change is always
+    // telegraphed, never a surprise.
+    const framesLeftInState = p._solid ? onFrames - t : period - t;
+    p._ghostWarning = framesLeftInState <= 20;
+  });
+}
+
 // Resolves player movement against solid platforms one axis at a time using
 // a "crossing" test (did the relevant edge start on one side of the
 // platform's edge and end up on the other?) rather than an after-the-move
@@ -643,6 +898,9 @@ function resolveAxis(axis) {
   let groundedOn = null;
 
   platforms.forEach((platform) => {
+    if (platform.ghost && platform._solid === false) return; // intangible right now
+    if (platform.melt && platform._melted) return; // already crumbled away
+
     const px = platformX(platform);
     const py = platformY(platform);
     const pNear = isX ? px : py;
@@ -657,9 +915,36 @@ function resolveAxis(axis) {
         player.x - player.width / 2 < px + platform.width;
     if (!otherAxisOverlap) return;
 
+    // A moving platform's own edge isn't where it was at the start of this
+    // frame — using its current (post-move) position for BOTH sides of the
+    // crossing test silently breaks the test for any platform moving
+    // toward the player fast enough: e.g. a vertical platform rising into
+    // a player resting on top moves its top edge above the player's old
+    // foot position before the check even runs, so "did the foot start
+    // above the edge and end below it" reads false and the player falls
+    // straight through instead of being carried up. Comparing the OLD
+    // player edge against where the platform edge WAS this frame (undoing
+    // its own delta) keeps the test correct regardless of which side is
+    // moving, and makes it track a moving platform every frame while
+    // grounded — no separate "carry" step needed for this axis.
+    const platformDelta =
+      platform.moveAxis === axis ? platform._deltaOffset || 0 : 0;
+    const pNearOld = pNear - platformDelta;
+    const pFarOld = pFar - platformDelta;
+
+    // A small constant landing forgiveness absorbs the sub-pixel jitter a
+    // sine-driven moving platform's own delta can introduce right at its
+    // steepest point (where oldFar and pNearOld can land a hair apart
+    // purely from floating-point rounding) — without it, a resting player
+    // can occasionally slip past a fast-descending platform by less than a
+    // pixel and never re-catch it. leniencyLevel() (repeated deaths) adds
+    // further forgiveness on top, only for landing, never walls/ceilings.
+    const landingForgiveness =
+      !isX && delta > 0 ? 1.5 + leniencyLevel() : 0;
+
     if (delta > 0) {
       const newFar = newPos + size / 2;
-      if (oldFar <= pNear && newFar > pNear) {
+      if (oldFar <= pNearOld + landingForgiveness && newFar > pNear) {
         newPos = pNear - size / 2;
         if (isX) player.dx = 0;
         else {
@@ -670,7 +955,7 @@ function resolveAxis(axis) {
       }
     } else if (delta < 0) {
       const newNear = newPos - size / 2;
-      if (oldNear >= pFar && newNear < pFar) {
+      if (oldNear >= pFarOld && newNear < pFar) {
         newPos = pFar + size / 2;
         if (isX) player.dx = 0;
         else player.dy = 0;
@@ -685,6 +970,7 @@ function resolveAxis(axis) {
 
 function updatePlayer() {
   updateMovingPlatforms();
+  updateGhostPlatforms();
   player.dy += gravity;
 
   if (anyPressed("right")) player.dx = horizontalSpeed;
@@ -694,13 +980,61 @@ function updatePlayer() {
   resolveAxis("x");
   const { grounded, groundedOn } = resolveAxis("y");
 
-  // Carry the player along with whatever platform they're standing on —
-  // without this, standing still on a moving platform would mean sliding
-  // off the moment it moved, since collision resolution only ever stops
-  // relative penetration, it doesn't know to bring a resting object along.
-  if (grounded && groundedOn && groundedOn.moveAxis) {
-    if (groundedOn.moveAxis === "x") player.x += groundedOn._deltaOffset;
-    else player.y += groundedOn._deltaOffset;
+  // Melt platforms (`melt: true`) look solid but give way shortly after
+  // you land on them — the countdown only runs while you're actually
+  // standing on this exact one, and resets if you hop off before it gives,
+  // so a quick crossing is always safe and only lingering costs you.
+  platforms.forEach((p) => {
+    if (!p.melt || p._melted) return;
+    if (groundedOn === p) {
+      p._meltTimer = (p._meltTimer || 0) + 1;
+      if (p._meltTimer > (p.meltDelay || 28)) {
+        p._melted = true;
+        spawnParticles(
+          platformX(p) + p.width / 2,
+          platformY(p) + p.height / 2,
+          14,
+          {
+            colors: ["rgba(255,196,46,0.85)", "rgba(160,110,20,0.8)"],
+            speed: 3,
+            life: 26,
+            size: 3.5,
+            gravity: 0.15,
+          }
+        );
+      }
+    } else {
+      p._meltTimer = 0;
+    }
+  });
+
+  // Carry the player horizontally when grounded on an X-moving platform —
+  // resolveAxis('y') only tracks the axis it's resolving (Y), so a
+  // platform sliding sideways underneath a resting player needs this
+  // explicit nudge or they'd slide off the moment it moved. A Y-moving
+  // platform doesn't need this: resolveAxis('y') already re-anchors the
+  // player to its current surface every grounded frame (see the
+  // platformDelta comment above), so adding the offset again here would
+  // double-count that frame's movement.
+  if (grounded && groundedOn && groundedOn.moveAxis === "x") {
+    player.x += groundedOn._deltaOffset;
+  }
+
+  // Circle skins roll proportional to horizontal speed and give a tiny
+  // extra rebound on landing (Y only, purely cosmetic — see drawPlayer()).
+  circleRollAngle += player.dx * 0.05;
+  if (grounded && !wasGrounded) circleBounceOffset = -4;
+  circleBounceOffset *= 0.8;
+  if (Math.abs(circleBounceOffset) < 0.1) circleBounceOffset = 0;
+
+  // Triangle skins sometimes tumble while airborne, settling back to
+  // point-up the instant they land.
+  if (triangleSpinActive) {
+    if (player.dy !== 0) triangleSpinAngle += triangleSpinSpeed;
+    else {
+      triangleSpinActive = false;
+      triangleSpinAngle = 0;
+    }
   }
 
   if (grounded) {
@@ -751,11 +1085,12 @@ function updatePlayer() {
   checkpoints.forEach((checkpoint, index) => {
     if (
       Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) <
-        difficultySettings.checkpointRadius &&
+        difficultySettings.checkpointRadius + leniencyLevel() * 3 &&
       !checkpoint.reached
     ) {
       checkpoint.reached = true;
       checkpoint.reachedAt = Date.now();
+      consecutiveDeaths = 0; // real progress — the rubber-banding resets
       spawnParticles(checkpoint.x, checkpoint.y, 14, {
         colors: ["rgba(50,255,50,0.9)", "rgba(180,255,180,0.9)", "#fff"],
         speed: 3.5,
@@ -774,9 +1109,12 @@ function updatePlayer() {
     }
   });
 
-  // Spikes
+  // Spikes — inset the effective hitbox by a couple of px once
+  // leniencyLevel() kicks in, same rubber-banding as the checkpoint radius
+  // and landing forgiveness above.
+  const spikeForgiveness = leniencyLevel() * 1.5;
   spikes.forEach((spike) => {
-    const spikeTipY = spike.y - spike.size;
+    const spikeTipY = spike.y - spike.size + spikeForgiveness;
     if (
       player.x + player.width / 2 > spike.x &&
       player.x - player.width / 2 < spike.x + spike.size &&
@@ -810,6 +1148,63 @@ function updatePlayer() {
   if (shakeTime > 0) shakeTime--;
 }
 
+function updateTutorialTips() {
+  tutorialTips.forEach((tip, i) => {
+    if (!tutorialTipTriggered[i] && player.x >= tip.x) {
+      tutorialTipTriggered[i] = true;
+      tutorialTipQueue.push(tip.text);
+    }
+  });
+
+  if (!currentTutorialTip && tutorialTipQueue.length) {
+    currentTutorialTip = tutorialTipQueue.shift();
+    tutorialTipShownAt = Date.now();
+  }
+
+  if (currentTutorialTip) {
+    const elapsed = Date.now() - tutorialTipShownAt;
+    const fadeMs = 400;
+    const holdMs = 3200;
+    if (elapsed < fadeMs) tutorialTipOpacity = elapsed / fadeMs;
+    else if (elapsed < holdMs - fadeMs) tutorialTipOpacity = 1;
+    else if (elapsed < holdMs) tutorialTipOpacity = (holdMs - elapsed) / fadeMs;
+    else {
+      currentTutorialTip = null;
+      tutorialTipOpacity = 0;
+    }
+  }
+}
+
+function drawTutorialTip() {
+  if (!currentTutorialTip || tutorialTipOpacity <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = tutorialTipOpacity;
+  ctx.font = "20px Cinzel";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const y = canvas.height - 80;
+  const textWidth = ctx.measureText(currentTutorialTip).width;
+  const boxW = textWidth + 48;
+  const boxH = 46;
+  const boxX = canvas.width / 2 - boxW / 2;
+  const boxY = y - boxH / 2;
+
+  ctx.fillStyle = "rgba(25, 0, 51, 0.88)";
+  ctx.strokeStyle = "#4d3f91";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 12);
+  else ctx.rect(boxX, boxY, boxW, boxH);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#dcd4ff";
+  ctx.fillText(currentTutorialTip, canvas.width / 2, y);
+  ctx.restore();
+}
+
 function updateLevelText() {
   if (textFadeStartTime === null) {
     textFadeStartTime = Date.now();
@@ -827,6 +1222,16 @@ function updateLevelText() {
 function resetPlayer() {
   shakeTime = 15;
   shakeMagnitude = 6;
+  consecutiveDeaths++;
+
+  // Give every melt platform back — dying and retrying a section shouldn't
+  // permanently lose a platform a later attempt still needs to cross.
+  platforms.forEach((p) => {
+    if (p.melt) {
+      p._melted = false;
+      p._meltTimer = 0;
+    }
+  });
 
   const skin = StarshadeEconomy.getEquippedSkin();
   spawnParticles(player.x, player.y, 20, {
@@ -866,6 +1271,7 @@ function update() {
   if (!isFading || fadeDirection === -1) {
     updatePlayer();
     updateLevelText();
+    updateTutorialTips();
   }
   updateParticles();
   draw();
@@ -884,7 +1290,7 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
-  if (shakeTime > 0) {
+  if (shakeTime > 0 && screenShakeEnabled) {
     ctx.translate(
       (Math.random() - 0.5) * shakeMagnitude,
       (Math.random() - 0.5) * shakeMagnitude
@@ -892,13 +1298,17 @@ function draw() {
   }
 
   if (typeof platforms !== "undefined") {
+    drawRoofPlatforms();
     drawPlatforms();
+    drawGhostPlatforms();
+    drawMeltPlatforms();
     drawSpikes();
     drawCheckpoints();
     drawParticles();
     drawPlayer();
     drawLevelText();
     drawDeadlyPlatforms();
+    drawTutorialTip();
   }
 
   ctx.restore();
@@ -926,22 +1336,35 @@ document.addEventListener("keydown", (e) => {
   // of requiring a second, deliberate press.
   if (e.repeat) return;
 
-  if (isBound("jump", e.key) && player.dy === 0) {
+  if (isBound("jump", e.key)) tryJump();
+});
+
+// Shared by the keyboard jump binding and click/tap-to-jump (see
+// settings.js's "Click/Tap to Jump" toggle) so both trigger the exact same
+// jump-or-double-jump logic.
+function tryJump() {
+  if (player.dy === 0) {
     player.dy = jumpStrength;
-    squashX = 0.7;
-    squashY = 1.3;
-    spawnJumpDust();
-  } else if (
-    isBound("jump", e.key) &&
-    player.dy !== 0 &&
-    !doubleJumpUsed
-  ) {
+  } else if (!doubleJumpUsed) {
     player.dy = jumpStrength;
     doubleJumpUsed = true;
-    squashX = 0.7;
-    squashY = 1.3;
-    spawnJumpDust();
+  } else {
+    return; // already used the double jump — this press does nothing
   }
+  squashX = 0.7;
+  squashY = 1.3;
+  spawnJumpDust();
+
+  // A triangle skin only tumbles some of the time — "can rotate in the
+  // air sometimes," not a spin on every single jump.
+  if (StarshadeEconomy.getEquippedSkin().shape === "triangle" && Math.random() < 0.5) {
+    triangleSpinActive = true;
+    triangleSpinSpeed = (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.25);
+  }
+}
+
+canvas.addEventListener("click", () => {
+  if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
 });
 
 function spawnJumpDust() {

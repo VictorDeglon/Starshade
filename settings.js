@@ -10,6 +10,18 @@ if (cameFromPause) {
   document.getElementById("back-button").textContent = "Back to Game";
 }
 
+// Display name — saved locally, read back by script.js for the main
+// menu's "Welcome back" greeting.
+const playerNameInput = document.getElementById("player-name");
+const savedPlayerName = localStorage.getItem("playerName");
+if (savedPlayerName) playerNameInput.value = savedPlayerName;
+
+playerNameInput.addEventListener("input", () => {
+  const trimmed = playerNameInput.value.trim();
+  if (trimmed) localStorage.setItem("playerName", trimmed);
+  else localStorage.removeItem("playerName");
+});
+
 // Persist the volume sliders to localStorage so game.js (and future pages)
 // can read and apply them.
 const volumeSlider = document.getElementById("volume");
@@ -132,15 +144,16 @@ rebindButtons.forEach((button) => {
 // -------------------------------------------------------------
 // CONTROLS PRESET
 // -------------------------------------------------------------
-// A convenience that overwrites all three bindings at once. "Mouse Clicks"
-// isn't implemented -- the game's movement is a physics-based platformer
+// A convenience that overwrites both movement bindings at once. Click/Tap
+// to Jump (below) covers the "use the mouse" case instead of a fake
+// "Mouse Clicks" movement preset — this is a physics-based platformer
 // (gravity, jump arcs), not a click-to-move scheme, so there's nothing
-// sensible to bind it to yet.
+// sensible for the mouse to drive left/right with.
 const controlsSelect = document.getElementById("controls");
 
 controlsSelect.addEventListener("change", () => {
   const preset = CONTROL_PRESETS[controlsSelect.value];
-  if (!preset) return; // "mouseclicks" -- no preset defined yet
+  if (!preset) return;
   keyBindings = { ...preset };
   saveKeyBindings();
   renderBindingLabels();
@@ -157,4 +170,27 @@ if (savedDifficulty) difficultySelect.value = savedDifficulty;
 
 difficultySelect.addEventListener("change", () => {
   localStorage.setItem("difficulty", difficultySelect.value);
+});
+
+// -------------------------------------------------------------
+// CLICK/TAP TO JUMP & SCREEN SHAKE
+// -------------------------------------------------------------
+// Both read back by game.js (screenShakeEnabled/clickToJumpEnabled) —
+// simple on/off toggles that actually change behavior, unlike the old
+// disabled "Screen Resolution" placeholder and dead "Mouse Clicks" preset
+// they replaced.
+const clickToJumpSelect = document.getElementById("click-to-jump");
+const savedClickToJump = localStorage.getItem("clickToJump");
+if (savedClickToJump) clickToJumpSelect.value = savedClickToJump;
+
+clickToJumpSelect.addEventListener("change", () => {
+  localStorage.setItem("clickToJump", clickToJumpSelect.value);
+});
+
+const screenShakeSelect = document.getElementById("screen-shake");
+const savedScreenShake = localStorage.getItem("screenShake");
+if (savedScreenShake) screenShakeSelect.value = savedScreenShake;
+
+screenShakeSelect.addEventListener("change", () => {
+  localStorage.setItem("screenShake", screenShakeSelect.value);
 });

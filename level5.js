@@ -26,6 +26,18 @@ window.platforms = [
 
   { x: 2100, y: 300, width: 220, height: 20 }, // breather
 
+  // A ghost platform bridges the wide gap — a timed alternative to the raw
+  // double jump.
+  {
+    x: 2440,
+    y: 290,
+    width: 90,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 170,
+    ghostOnRatio: 0.55,
+  },
+
   // Wide gap — double jump territory.
   { x: 2620, y: 280, width: 260, height: 20 },
 
@@ -67,6 +79,9 @@ window.spikes = [
   { x: 3270, y: 250, size: 30 },
   { x: 3380, y: 250, size: 30 },
   { x: 3410, y: 250, size: 30 },
+
+  { x: 1080, y: 380, size: 20 },
+  { x: 4050, y: 180, size: 20 },
 ];
 
 window.checkpoints = [

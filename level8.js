@@ -35,6 +35,17 @@ window.platforms = [
   },
   { x: 2880, y: 300, width: 100, height: 20 }, // rising — double jump
 
+  // A ghost stepping-stone across the widest gap on the bridge.
+  {
+    x: 3110,
+    y: 280,
+    width: 90,
+    height: 20,
+    ghost: true,
+    ghostPeriod: 150,
+    ghostOnRatio: 0.5,
+  },
+
   { x: 3280, y: 260, width: 250, height: 20 }, // breather
 
   { x: 3710, y: 280, width: 130, height: 20 },
@@ -55,8 +66,10 @@ window.platforms = [
 window.deadlyPlatforms = [];
 
 window.spikes = [
+  { x: 520, y: 400, size: 20 },
   { x: 1730, y: 380, size: 25 },
   { x: 2930, y: 300, size: 25 },
+  { x: 3300, y: 260, size: 20 },
   { x: 4470, y: 190, size: 25 },
 ];
 
