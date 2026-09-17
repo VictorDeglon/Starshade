@@ -33,7 +33,11 @@ These are two **separate** `Audio` objects that don't know about each other:
   `index.html`).
 - `game.js` (loaded only by `game.html`) creates its own plain `Audio` for
   `starshade.mp3` and starts it on the player's first click/keypress (needed
-  because browsers block autoplay with sound before user interaction).
+  because browsers block autoplay with sound before user interaction). This
+  one **Audio element is created exactly once per game.html page load** and
+  is never recreated or paused by a level transition (see below) — that's
+  what makes the music keep playing seamlessly as you move from level to
+  level.
 
 Both read/write the same `localStorage.musicVolume` key (0–100, set from the
 Settings page) so the volume setting applies consistently even though the
@@ -47,30 +51,36 @@ two players are otherwise independent.
    page (if any).
 2. Resets `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
    `window.checkpoints`, `window.levelText` to empty/blank.
-3. Injects a fresh `<script id="activeLevelScript" src="levelN.js">`.
+3. Injects a fresh `<script id="activeLevelScript" src="levelN.js?v=2">`
+   (the `?v=2` cache-busts a browser that cached an old copy of that exact
+   URL under the previous file format — see below).
 
-Each `levelN.js` file declares its data with top-level `const`/`let`
-(`const platforms = [...]`, `let levelText = "Level N"`, etc.) using the
-**same identifier names** in every level file.
+**Each `levelN.js` file assigns `window.platforms = [...]`,
+`window.levelText = "..."`, etc. — plain property writes, not
+`const`/`let` declarations.** This is deliberate and easy to get wrong if
+you're used to normal JS scoping: top-level `let`/`const`/`class` declared
+in any `<script>` tag on a page share **one global lexical scope** across
+the whole document, so if a level file declared `const platforms = [...]`
+and a *second* level script also declared `const platforms = [...]` later
+in the same page's lifetime, the second one would throw `SyntaxError:
+Identifier 'platforms' has already been declared` — a parse-time error
+that kills that entire script, not just the one line. `game.html` used to
+statically include both `level1.js` and `level2.js` and hit exactly this
+(see [known-issues.md](known-issues.md)). Plain `window.foo = ...`
+assignment has no such restriction — it can be repeated any number of
+times — which is what actually lets `loadLevel()` be called again and
+again, in-page, as the player advances through all 12 levels.
 
-This is why `game.html` must only ever have **one** level script attached
-to the page at a time. Top-level `let`/`const`/`class` declared in any
-`<script>` tag on a page share **one global lexical scope** across the whole
-document — if two `<script>` tags each declare `const platforms = [...]`,
-the second one throws `SyntaxError: Identifier 'platforms' has already been
-declared` the moment it runs, and that error kills the *entire* script (the
-whole file fails to execute, not just that one line, because redeclaration
-is caught at parse time). `game.html` used to statically include
-`level1.js` *and* `level2.js` directly, which hit exactly this — see
-[known-issues.md](known-issues.md#1-critical--every-page-load-of-gamehtml-threw-a-syntaxerror).
-
-Because of this constraint, level transitions in `game.js` don't swap the
-script in-place — `loadNextLevel`-style hot-swapping would still work once
-per transition, but the actual mechanism used is simpler and sidesteps the
-scoping issue entirely: reaching the final checkpoint of a level sets
-`localStorage.savedLevel = currentLevel + 1` and calls
-`window.location.reload()`, which throws away the whole page (and its global
-scope) and starts over. The bottom of `game.js` reads `savedLevel` back out
-of `localStorage` on that fresh load to pick up where it left off. If
-`loadLevel()` for that number 404s (i.e. there's no next `levelN.js`), the
-`.catch()` shows the "You beat Starshade!" overlay instead.
+Reaching a level's final checkpoint doesn't reload the page at all
+anymore. It starts a fade-to-black (`isFading`/`fadeDirection` in
+`game.js`), and once the screen is fully black, `advanceToNextLevel()`
+awards that level's coins, increments `currentLevel`, and calls
+`loadLevel()` for the next one — all while the same `Audio` object from
+step zero keeps playing, since nothing about this path ever touches it.
+`currentLevel` is also written to `localStorage.savedLevel` on every
+transition purely so a **manual page refresh** resumes roughly where you
+left off; it's not required for the in-page advance to work. If
+`loadLevel()` 404s (there's no next `levelN.js`), the `.catch()` shows the
+"You beat Starshade!" screen and resets `savedLevel` back to `1` so the
+next "Play" from the main menu starts a fresh run instead of immediately
+re-hitting the same "no next level" case.

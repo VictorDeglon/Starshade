@@ -180,6 +180,67 @@ button.edit-button:hover {
   transform: scale(1.05);
 }
 
+/* Not-yet-implemented settings (Graphics Quality, Screen Resolution) */
+.tbd-tag {
+  color: #8a7ec9;
+  font-weight: normal;
+  font-size: 0.85em;
+}
+
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Key Bindings edit panel */
+.bindings-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid #4d3f91;
+  border-radius: 10px;
+}
+
+.binding-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0;
+}
+
+.binding-label {
+  color: #dcd4ff;
+}
+
+.rebind-button {
+  padding: 6px 14px;
+  min-width: 90px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.rebind-button:hover {
+  background-color: #0e2338;
+}
+
+.rebind-button.listening {
+  background-color: #4d3f91;
+  animation: pulse 1s infinite;
+}
+
+.bindings-hint {
+  margin: 10px 0 0;
+  font-size: 0.8em;
+  color: #8a7ec9;
+  text-align: center;
+}
+
 /* Contact Us Section */
 .contact-section {
   background: rgba(25, 0, 51, 0.85);
@@ -282,6 +343,11 @@ button.edit-button:hover {
 .back-button:hover {
   background-color: #0e2338;
   transform: scale(1.1);
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(138, 77, 228, 0.6); }
+  50% { box-shadow: 0 0 14px rgba(138, 77, 228, 0.9); }
 }
 
 

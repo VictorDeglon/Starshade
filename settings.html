@@ -9,7 +9,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" href="starshade.png" type="image/png" />
+    <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
   </head>
   <body>
     <div class="background-overlay"></div>
@@ -48,14 +50,16 @@
           />
         </div>
 
-        <!-- Graphics Quality -->
+        <!-- Difficulty — actually changes gameplay, see game.js's
+             DIFFICULTY_SETTINGS: moving platforms speed up/slow down,
+             checkpoints get more/less forgiving to touch, and coin
+             rewards scale with the risk. -->
         <div class="setting-item">
-          <label for="graphics">Graphics Quality:</label>
-          <select id="graphics" name="graphics">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-            <option value="ultra">Ultra</option>
+          <label for="difficulty">Difficulty:</label>
+          <select id="difficulty" name="difficulty">
+            <option value="easy">Easy — slower hazards, forgiving checkpoints</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard — faster hazards, more coins</option>
           </select>
         </div>
 
@@ -65,24 +69,38 @@
           <select id="controls" name="controls">
             <option value="wasd">WASD</option>
             <option value="arrowkeys">Arrow Keys</option>
-            <option value="mouseclicks">Mouse Clicks</option>
+            <option value="mouseclicks">Mouse Clicks (TBD)</option>
           </select>
         </div>
 
         <!-- Key Bindings -->
         <div class="setting-item">
           <label for="keybindings">Key Bindings:</label>
-          <button class="edit-button">Edit Key Bindings</button>
+          <button class="edit-button" id="edit-bindings-button">Edit Key Bindings</button>
+          <div id="bindings-panel" class="bindings-panel" hidden>
+            <div class="binding-row">
+              <span class="binding-label">Move Left</span>
+              <button class="rebind-button" data-action="left"></button>
+            </div>
+            <div class="binding-row">
+              <span class="binding-label">Move Right</span>
+              <button class="rebind-button" data-action="right"></button>
+            </div>
+            <div class="binding-row">
+              <span class="binding-label">Jump</span>
+              <button class="rebind-button" data-action="jump"></button>
+            </div>
+            <p class="bindings-hint">Click a key, then press its replacement.</p>
+          </div>
         </div>
 
-        <!-- Screen Resolution -->
+        <!-- Screen Resolution — not implemented: the canvas always fills the
+             browser window (see game.js), so there's no fixed "resolution"
+             for this to control without breaking that responsive sizing. -->
         <div class="setting-item">
-          <label for="resolution">Screen Resolution:</label>
-          <select id="resolution" name="resolution">
-            <option value="720p">1280x720 (HD)</option>
-            <option value="1080p" selected>1920x1080 (Full HD)</option>
-            <option value="1440p">2560x1440 (QHD)</option>
-            <option value="4k">3840x2160 (4K)</option>
+          <label for="resolution">Screen Resolution: <span class="tbd-tag">(TBD)</span></label>
+          <select id="resolution" name="resolution" disabled>
+            <option value="auto" selected>Matches window size</option>
           </select>
         </div>
 

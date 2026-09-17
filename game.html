@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Starshade</title>
-    <link rel="icon" href="starshade.png" />
+    <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
       rel="stylesheet"
@@ -18,21 +20,41 @@
     <!-- Fading Level Text -->
     <div id="levelText" class="fading-text"></div>
 
+    <!-- Coin-earned toast -->
+    <div id="coinToast" class="coin-toast"></div>
+
+    <!-- Visible pause trigger — Escape does the same thing, but that's not
+         discoverable on its own. -->
+    <button id="pause-open-button" aria-label="Pause">&#10074;&#10074;</button>
+
+    <!-- Pause menu (Esc to toggle) -->
+    <div id="pauseMenu" class="menu hidden">
+      <h1>Paused</h1>
+      <button id="resume-button">Resume</button>
+      <button id="pause-settings-button">Settings</button>
+      <button id="pause-quit-button">Quit to Menu</button>
+    </div>
+
     <!-- Shown when there is no next level to load -->
     <div id="gameCompleteMenu" class="menu hidden">
       <h1>You beat Starshade!</h1>
+      <p id="gameCompleteCoins"></p>
       <button id="game-complete-menu-button">Back to Main Menu</button>
     </div>
 
+    <script src="skinsData.js"></script>
     <!--
       Level scripts are NOT included here directly. Each levelN.js file
-      declares top-level `const`/`let` bindings (platforms, checkpoints,
-      levelText, etc.) with the SAME names — script tags in an HTML page
-      share one global lexical scope, so loading two of them side by side
-      throws "Identifier has already been declared" and silently breaks
-      the second level's data. game.js's loadLevel() instead injects
-      exactly one levelN.js <script> at a time, swapping it out as the
-      player progresses.
+      assigns its data to `window.platforms`, `window.checkpoints`, etc.
+      (plain property assignment, not `const`/`let`) specifically so that
+      loadLevel() in game.js can swap in a new levelN.js <script> tag
+      in-page, as many times as needed, without ever reloading the whole
+      page. A `const`/`let` re-declared by a second <script> tag in the
+      same document throws — see docs/architecture.md — but re-assigning
+      `window.foo` is just a normal property write and can happen any
+      number of times. This is what lets level transitions keep the same
+      Audio element (and AudioContext) playing across levels instead of
+      the page reload silently cutting the music.
     -->
     <script src="game.js"></script>
   </body>

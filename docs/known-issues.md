@@ -99,18 +99,101 @@ carousel (`skins.js`/`skins.css`) that renders those six skins as CSS
 gradient "orbs" with a themed glow instead of `<img>` tags pointed at
 missing files — see [assets.md](assets.md).
 
+### 11. Level transitions reloaded the whole page, cutting the music
+
+Advancing to the next level called `window.location.reload()` — which
+worked, but destroyed and recreated the `Audio` element every time,
+killing the music (and, per browser autoplay rules, requiring a fresh
+click/keypress before it would resume). **Fix:** converted every
+`levelN.js` from `const`/`let` declarations to `window.x = ...`
+assignments specifically so `loadLevel()` can be called again, in-page,
+any number of times without the redeclaration `SyntaxError` from fix #1 —
+see [architecture.md](architecture.md). Level transitions are now a
+fade-out → load → fade-in sequence with no reload at all, so the same
+`Audio` object just keeps playing.
+
+### 12. Three checkpoints could respawn the player into an unrecoverable loop
+
+Checkpoints just mark an (x, y) point — nothing ever verified that
+`resetPlayer()` landing there was actually safe. Found via a static
+physics audit (`.claude/audit-checkpoints.js`, simulates the exact
+respawn + fall behavior for every checkpoint in every level):
+- Level 2's checkpoint at (1150, 270) respawned the player directly into
+  a spike positioned right at that height.
+- Level 7's checkpoint at (2900, 130) and level 11's at (2700, 90) both
+  sat in a horizontal gap with no platform underneath — respawning there
+  just fell forever off the bottom of the world, which would then
+  respawn at the same checkpoint again: an eternal death loop, exactly as
+  it sounds. **Fix:** moved each to the nearest safe ledge. All 12
+  levels now pass the audit with zero issues, including after the level
+  1 rework and every level's Act 2 extension below.
+
+### 13. A thin obstacle in level 1 was mathematically impossible to clear normally
+
+A 20px-wide, 150-tall freestanding "wall" (narrower than the player) sat
+just 50px past a platform. A plain running jump can't clear it — height
+only builds up over time, and 50px of travel (10 frames) isn't enough
+time to gain the ~250px of height needed, regardless of the wall's exact
+dimensions; the *only* technique that could possibly work is jumping
+mostly straight up right at the edge and drifting over afterward, which
+isn't telegraphed anywhere and isn't how the rest of the game plays.
+**Fix:** replaced it with an ordinary three-platform staircase, each hop
+verified via `.claude/audit-gaps.js`.
+
+### 14. Levels 1-2 were harder than several of the levels after them
+
+There was no actual difficulty curve — levels 3-12 were designed in an
+earlier pass without being checked against 1-2's difficulty, and ended up
+easier in places. **Fix:** all 12 levels were rewritten from scratch (not
+just extended) for a genuine escalating curve — gentle single-jump-only
+tutorial at 1-2, moving platforms introduced at 3 and growing steadily
+faster/more numerous through 12, hazard density and gap difficulty rising
+throughout. Every level has a distinct visual identity (a rollercoaster
+fall level, a moving-pillar precision level, a maze level, etc.) rather
+than reusing the same shape repeatedly. See the level table in
+[gameplay.md](gameplay.md#the-12-levels--a-deliberate-difficulty-curve).
+
+### 15. The canvas could get stuck at 0×0 and never recover
+
+`canvas.width`/`canvas.height` were set once from `window.innerWidth`/
+`innerHeight` at script load, with nothing watching for a resize — so a
+page that started with `window.innerWidth === 0` (observed in one
+environment where the viewport hadn't finished laying out yet at the
+moment `game.js` ran) stayed at 0×0 forever, rendering nothing, even once
+the window reported a real size a moment later. It also meant an actual
+browser window resize was silently ignored the whole game. **Fix:** wrapped
+the sizing in `resizeCanvas()` and added a `window.resize` listener.
+
+### 16. Settings had no way to actually change how the game plays
+
+Sound/music volume were the only settings with any effect; "Graphics
+Quality" had nothing in a flat 2D canvas renderer for it to control.
+**Fix:** replaced that slot with a real Difficulty setting (Easy/Normal/
+Hard) that scales moving-platform speed, checkpoint touch forgiveness, and
+coin rewards — see [gameplay.md](gameplay.md#difficulty-setting). Also
+added a visible pause button in `game.html` (Escape alone isn't
+discoverable) and made "Settings" from the pause menu return to the game
+in progress afterward instead of dropping back to the main menu.
+
 ## Known, not fixed (out of scope / needs a real decision)
 
 - **The Contact form doesn't submit anywhere.** There's no backend, and the
   `<form>` has no `action` — clicking Submit just reloads the page. Wiring
   this up needs an actual endpoint (a serverless function, a form service,
   a `mailto:`, etc.), which is a product decision, not a bug fix.
-- **Most Settings options are still placeholders.** Graphics Quality,
-  Controls scheme, Key Bindings, and Screen Resolution render but aren't
-  read by any code — only the two volume sliders are wired up (see fix #9
-  above). Implementing these means deciding what "Low/Medium/High/Ultra"
-  graphics actually changes, building a rebindable input system, etc.
+- **Screen Resolution is still a placeholder.** Sound/music volume,
+  controls preset, key rebinding, and Difficulty are all fully wired up
+  (`settings.js`/`game.js`) — but the canvas always fills the browser
+  window (see `resizeCanvas()` in `game.js`), so there's no fixed
+  "resolution" for a picker to control without breaking that responsive
+  sizing. The old "Graphics Quality" slot was replaced outright by
+  Difficulty rather than left as a placeholder, since a flat-shaded 2D
+  canvas renderer has no quality-scalable effects to gate behind tiers.
 - **`assets/sfx/` is empty and level music is single-track.** There are no
-  sound effects anywhere in the game, and `futuristicLevel.mp3`/
-  `finalLevel.mp3` exist in `assets/music/` but nothing switches to them
-  per level. See [assets.md](assets.md).
+  discrete sound effects anywhere in the game (jump/land/death are all
+  silent aside from the particle-effect visuals), and
+  `futuristicLevel.mp3`/`finalLevel.mp3` exist in `assets/music/` but
+  nothing switches to them per level. See [assets.md](assets.md).
+- **No level-select/map screen.** Progress is linear (finish level N to
+  unlock N+1); there's no visual overview of progress across all 12
+  levels or ability to replay an earlier one directly from a menu.

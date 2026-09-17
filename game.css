@@ -82,6 +82,61 @@ canvas {
   z-index: 1000;
 }
 
+/* Coin-earned toast */
+.coin-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 10px 18px;
+  border: 2px solid #ffcf4d;
+  border-radius: 10px;
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.3rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.coin-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Visible pause trigger */
+#pause-open-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #4d3f91;
+  background: rgba(0, 0, 0, 0.6);
+  color: #dcd4ff;
+  font-size: 0.9rem;
+  letter-spacing: -2px;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+#pause-open-button:hover {
+  background-color: rgba(30, 15, 63, 0.9);
+  transform: scale(1.08);
+}
+
+#gameCompleteCoins {
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.3rem;
+  color: #ffcf4d;
+  margin: -10px 0 20px;
+}
+
 /* Score Display */
 #scorePopup {
   position: fixed;
