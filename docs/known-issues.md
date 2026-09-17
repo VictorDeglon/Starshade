@@ -151,7 +151,8 @@ faster/more numerous through 12, hazard density and gap difficulty rising
 throughout. Every level has a distinct visual identity (a rollercoaster
 fall level, a moving-pillar precision level, a maze level, etc.) rather
 than reusing the same shape repeatedly. See the level table in
-[gameplay.md](gameplay.md#the-12-levels--a-deliberate-difficulty-curve).
+[gameplay.md](gameplay.md#the-25-levels--a-deliberate-difficulty-curve)
+(levels 1-12 at the time; 13-25 were added later — see that section).
 
 ### 15. The canvas could get stuck at 0×0 and never recover
 

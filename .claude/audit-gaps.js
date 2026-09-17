@@ -71,7 +71,7 @@ function canClearDouble(dx, riseNeeded) {
 }
 
 const results = [];
-for (let n = 1; n <= 12; n++) {
+for (let n = 1; n <= 25; n++) {
   const level = loadLevel(n);
   // Ghost platforms (see game.js's updateGhostPlatforms()) are only
   // sometimes solid, so the level must be completable without ever relying
@@ -115,7 +115,7 @@ for (let n = 1; n <= 12; n++) {
 }
 
 const impossible = results.filter((r) => r.verdict.startsWith("IMPOSSIBLE"));
-console.log(`Checked all 12 levels.`);
+console.log(`Checked all 25 levels.`);
 console.log(
   `${impossible.length} IMPOSSIBLE gap(s), ${results.length - impossible.length} double-jump-required gap(s) (informational).\n`
 );

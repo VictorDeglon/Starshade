@@ -91,7 +91,7 @@ function simulateFall(startX, startY, platforms, maxFrames) {
 }
 
 const issues = [];
-for (let n = 1; n <= 12; n++) {
+for (let n = 1; n <= 25; n++) {
   const level = loadLevel(n);
   level.checkpoints.forEach((cp, index) => {
     const spawnX = cp.x;
@@ -143,7 +143,7 @@ for (let n = 1; n <= 12; n++) {
 }
 
 if (issues.length === 0) {
-  console.log("No checkpoint safety issues found across all 12 levels.");
+  console.log("No checkpoint safety issues found across all 25 levels.");
 } else {
   console.log(`Found ${issues.length} issue(s):\n`);
   issues.forEach((i) => {
