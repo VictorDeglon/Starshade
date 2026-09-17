@@ -65,10 +65,12 @@ window.platforms = [
 window.deadlyPlatforms = [{ x: 1200, y: 500, width: 100, height: 20 }];
 
 window.spikes = [
+  { x: 480, y: 430, size: 20 },
   { x: 860, y: 400, size: 25 },
   { x: 1230, y: 400, size: 20 },
   { x: 2160, y: 320, size: 20 },
   { x: 2340, y: 320, size: 25 },
+  { x: 2740, y: 290, size: 20 },
   { x: 3730, y: 190, size: 25 },
   { x: 3900, y: 190, size: 20 },
 ];

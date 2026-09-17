@@ -418,6 +418,9 @@ document
     // mid-run resumes close to where you left off instead of losing it.
     window.location.href = "settings.html?from=pause";
   });
+document.getElementById("pause-levels-button").addEventListener("click", () => {
+  window.location.href = "levels.html";
+});
 document.getElementById("pause-quit-button").addEventListener("click", () => {
   window.location.href = "index.html";
 });

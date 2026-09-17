@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starshade Levels</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="levels.css" />
+    <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Level Map</h1>
+      <div class="coin-balance" id="coin-balance">0 Coins</div>
+    </header>
+
+    <!-- Level tiles are rendered here by levels.js -->
+    <main class="level-grid" id="level-grid"></main>
+
+    <button class="back-button" id="back-button">Back to Menu</button>
+
+    <script src="skinsData.js"></script>
+    <script src="levels.js"></script>
+  </body>
+</html>

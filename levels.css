@@ -1,0 +1,146 @@
+/* General styles — mirrors skins.css's shell (game.html/skins.html don't
+   share styles.css with the main menu, so the cosmic-purple look is
+   duplicated per page rather than pulled from a shared stylesheet that
+   doesn't otherwise exist here). */
+body {
+  font-family: "Cinzel", serif;
+  background: radial-gradient(circle at 50% 50%, #10133a, #050012);
+  color: #f4f4f4;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header */
+.header {
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  background-color: #0e1a3c;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: "Almendra Display", serif;
+  margin: 0;
+}
+
+.coin-balance {
+  margin-top: 8px;
+  font-family: "Staatliches", sans-serif;
+  font-size: 1.2rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Level grid */
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 18px;
+  width: 100%;
+  max-width: 900px;
+  padding: 40px 24px;
+  box-sizing: border-box;
+}
+
+.level-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 12px;
+  background: #161a45;
+  border: 3px solid #4d3f91;
+  border-radius: 14px;
+  color: #dcd4ff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.level-tile:hover:not(.locked) {
+  transform: translateY(-4px);
+  box-shadow: 0 0 24px rgba(106, 90, 205, 0.6);
+  background-color: #1e2358;
+}
+
+.level-tile:active:not(.locked) {
+  transform: translateY(-1px);
+}
+
+.level-tile.current {
+  border-color: #87cefa;
+  box-shadow: 0 0 18px rgba(135, 206, 250, 0.45);
+}
+
+.level-tile.completed {
+  border-color: #32cd32;
+  box-shadow: 0 0 18px rgba(50, 205, 50, 0.35);
+}
+
+.level-tile.locked {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+  cursor: not-allowed;
+}
+
+.level-number {
+  font-family: "Almendra Display", serif;
+  font-size: 2rem;
+  color: #b7a0ff;
+  text-shadow: 2px 2px 6px #8a4de4;
+}
+
+.level-name {
+  font-family: "Staatliches", sans-serif;
+  font-size: 1rem;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.level-status {
+  font-family: "Staatliches", sans-serif;
+  font-size: 0.8rem;
+  color: #8a7ec9;
+}
+
+.level-tile.completed .level-status {
+  color: #32cd32;
+}
+
+.level-tile.current .level-status {
+  color: #87cefa;
+}
+
+/* Back button, matching the theme used on the other pages */
+.back-button {
+  font-size: 22px;
+  padding: 12px 25px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  transition: background-color 0.3s, transform 0.3s;
+  margin: 10px auto 40px;
+  display: block;
+}
+
+.back-button:hover {
+  background-color: #0e2338;
+  transform: scale(1.1);
+}
+
+@media screen and (max-width: 500px) {
+  .level-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}

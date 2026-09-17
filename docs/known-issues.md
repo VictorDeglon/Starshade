@@ -196,6 +196,10 @@ in progress afterward instead of dropping back to the main menu.
   silent aside from the particle-effect visuals), and
   `futuristicLevel.mp3`/`finalLevel.mp3` exist in `assets/music/` but
   nothing switches to them per level. See [assets.md](assets.md).
-- **No level-select/map screen.** Progress is linear (finish level N to
-  unlock N+1); there's no visual overview of progress across all 12
-  levels or ability to replay an earlier one directly from a menu.
+- **Fixed — level-select/map screen.** `levels.html`/`levels.js` show all
+  12 levels (name, locked/current/completed state, read from the same
+  `StarshadeEconomy` game.js writes to) and let you jump straight to any
+  unlocked one — clicking a tile just sets `savedLevel` and goes through
+  the normal `loading.html` → `game.html` flow, so it's not a separate
+  code path from Play. Reachable from the main menu's new "Levels" button
+  and from the pause menu's new "Level Map" button.

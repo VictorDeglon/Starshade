@@ -66,6 +66,10 @@ document.getElementById("settings-button").addEventListener("click", () => {
   window.location.href = "settings.html"; // Navigates to settings page
 });
 
+document.getElementById("levels-button").addEventListener("click", () => {
+  window.location.href = "levels.html"; // Navigates to the level-select map
+});
+
 document.getElementById("skins-button").addEventListener("click", () => {
   startMusic();
   window.location.href = "skins.html"; // Navigates to skins page

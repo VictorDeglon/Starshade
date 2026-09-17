@@ -73,10 +73,12 @@ window.deadlyPlatforms = [
 
 window.spikes = [
   { x: 650, y: 420, size: 20 },
+  { x: 850, y: 380, size: 20 },
   { x: 1000, y: 380, size: 25 },
   { x: 2130, y: 220, size: 25 },
   { x: 3170, y: 100, size: 25 },
   { x: 3550, y: 70, size: 20 },
+  { x: 4200, y: 60, size: 20 },
 ];
 
 window.checkpoints = [
