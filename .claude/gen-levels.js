@@ -147,15 +147,19 @@ function generateLevel(n, rampFrom, rampTo) {
       dx = Math.max(60, Math.round(maxDx * marginFactor));
       while (dx > 60 && !canSingle(dx, riseTarget)) dx -= 5;
     }
-    // Width and thickness both vary a lot more than the hand-authored
-    // levels ever did — a real platformer's boxes aren't all the same
-    // stamped 20px-thick slab. Thickness never matters for feasibility
-    // (only the top surface y does — see resolveAxis() in game.js), so
-    // it's free to vary purely for visual/difficulty texture.
+    // Width and thickness both vary more than the hand-authored levels
+    // ever did — a real platformer's boxes aren't all the same stamped
+    // 20px-thick slab. Thickness never matters for feasibility (only the
+    // top surface y does — see resolveAxis() in game.js), so it's free to
+    // vary purely for visual/difficulty texture — but kept in a
+    // proportionate range (14-30px, vs. the player's 25px) rather than
+    // the wider 12-46px this originally shipped with, which let a narrow
+    // platform roll a height close to its own width and read as a bulky
+    // square block instead of a platform.
     const width = wide
       ? 180 + Math.floor(rand() * 220)
       : 45 + Math.floor(rand() * 190);
-    const height = 12 + Math.floor(rand() * 34);
+    const height = 14 + Math.floor(rand() * 17);
     const px = curX + dx;
     const py = curY - riseTarget;
     curX = px + width; // track the RIGHT edge — the next gap is measured from here
