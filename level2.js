@@ -8,45 +8,47 @@ window.levelText = "Level 2";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
-  { x: 451, y: 333, width: 157, height: 38, melt: true, meltDelay: 30 },
-  { x: 881, y: 299, width: 211, height: 33, moveAxis: "x", moveRange: 41, moveSpeed: 0.025, movePhase: 0.99 },
-  { x: 1278, y: 282, width: 99, height: 28 },
-  { x: 1549, y: 282, width: 301, height: 32 },
-  { x: 2134, y: 281, width: 141, height: 37 },
-  { x: 2470, y: 287, width: 63, height: 45, moveAxis: "x", moveRange: 58, moveSpeed: 0.023, movePhase: 5.79 },
-  { x: 2719, y: 324, width: 177, height: 28, melt: true, meltDelay: 30 },
-  { x: 3048, y: 348, width: 136, height: 17, ghost: true, ghostPeriod: 200, ghostOnRatio: 0.65 },
-  { x: 3323, y: 348, width: 270, height: 43 },
-  { x: 3766, y: 401, width: 148, height: 18, moveAxis: "x", moveRange: 62, moveSpeed: 0.02, movePhase: 2.37 },
-  { x: 4120, y: 439, width: 55, height: 17 },
-  { x: 4376, y: 468, width: 73, height: 19 },
-  { x: 4665, y: 498, width: 183, height: 17 },
-  { x: 5058, y: 498, width: 222, height: 36 },
-  { x: 5479, y: 487, width: 166, height: 19 },
-  { x: 5802, y: 473, width: 207, height: 15 },
-  { x: 6146, y: 462, width: 184, height: 22 },
-  { x: 6460, y: 462, width: 191, height: 16 },
-  { x: 6814, y: 448, width: 405, height: 20 },
+  { x: 455, y: 333, width: 89, height: 32, moveAxis: "x", moveRange: 52, moveSpeed: 0.018, movePhase: 4.56 },
+  { x: 702, y: 290, width: 77, height: 18, moveAxis: "x", moveRange: 44, moveSpeed: 0.019, movePhase: 5.88 },
+  { x: 942, y: 266, width: 123, height: 26 },
+  { x: 1235, y: 264, width: 79, height: 21, melt: true, meltDelay: 30 },
+  { x: 1478, y: 264, width: 313, height: 16 },
+  { x: 1972, y: 294, width: 141, height: 37, moveAxis: "x", moveRange: 48, moveSpeed: 0.018, movePhase: 5.38 },
+  { x: 2291, y: 310, width: 183, height: 15 },
+  { x: 2652, y: 334, width: 206, height: 33, moveAxis: "x", moveRange: 62, moveSpeed: 0.028, movePhase: 2.46 },
+  { x: 3043, y: 373, width: 204, height: 33 },
+  { x: 3411, y: 373, width: 186, height: 45 },
+  { x: 3782, y: 422, width: 220, height: 36, moveAxis: "x", moveRange: 63, moveSpeed: 0.022, movePhase: 2.85 },
+  { x: 4183, y: 448, width: 148, height: 18, ghost: true, ghostPeriod: 200, ghostOnRatio: 0.65 },
+  { x: 4509, y: 470, width: 205, height: 13, moveAxis: "x", moveRange: 62, moveSpeed: 0.02, movePhase: 2.37 },
+  { x: 4878, y: 470, width: 202, height: 38 },
+  { x: 5253, y: 475, width: 77, height: 15 },
+  { x: 5670, y: 452, width: 52, height: 24 },
+  { x: 6055, y: 414, width: 180, height: 26 },
+  { x: 6393, y: 373, width: 166, height: 19 },
+  { x: 6736, y: 381, width: 411, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 2307, y: 272, width: 123, height: 20 },
-  { x: 4886, y: 505, width: 138, height: 20 },
-  { x: 5668, y: 486, width: 93, height: 20 },
+  { x: 2506, y: 301, width: 159, height: 20 },
+  { x: 6273, y: 421, width: 136, height: 20 },
+  { x: 6582, y: 372, width: 93, height: 20 },
 ];
 
 window.spikes = [
-  { x: 2180, y: 281, size: 18 },
-  { x: 4130, y: 439, size: 19 },
-  { x: 4149, y: 439, size: 14 },
-  { x: 4394, y: 468, size: 18 },
+  { x: 973, y: 266, size: 21 },
+  { x: 994, y: 266, size: 13 },
+  { x: 1007, y: 266, size: 25 },
+  { x: 3082, y: 373, size: 19 },
+  { x: 3101, y: 373, size: 14 },
+  { x: 3115, y: 373, size: 19 },
+  { x: 3134, y: 373, size: 20 },
 ];
 
 window.checkpoints = [
   { x: 150, y: 350, reached: false },
-  { x: 1700, y: 252, reached: false },
-  { x: 3458, y: 318, reached: false },
-  { x: 5169, y: 468, reached: false },
-  { x: 6556, y: 432, reached: false },
-  { x: 7017, y: 418, reached: false }, // Final
+  { x: 1635, y: 234, reached: false },
+  { x: 3504, y: 343, reached: false },
+  { x: 4979, y: 440, reached: false },
+  { x: 6942, y: 351, reached: false }, // Final
 ];

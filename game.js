@@ -68,6 +68,15 @@ let squashX = 1;
 let squashY = 1;
 let wasGrounded = false;
 
+// The moving platform the player is currently resting on, if any (see the
+// carry step at the top of updatePlayer()) — tracked persistently across
+// frames rather than only within a single resolveAxis() call, so the
+// player can be carried proactively every frame instead of depending on
+// the collision crossing-test to keep re-discovering the landing, which a
+// platform moving faster than gravity alone pulls the player down can
+// outrun (see updatePlayer()'s carry comment for the full story).
+let riddenPlatform = null;
+
 // Per-shape cosmetic movement flourishes (see drawPlayer()) — purely
 // visual, never touch player.width/height or any collision math, so every
 // skin shares the exact same hitbox regardless of how it's animated.
@@ -285,13 +294,28 @@ function resetLevelState() {
   player.dx = 0;
   player.dy = 0;
   doubleJumpUsed = false;
-  wasGrounded = false;
+  // The player starts standing on the level's opening platform, not
+  // airborne — wasGrounded is what tryJump() actually checks for "can
+  // take a fresh (non-double) jump," so this needs to be true from frame
+  // one, or a jump pressed before the first physics tick has run would
+  // wrongly consume the double jump instead of registering as the first.
+  wasGrounded = true;
+  // A fresh level has an entirely new platforms array (loadLevel()
+  // re-injects the level script from scratch) — any platform object this
+  // pointed at no longer belongs to it.
+  riddenPlatform = null;
   squashX = 1;
   squashY = 1;
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
   consecutiveDeaths = 0;
+  // Per-shape cosmetic state (see drawPlayer()) shouldn't carry a
+  // mid-spin/mid-roll motion across a level transition.
+  triangleSpinActive = false;
+  triangleSpinAngle = 0;
+  circleRollAngle = 0;
+  circleBounceOffset = 0;
   tutorialTipTriggered = (tutorialTips || []).map(() => false);
   tutorialTipQueue = [];
   currentTutorialTip = null;
@@ -761,11 +785,11 @@ function drawLevelText() {
 // -------------------------------------------------------------
 // FADE-TO-BLACK / FADE-BACK-IN OVERLAY
 // -------------------------------------------------------------
-function drawFadeOverlay() {
+function drawFadeOverlay(dtScale) {
   if (!isFading) return;
 
   if (fadeDirection === 1) {
-    fadeOpacity += 0.02;
+    fadeOpacity += 0.02 * dtScale;
     if (fadeOpacity >= 1) {
       fadeOpacity = 1;
       fadeDirection = 0; // pinned at black until the next level finishes loading
@@ -780,7 +804,7 @@ function drawFadeOverlay() {
       }
     }
   } else if (fadeDirection === -1) {
-    fadeOpacity -= 0.02;
+    fadeOpacity -= 0.02 * dtScale;
     if (fadeOpacity <= 0) {
       fadeOpacity = 0;
       isFading = false;
@@ -920,15 +944,21 @@ function resolveAxis(axis, dtScale) {
     const pNearOld = pNear - platformDelta;
     const pFarOld = pFar - platformDelta;
 
-    // A small constant landing forgiveness absorbs the sub-pixel jitter a
-    // sine-driven moving platform's own delta can introduce right at its
-    // steepest point (where oldFar and pNearOld can land a hair apart
-    // purely from floating-point rounding) — without it, a resting player
-    // can occasionally slip past a fast-descending platform by less than a
-    // pixel and never re-catch it. leniencyLevel() (repeated deaths) adds
-    // further forgiveness on top, only for landing, never walls/ceilings.
-    const landingForgiveness =
-      !isX && delta > 0 ? 1.5 + leniencyLevel() : 0;
+    // Landing forgiveness has to cover at least the platform's own speed
+    // this frame, not just a fixed couple of px — a Y-moving platform can
+    // move several px/frame at the steepest point of its sine (fast/wide
+    // ones in the harder generated levels reach ~4px/frame), and a
+    // resting player's own gravity-driven fall (~0.5px/frame) can't keep
+    // pace with that on its own. A too-small fixed forgiveness meant the
+    // crossing test intermittently missed by a hair right at that point,
+    // separating the player for exactly one frame before re-catching them
+    // — which reads as `grounded` flickering false/true, retriggering the
+    // landing squash + dust burst every time ("landing animation loop").
+    // leniencyLevel() (repeated deaths) adds a little more on top, only
+    // for landing, never walls/ceilings.
+    const landingForgiveness = !isX && delta > 0
+      ? Math.abs(platformDelta) + 1.5 + leniencyLevel()
+      : 0;
 
     if (delta > 0) {
       const newFar = newPos + size / 2;
@@ -959,6 +989,31 @@ function resolveAxis(axis, dtScale) {
 function updatePlayer(dtScale) {
   updateMovingPlatforms(dtScale);
   updateGhostPlatforms();
+
+  // Carry the player with whatever platform they were resting on last
+  // frame — proactively, before gravity/collision run this frame, rather
+  // than leaving resolveAxis()'s crossing test to "re-discover" the
+  // landing every single frame. That worked fine for slow platforms, but
+  // a platform moving down faster than the player's own gravity-driven
+  // fall that frame can outrun the test entirely: the player's tiny
+  // per-frame drop never reaches the platform's much-lower new position,
+  // so no collision registers, they free-fall for exactly one frame, and
+  // immediately re-land the next — which reads as the landing squash +
+  // dust burst retriggering in a loop on any reasonably fast Y-moving
+  // platform. Carrying first means the player is already sitting on the
+  // platform's current position by the time collision runs, so the
+  // (still necessary — see landingForgiveness below) crossing test only
+  // has to confirm they're still there, not close a multi-pixel gap.
+  if (
+    riddenPlatform &&
+    riddenPlatform.moveAxis &&
+    !(riddenPlatform.ghost && riddenPlatform._solid === false) &&
+    !(riddenPlatform.melt && riddenPlatform._melted)
+  ) {
+    if (riddenPlatform.moveAxis === "x") player.x += riddenPlatform._deltaOffset || 0;
+    else player.y += riddenPlatform._deltaOffset || 0;
+  }
+
   player.dy += gravity * dtScale;
 
   if (anyPressed("right")) player.dx = horizontalSpeed;
@@ -967,6 +1022,7 @@ function updatePlayer(dtScale) {
 
   resolveAxis("x", dtScale);
   const { grounded, groundedOn } = resolveAxis("y", dtScale);
+  riddenPlatform = grounded ? groundedOn : null;
 
   // An invisible ceiling pinned to the actual top of the screen — not
   // level space, so it can't go stale across a window resize the way a
@@ -1008,18 +1064,6 @@ function updatePlayer(dtScale) {
       p._meltTimer = 0;
     }
   });
-
-  // Carry the player horizontally when grounded on an X-moving platform —
-  // resolveAxis('y') only tracks the axis it's resolving (Y), so a
-  // platform sliding sideways underneath a resting player needs this
-  // explicit nudge or they'd slide off the moment it moved. A Y-moving
-  // platform doesn't need this: resolveAxis('y') already re-anchors the
-  // player to its current surface every grounded frame (see the
-  // platformDelta comment above), so adding the offset again here would
-  // double-count that frame's movement.
-  if (grounded && groundedOn && groundedOn.moveAxis === "x") {
-    player.x += groundedOn._deltaOffset;
-  }
 
   // Circle skins roll proportional to horizontal speed and give a tiny
   // extra rebound on landing (Y only, purely cosmetic — see drawPlayer()).
@@ -1261,6 +1305,12 @@ function resetPlayer() {
   }
   player.dx = 0;
   player.dy = 0;
+  // Matches the old dy===0 behavior this replaced (see tryJump()): a jump
+  // pressed immediately on respawn — before the player has actually
+  // fallen those last few px onto the checkpoint's platform — still
+  // registers as a fresh first jump, not a double jump.
+  wasGrounded = true;
+  riddenPlatform = null; // respawning off of whatever they died on/near
 }
 
 // -------------------------------------------------------------
@@ -1270,7 +1320,7 @@ let isPaused = false;
 
 function update(dtScale) {
   if (isPaused) {
-    draw();
+    draw(dtScale);
     return;
   }
   // While pinned at black between levels (fadeDirection === 0) or actively
@@ -1283,7 +1333,7 @@ function update(dtScale) {
     updateTutorialTips();
   }
   updateParticles(dtScale);
-  draw();
+  draw(dtScale);
 }
 
 function setPaused(paused) {
@@ -1295,7 +1345,7 @@ function setPaused(paused) {
   document.getElementById("pauseMenu").classList.toggle("hidden", !paused);
 }
 
-function draw() {
+function draw(dtScale) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
@@ -1320,7 +1370,7 @@ function draw() {
   }
 
   ctx.restore();
-  drawFadeOverlay(); // <-- overlay on top of everything, unaffected by shake
+  drawFadeOverlay(dtScale); // <-- overlay on top of everything, unaffected by shake
 }
 
 // Frame-rate independence: rAF hands the callback a real timestamp (ms),
@@ -1371,7 +1421,14 @@ document.addEventListener("keydown", (e) => {
 // settings.js's "Click/Tap to Jump" toggle) so both trigger the exact same
 // jump-or-double-jump logic.
 function tryJump() {
-  if (player.dy === 0) {
+  // wasGrounded (not player.dy === 0) is the correct "on solid ground"
+  // signal — dy also lands on exactly 0 for one frame when the player
+  // bonks their head on a platform's underside, or on the invisible
+  // screen-top ceiling, while still fully airborne. Using dy alone meant
+  // a jump press timed into that exact frame granted a free ungrounded
+  // "first jump" (not consuming the double jump) instead of correctly
+  // requiring it already be used.
+  if (wasGrounded) {
     player.dy = jumpStrength;
   } else if (!doubleJumpUsed) {
     player.dy = jumpStrength;

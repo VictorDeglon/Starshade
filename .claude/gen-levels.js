@@ -45,6 +45,22 @@ function canClearPath(pts, dx, rise) {
 const canSingle = (dx, rise) => canClearPath(singlePath, dx, rise);
 const canDouble = (dx, rise) => doublePaths.some((p) => canClearPath(p, dx, rise));
 
+// The largest dx that's still feasible for a given rise — used to place
+// gaps a controlled fraction of the way to "actually impossible" instead
+// of comfortably inside it, so difficulty can scale how much margin for
+// error a jump leaves (see marginFactor in placeStep()) rather than every
+// gap having the same generous slack regardless of level.
+function maxSingleDx(rise, searchCeiling = 260) {
+  let dx = searchCeiling;
+  while (dx > 20 && !canSingle(dx, rise)) dx -= 2;
+  return dx;
+}
+function maxDoubleDx(rise, searchCeiling = 500) {
+  let dx = searchCeiling;
+  while (dx > 20 && !canDouble(dx, rise)) dx -= 2;
+  return dx;
+}
+
 // Deterministic PRNG (mulberry32) so re-runs are reproducible.
 function mulberry32(seed) {
   let a = seed;
@@ -108,18 +124,28 @@ function generateLevel(n, rampFrom, rampTo) {
   const candidateIndices = []; // indices into `platforms` eligible to become moving/ghost/melt
 
   function placeStep(riseTarget, wide) {
-    // Pick the largest dx that keeps this gap within single-jump range for
-    // the target rise; occasionally (climbing hard) fall back to a
+    // Pick a dx that keeps this gap within single-jump range for the
+    // target rise; occasionally (climbing hard) fall back to a
     // double-jump-only distance instead, matching the existing levels'
-    // "needs a double jump (ok if intentional)" design language.
+    // "needs a double jump (ok if intentional)" design language. How
+    // close dx sits to the actual feasibility boundary (vs. comfortably
+    // inside it) scales with difficulty — marginFactor near 1 means the
+    // jump is timed right up against what's physically still possible,
+    // leaving very little room for a mistimed press; breathers (`wide`)
+    // are deliberately exempt, since a level needs *some* stretches where
+    // the player can actually breathe rather than every single gap being
+    // maximally tight.
+    const marginFactor = wide ? 0.7 : 0.74 + 0.22 * t; // 0.74 -> 0.96 over the ramp
     const wantsDouble = rand() < 0.22 + 0.25 * t && riseTarget > 0;
     let dx;
     if (wantsDouble && canDouble(320, riseTarget)) {
-      dx = 260 + Math.floor(rand() * 70);
-      if (!canDouble(dx, riseTarget)) dx = 240;
+      const maxDx = maxDoubleDx(riseTarget);
+      dx = Math.max(180, Math.round(maxDx * marginFactor));
+      while (dx > 180 && !canDouble(dx, riseTarget)) dx -= 5;
     } else {
-      dx = 130 + Math.floor(rand() * 90);
-      while (dx > 60 && !canSingle(dx, riseTarget)) dx -= 10;
+      const maxDx = maxSingleDx(riseTarget);
+      dx = Math.max(60, Math.round(maxDx * marginFactor));
+      while (dx > 60 && !canSingle(dx, riseTarget)) dx -= 5;
     }
     // Width and thickness both vary a lot more than the hand-authored
     // levels ever did — a real platformer's boxes aren't all the same

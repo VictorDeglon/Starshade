@@ -117,14 +117,33 @@ from its base position), and optionally `moveSpeed` (default `0.03`) and
 `movePhase`. `updateMovingPlatforms()` computes a sine-wave offset each
 frame (`platformX()`/`platformY()` read it back), and `resolveAxis()` uses
 that current position for collision instead of the platform's static
-`x`/`y`. When the player is grounded on a moving platform, `updatePlayer()`
-adds that frame's positional delta to the player too — without that step,
-standing still on a moving platform would mean sliding off the instant it
-moved, since collision resolution only ever stops relative penetration; it
-has no notion of "bring the resting object along." First appears in level
-2 (a slow, small-range platform used to introduce the mechanic safely) and
-recurs with increasing speed/range through the later levels — see the
-level table below.
+`x`/`y`. First appears in level 2 (a slow, small-range platform used to
+introduce the mechanic safely) and recurs with increasing speed/range
+through the later levels — the harder generated ones can reach several
+px/frame at the steepest point of the sine.
+
+**Carrying a resting player.** `game.js` tracks `riddenPlatform` — the
+platform (if any) the player was grounded on last frame — and carries the
+player by that platform's `_deltaOffset` proactively, at the very top of
+`updatePlayer()`, before gravity/collision run for the new frame. This
+used to be handled two different ways depending on axis (an explicit
+post-hoc nudge for X-movers; for Y-movers, the belief that
+`resolveAxis()`'s own crossing test would keep "re-discovering" the
+landing every frame on its own) — the Y case was a real bug: a platform
+accelerating downward faster than the resting player's own per-frame
+gravity pull can outrun the crossing test entirely (the player's tiny
+gravity-only drop never reaches the platform's much-lower new position),
+so the test fails to register a landing that frame, the player free-falls
+for exactly one frame, and immediately re-lands the next — which read as
+the landing squash/dust-burst retriggering in a loop on any reasonably
+fast Y-mover. Proactively carrying first (both axes, uniformly) means the
+player is already at the platform's current position by the time
+collision runs that frame, so the crossing test only has to *confirm*
+they're still there — which is also why `resolveAxis()`'s
+`landingForgiveness` is sized to the platform's own per-frame delta
+(`Math.abs(platformDelta)`), not a fixed couple of px: the old fixed
+value was enough for the original 12 hand-authored levels' slower
+platforms, but not for the faster ones the generator can produce.
 
 ## World objects (defined per-level in `levelN.js`)
 
@@ -268,17 +287,19 @@ platforms and moving platforms:
   in `game.js`), drawn bright yellow with a fast flicker warning just
   before every flip. `resolveAxis()` skips collision against one entirely
   while intangible. Most are optional bonus routes across a gap that's
-  already crossable by double jump alone — every level from 13 on has at
-  least one *mandatory* gate instead: a gap wide enough that a double jump
-  genuinely can't clear it, so that one ghost platform is the only way
-  across, not a shortcut (`.claude/gen-levels.js` sanity-checks this at
-  generation time — see its `directDx`/`directRise` check — rather than
-  hoping it's true). `.claude/audit-gaps.js` excludes ghost platforms from
-  its "is this level completable" check for exactly this reason (an
-  intermittent platform can't be part of the *guaranteed* path) — the
-  "IMPOSSIBLE even with a double jump" results it reports (one per
-  mandatory gate — currently levels 13-25, two apiece on 22 and 24) are
-  expected, not a bug.
+  already crossable by double jump alone — levels in the harder half of
+  the ramp (roughly 13+, randomized per run of the generator — see
+  `mandatoryGhostGates` in `.claude/gen-levels.js`) also get one or two
+  *mandatory* gates: a gap wide enough that a double jump genuinely can't
+  clear it, so that one ghost platform is the only way across, not a
+  shortcut (the generator sanity-checks this at generation time — see its
+  `directDx`/`directRise` check — rather than hoping it's true).
+  `.claude/audit-gaps.js` excludes ghost platforms from its "is this level
+  completable" check for exactly this reason (an intermittent platform
+  can't be part of the *guaranteed* path) — the "IMPOSSIBLE even with a
+  double jump" results it reports (one per mandatory gate) are expected,
+  not a bug; re-run the audit after regenerating to see the current exact
+  list, since it shifts with the generator's random seed per level range.
 - **Melt platforms** (`melt: true`, optional `meltDelay`, default 28
   frames) look and behave like ordinary solid ground until you actually
   stand on one — then a short countdown starts, and it crumbles away for
@@ -445,7 +466,7 @@ node .claude/audit-checkpoints.js  # flags any checkpoint whose respawn
 Both simulate the real per-frame physics (`gravity`/`jumpStrength`/
 `horizontalSpeed`) and the real `resetPlayer()` respawn logic rather than
 eyeballing pixel distances — every gap and every checkpoint in the current
-25 levels passes both (the 15 "IMPOSSIBLE" gaps `audit-gaps.js` reports,
-across levels 13-25, are deliberate — each is bridged by a mandatory ghost
-platform, which is intentionally excluded from that check; see
+25 levels passes both (any "IMPOSSIBLE" gaps `audit-gaps.js` reports are
+deliberate — each is bridged by a mandatory ghost platform, which is
+intentionally excluded from that check; see
 [Ghost and melt platforms](#ghost-and-melt-platforms) above).
