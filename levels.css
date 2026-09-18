@@ -39,84 +39,139 @@ body {
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-/* Level grid */
-.level-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 18px;
+/* Tree / winding-path level map — a vertical scroll of level nodes,
+   zigzagging left-to-right like a mobile-game world map, connected by an
+   SVG line drawn behind them. Exact node positions are computed in
+   levels.js (they depend on the actual level count), so this file only
+   sets what doesn't need JS: node/line appearance and the scroll shell. */
+.tree-wrap {
+  position: relative;
   width: 100%;
-  max-width: 900px;
-  padding: 40px 24px;
-  box-sizing: border-box;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 50px 0 70px;
 }
 
-.level-tile {
+.tree-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tree-nodes {
+  position: relative;
+  width: 100%;
+}
+
+.tree-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tree-path-full {
+  stroke: #4d3f91;
+  stroke-width: 5;
+  stroke-dasharray: 2 16;
+  opacity: 0.8;
+}
+
+.tree-path-lit {
+  stroke: #32cd32;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 6px rgba(50, 205, 50, 0.6));
+}
+
+.level-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 22px 12px;
-  background: #161a45;
-  border: 3px solid #4d3f91;
-  border-radius: 14px;
-  color: #dcd4ff;
+  gap: 4px;
+  width: 92px;
   cursor: pointer;
   font-family: inherit;
+  background: none;
+  border: none;
+  color: #dcd4ff;
+}
+
+.level-node-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #161a45;
+  border: 3px solid #4d3f91;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Almendra Display", serif;
+  font-size: 1.6rem;
+  color: #b7a0ff;
+  text-shadow: 1px 1px 4px #8a4de4;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-.level-tile:hover:not(.locked) {
-  transform: translateY(-4px);
-  box-shadow: 0 0 24px rgba(106, 90, 205, 0.6);
+.level-node:hover:not(.locked) .level-node-circle {
+  transform: scale(1.1);
+  box-shadow: 0 0 22px rgba(106, 90, 205, 0.7);
   background-color: #1e2358;
 }
 
-.level-tile:active:not(.locked) {
-  transform: translateY(-1px);
+.level-node:active:not(.locked) .level-node-circle {
+  transform: scale(1.02);
 }
 
-.level-tile.current {
+.level-node.current .level-node-circle {
   border-color: #87cefa;
-  box-shadow: 0 0 18px rgba(135, 206, 250, 0.45);
+  box-shadow: 0 0 18px rgba(135, 206, 250, 0.55);
+  animation: node-pulse 2s ease-in-out infinite;
 }
 
-.level-tile.completed {
+.level-node.completed .level-node-circle {
   border-color: #32cd32;
-  box-shadow: 0 0 18px rgba(50, 205, 50, 0.35);
+  box-shadow: 0 0 14px rgba(50, 205, 50, 0.4);
+  color: #d6ffd6;
 }
 
-.level-tile.locked {
-  opacity: 0.55;
-  filter: grayscale(0.7);
+.level-node.locked {
   cursor: not-allowed;
 }
 
-.level-number {
-  font-family: "Almendra Display", serif;
-  font-size: 2rem;
-  color: #b7a0ff;
-  text-shadow: 2px 2px 6px #8a4de4;
+.level-node.locked .level-node-circle {
+  opacity: 0.5;
+  filter: grayscale(0.8);
 }
 
-.level-name {
+@keyframes node-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(135, 206, 250, 0.55); }
+  50% { box-shadow: 0 0 28px rgba(135, 206, 250, 0.85); }
+}
+
+.level-node-name {
   font-family: "Staatliches", sans-serif;
-  font-size: 1rem;
+  font-size: 0.75rem;
   text-align: center;
-  letter-spacing: 0.5px;
+  line-height: 1.15;
+  letter-spacing: 0.3px;
+  max-width: 100px;
 }
 
-.level-status {
-  font-family: "Staatliches", sans-serif;
-  font-size: 0.8rem;
-  color: #8a7ec9;
+.level-node.locked .level-node-name {
+  color: #6c6395;
 }
 
-.level-tile.completed .level-status {
-  color: #32cd32;
+.level-node.completed .level-node-name {
+  color: #7be07b;
 }
 
-.level-tile.current .level-status {
-  color: #87cefa;
+.level-node.current .level-node-name {
+  color: #9fd9ff;
 }
 
 /* Back button, matching the theme used on the other pages */
@@ -140,7 +195,21 @@ body {
 }
 
 @media screen and (max-width: 500px) {
-  .level-grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  .tree-wrap {
+    max-width: 340px;
+  }
+
+  .level-node-circle {
+    width: 54px;
+    height: 54px;
+    font-size: 1.3rem;
+  }
+
+  .level-node {
+    width: 76px;
+  }
+
+  .level-node-name {
+    font-size: 0.68rem;
   }
 }

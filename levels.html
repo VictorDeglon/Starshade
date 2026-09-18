@@ -19,8 +19,13 @@
       <div class="coin-balance" id="coin-balance">0 Coins</div>
     </header>
 
-    <!-- Level tiles are rendered here by levels.js -->
-    <main class="level-grid" id="level-grid"></main>
+    <!-- A winding path of level nodes, connected by an SVG line drawn
+         behind them — built entirely by levels.js, since node position
+         depends on the actual level count (LEVEL_NAMES.length). -->
+    <main class="tree-wrap">
+      <svg id="tree-lines" class="tree-lines"></svg>
+      <div class="tree-nodes" id="tree-nodes"></div>
+    </main>
 
     <button class="back-button" id="back-button">Back to Menu</button>
 
