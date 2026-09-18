@@ -77,14 +77,14 @@ function generateLevel(n, rampFrom, rampTo) {
   const rand = mulberry32(n * 97531 + 7);
   const t = rampTo > rampFrom ? (n - rampFrom) / (rampTo - rampFrom) : 0;
 
-  const spikeChance = 0.32 + 0.33 * t;
-  const movableChance = 0.4 + 0.3 * t;
+  const spikeChance = 0.4 + 0.4 * t;
+  const movableChance = 0.45 + 0.35 * t;
   const ghostShare = 0.35 + 0.15 * t; // share of "movable" slots that become ghost instead of moving
-  const meltShare = 0.18 + 0.1 * t;
-  const decoyChance = 0.22 + 0.33 * t;
-  const moveSpeedBase = 0.02 + 0.016 * t;
-  const moveRangeBase = 45 + 35 * t;
-  const numSteps = 16 + Math.round(8 * t);
+  const meltShare = 0.2 + 0.12 * t;
+  const decoyChance = 0.28 + 0.4 * t;
+  const moveSpeedBase = 0.022 + 0.022 * t;
+  const moveRangeBase = 50 + 45 * t;
+  const numSteps = 18 + Math.round(10 * t);
   // Mandatory ghost gates (a gap too wide for even a double jump, like
   // level 3's — see the sanity checks below) only start appearing in the
   // harder back half of the ramp.
@@ -121,12 +121,20 @@ function generateLevel(n, rampFrom, rampTo) {
       dx = 130 + Math.floor(rand() * 90);
       while (dx > 60 && !canSingle(dx, riseTarget)) dx -= 10;
     }
-    const width = wide ? 220 + Math.floor(rand() * 80) : 70 + Math.floor(rand() * 110);
+    // Width and thickness both vary a lot more than the hand-authored
+    // levels ever did — a real platformer's boxes aren't all the same
+    // stamped 20px-thick slab. Thickness never matters for feasibility
+    // (only the top surface y does — see resolveAxis() in game.js), so
+    // it's free to vary purely for visual/difficulty texture.
+    const width = wide
+      ? 180 + Math.floor(rand() * 220)
+      : 45 + Math.floor(rand() * 190);
+    const height = 12 + Math.floor(rand() * 34);
     const px = curX + dx;
     const py = curY - riseTarget;
     curX = px + width; // track the RIGHT edge — the next gap is measured from here
     curY = py;
-    return { x: px, y: py, width };
+    return { x: px, y: py, width, height };
   }
 
   for (let i = 0; i < numSteps; i++) {
@@ -204,7 +212,6 @@ function generateLevel(n, rampFrom, rampTo) {
     // an unvalidated, accidental "mandatory gate" — the very thing the
     // explicit gate mechanic above exists to do safely.)
     const step = placeStep(isBreather ? 0 : riseTarget, isBreather);
-    step.height = 20;
     platforms.push(step);
 
     if (!isBreather) candidateIndices.push(platforms.length - 1);
@@ -282,9 +289,21 @@ function generateLevel(n, rampFrom, rampTo) {
     const step = platforms[index];
     if (step.moveAxis || step.ghost || step.melt) return;
     if (rand() < spikeChance) {
-      const size = 18 + Math.floor(rand() * 15);
-      const sx = step.x + Math.max(10, Math.floor(step.width * (0.2 + rand() * 0.5)));
-      spikes.push({ x: sx, y: step.y, size });
+      // A lot more size variety than the hand-authored levels (which
+      // mostly stuck to 20-30px), and — increasingly at higher difficulty
+      // — a cluster of 2-4 spikes side by side instead of just one,
+      // forming a real wall to clear rather than a single point hazard.
+      const clusterChance = 0.15 + 0.4 * t;
+      const clusterSize = rand() < clusterChance ? 2 + Math.floor(rand() * 3) : 1;
+      const sizeMin = 12;
+      const sizeMax = 26 + Math.round(28 * t);
+      let sx = step.x + Math.max(8, Math.floor(step.width * (0.12 + rand() * 0.25)));
+      for (let c = 0; c < clusterSize; c++) {
+        const size = sizeMin + Math.floor(rand() * (sizeMax - sizeMin));
+        if (sx + size > step.x + step.width - 6) break; // stay on the platform
+        spikes.push({ x: sx, y: step.y, size });
+        sx += size; // touching, side by side
+      }
     }
     if (rand() < decoyChance) {
       deadlyPlatforms.push({

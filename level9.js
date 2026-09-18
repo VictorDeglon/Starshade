@@ -1,109 +1,59 @@
-// Level 9 Data — "Ember Labyrinth"
-// A zig-zagging path that doubles back on itself vertically — ascending,
-// dropping, ascending again — with deadly "wrong turn" ledges and moving
-// platforms placed right at the direction changes.
+// Level 9 Data — "Level 9"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 9";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  { x: 380, y: 340, width: 120, height: 20 },
-  { x: 610, y: 280, width: 120, height: 20 },
-  { x: 840, y: 220, width: 120, height: 20 }, // peak 1
-
-  {
-    x: 1070,
-    y: 300,
-    width: 130,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 45,
-    moveSpeed: 0.022,
-  },
-
-  { x: 1320, y: 400, width: 120, height: 20 },
-  { x: 1560, y: 480, width: 250, height: 20 }, // valley floor
-
-  {
-    x: 1930,
-    y: 420,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 60,
-    moveSpeed: 0.022,
-  },
-
-  { x: 2200, y: 340, width: 120, height: 20 },
-
-  // A ghost platform mid-climb toward peak 2.
-  {
-    x: 2350,
-    y: 300,
-    width: 70,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 160,
-    ghostOnRatio: 0.5,
-  },
-
-  { x: 2440, y: 260, width: 120, height: 20 },
-  { x: 2680, y: 180, width: 120, height: 20 }, // peak 2
-
-  {
-    x: 2920,
-    y: 260,
-    width: 130,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 45,
-    moveSpeed: 0.024,
-  },
-
-  { x: 3170, y: 340, width: 120, height: 20 },
-  { x: 3410, y: 300, width: 250, height: 20 }, // small landing
-
-  {
-    x: 3780,
-    y: 260,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 55,
-    moveSpeed: 0.026,
-  },
-
-  { x: 4050, y: 220, width: 120, height: 20 },
-  { x: 4290, y: 180, width: 120, height: 20 }, // peak 3
-
-  { x: 4530, y: 180, width: 400, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 435, y: 360, width: 123, height: 23, melt: true, meltDelay: 27 },
+  { x: 739, y: 359, width: 69, height: 23, ghost: true, ghostPeriod: 176, ghostOnRatio: 0.5739130434782609 },
+  { x: 998, y: 383, width: 151, height: 12 },
+  { x: 1334, y: 383, width: 189, height: 34 },
+  { x: 1713, y: 426, width: 214, height: 28 },
+  { x: 2059, y: 462, width: 178, height: 44 },
+  { x: 2384, y: 526, width: 84, height: 12, ghost: true, ghostPeriod: 176, ghostOnRatio: 0.5739130434782609 },
+  { x: 2622, y: 526, width: 396, height: 28 },
+  { x: 3150, y: 569, width: 164, height: 35 },
+  { x: 3532, y: 622, width: 184, height: 37, moveAxis: "y", moveRange: 80, moveSpeed: 0.028, movePhase: 4.14 },
+  { x: 3911, y: 643, width: 225, height: 44, moveAxis: "x", moveRange: 55, moveSpeed: 0.03, movePhase: 4.18 },
+  { x: 4269, y: 660, width: 217, height: 42, ghost: true, ghostPeriod: 176, ghostOnRatio: 0.5739130434782609 },
+  { x: 4632, y: 660, width: 326, height: 43 },
+  { x: 5103, y: 645, width: 143, height: 25 },
+  { x: 5563, y: 613, width: 132, height: 28 },
+  { x: 6002, y: 556, width: 201, height: 31 },
+  { x: 6334, y: 516, width: 85, height: 44, ghost: true, ghostPeriod: 176, ghostOnRatio: 0.5739130434782609 },
+  { x: 6611, y: 516, width: 226, height: 23 },
+  { x: 7127, y: 480, width: 177, height: 29, moveAxis: "x", moveRange: 56, moveSpeed: 0.023, movePhase: 3.51 },
+  { x: 7450, y: 447, width: 54, height: 29, moveAxis: "y", moveRange: 73, moveSpeed: 0.024, movePhase: 4.63 },
+  { x: 7795, y: 435, width: 53, height: 37 },
+  { x: 8015, y: 442, width: 392, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 970, y: 220, width: 90, height: 20 }, // wrong turn off peak 1
-  { x: 2560, y: 180, width: 90, height: 20 }, // wrong turn off peak 2
-  { x: 4170, y: 220, width: 90, height: 20 }, // wrong turn near peak 3
-  { x: 3540, y: 300, width: 70, height: 20 },
+  { x: 1953, y: 422, width: 178, height: 20 },
+  { x: 2257, y: 469, width: 156, height: 20 },
+  { x: 3341, y: 565, width: 113, height: 20 },
+  { x: 5274, y: 643, width: 114, height: 20 },
 ];
 
 window.spikes = [
-  { x: 400, y: 340, size: 20 },
-  { x: 830, y: 220, size: 20 },
-  { x: 1620, y: 480, size: 30 },
-  { x: 1700, y: 480, size: 25 },
-  { x: 1780, y: 480, size: 25 },
-  { x: 2660, y: 180, size: 20 },
-  { x: 3200, y: 340, size: 20 },
-  { x: 4260, y: 180, size: 20 },
-  { x: 4850, y: 180, size: 20 },
+  { x: 1037, y: 383, size: 22 },
+  { x: 1761, y: 426, size: 32 },
+  { x: 2111, y: 462, size: 17 },
+  { x: 2128, y: 462, size: 25 },
+  { x: 2153, y: 462, size: 20 },
+  { x: 2173, y: 462, size: 33 },
+  { x: 5582, y: 613, size: 13 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 890, y: 190, reached: false }, // peak 1
-  { x: 1650, y: 450, reached: false }, // valley
-  { x: 2730, y: 150, reached: false }, // peak 2
-  { x: 3460, y: 270, reached: false },
-  { x: 4650, y: 150, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1429, y: 353, reached: false },
+  { x: 2820, y: 496, reached: false },
+  { x: 4795, y: 630, reached: false },
+  { x: 6724, y: 486, reached: false },
+  { x: 8211, y: 412, reached: false }, // Final
 ];

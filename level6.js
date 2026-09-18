@@ -1,102 +1,55 @@
-// Level 6 Data — "The Long Fall"
-// A dramatic vertical rollercoaster: climb, huge fall, climb, even bigger
-// fall. Falling is free (the only fall damage in this game is falling off
-// the bottom of the world entirely), so this level is about aiming your
-// descent, not avoiding it. Two moving platforms bridge the climbs back up.
+// Level 6 Data — "Level 6"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 6";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  { x: 380, y: 340, width: 150, height: 20 },
-  { x: 620, y: 280, width: 150, height: 20 },
-  { x: 860, y: 220, width: 150, height: 20 },
-  { x: 1100, y: 160, width: 250, height: 20 }, // top of climb #1
-
-  // The long fall — staggered ledges on the way down.
-  { x: 1450, y: 260, width: 120, height: 20 },
-  { x: 1680, y: 380, width: 120, height: 20 },
-  { x: 1910, y: 500, width: 120, height: 20 },
-
-  { x: 2150, y: 500, width: 280, height: 20 }, // bottom floor #1
-
-  // A melt platform — looks like solid ground, but standing on it starts a
-  // short countdown before it crumbles away (the catch-net far below is
-  // what you'd fall into). Cross it quickly rather than resting on it.
-  { x: 2470, y: 470, width: 80, height: 20, melt: true, meltDelay: 26 },
-
-  {
-    x: 2520,
-    y: 440,
-    width: 150,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 70,
-    moveSpeed: 0.022,
-  },
-
-  { x: 2820, y: 380, width: 130, height: 20 },
-
-  // A ghost platform on the second climb — solid about half the time.
-  {
-    x: 2975,
-    y: 350,
-    width: 80,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 160,
-    ghostOnRatio: 0.5,
-  },
-
-  { x: 3060, y: 320, width: 130, height: 20 },
-  { x: 3300, y: 260, width: 250, height: 20 }, // top of climb #2
-
-  // An even bigger fall — steeper, further down.
-  { x: 3660, y: 320, width: 110, height: 20 },
-  { x: 3880, y: 420, width: 110, height: 20 },
-  { x: 4100, y: 520, width: 110, height: 20 },
-
-  { x: 4340, y: 530, width: 280, height: 20 }, // bottom floor #2
-
-  {
-    x: 4720,
-    y: 460,
-    width: 130,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 55,
-    moveSpeed: 0.025,
-  },
-
-  { x: 5000, y: 400, width: 130, height: 20 },
-  { x: 5240, y: 330, width: 130, height: 20 },
-
-  { x: 5480, y: 280, width: 380, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 448, y: 389, width: 72, height: 16, melt: true, meltDelay: 28 },
+  { x: 651, y: 380, width: 64, height: 22 },
+  { x: 989, y: 356, width: 52, height: 16, melt: true, meltDelay: 28 },
+  { x: 1171, y: 356, width: 397, height: 41 },
+  { x: 1753, y: 313, width: 193, height: 26 },
+  { x: 2096, y: 265, width: 65, height: 17, melt: true, meltDelay: 28 },
+  { x: 2329, y: 215, width: 126, height: 13 },
+  { x: 2590, y: 215, width: 274, height: 40 },
+  { x: 3035, y: 179, width: 178, height: 38, melt: true, meltDelay: 28 },
+  { x: 3512, y: 153, width: 143, height: 30, melt: true, meltDelay: 28 },
+  { x: 3842, y: 133, width: 166, height: 14, melt: true, meltDelay: 28 },
+  { x: 4169, y: 133, width: 314, height: 16 },
+  { x: 4674, y: 143, width: 170, height: 22 },
+  { x: 4983, y: 182, width: 162, height: 23 },
+  { x: 5287, y: 215, width: 50, height: 15 },
+  { x: 5515, y: 215, width: 215, height: 23 },
+  { x: 5876, y: 273, width: 135, height: 23 },
+  { x: 6159, y: 313, width: 100, height: 20 },
+  { x: 6398, y: 351, width: 173, height: 29 },
+  { x: 6702, y: 351, width: 340, height: 36 },
+  { x: 7220, y: 352, width: 431, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  // Catch-nets under each staggered drop — overshoot a ledge and you land
-  // here instead of the void.
-  { x: 1400, y: 560, width: 700, height: 20 },
-  { x: 3600, y: 560, width: 700, height: 20 },
+  { x: 2490, y: 212, width: 112, height: 20 },
+  { x: 5166, y: 190, width: 120, height: 20 },
+  { x: 6280, y: 319, width: 64, height: 20 },
 ];
 
 window.spikes = [
-  { x: 420, y: 340, size: 20 },
-  { x: 900, y: 220, size: 20 },
-  { x: 1150, y: 160, size: 25 },
-  { x: 3350, y: 260, size: 25 },
-  { x: 4550, y: 530, size: 20 },
-  { x: 5060, y: 400, size: 20 },
-  { x: 5530, y: 280, size: 25 },
+  { x: 4705, y: 143, size: 26 },
+  { x: 4731, y: 143, size: 30 },
+  { x: 4761, y: 143, size: 13 },
+  { x: 4774, y: 143, size: 13 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 1190, y: 130, reached: false }, // top of climb #1
-  { x: 2200, y: 470, reached: false }, // bottom floor #1
-  { x: 3370, y: 230, reached: false }, // top of climb #2
-  { x: 4390, y: 500, reached: false }, // bottom floor #2
-  { x: 5670, y: 250, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1370, y: 326, reached: false },
+  { x: 2727, y: 185, reached: false },
+  { x: 4326, y: 103, reached: false },
+  { x: 5623, y: 185, reached: false },
+  { x: 6872, y: 321, reached: false },
+  { x: 7436, y: 322, reached: false }, // Final
 ];

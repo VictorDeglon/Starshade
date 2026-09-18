@@ -1,87 +1,55 @@
-// Level 3 Data — "Nebula Steps"
-// Alternating small/large stepping stones climbing in a loose spiral, with
-// two moving platforms. First level where a gap is sized for a double
-// jump rather than a running jump.
+// Level 3 Data — "Level 3"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 3";
 
 window.platforms = [
-  { x: 50, y: 420, width: 260, height: 20 }, // Start
-
-  { x: 400, y: 380, width: 90, height: 20 },
-  { x: 600, y: 340, width: 200, height: 20 },
-  { x: 900, y: 300, width: 90, height: 20 },
-  { x: 1100, y: 260, width: 200, height: 20 },
-
-  { x: 1420, y: 240, width: 260, height: 20 }, // breather 1
-
-  {
-    x: 1800,
-    y: 200,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 60,
-    moveSpeed: 0.022,
-  },
-
-  { x: 2100, y: 170, width: 90, height: 20 },
-  { x: 2300, y: 140, width: 90, height: 20 },
-  { x: 2500, y: 170, width: 90, height: 20 },
-
-  { x: 2720, y: 160, width: 260, height: 20 }, // breather 2
-
-  // The void here is too wide for even a well-timed double jump — this
-  // ghost platform isn't a bonus shortcut like the others, it's the only
-  // way across. Miss its solid window and there's nothing to do but wait
-  // for the next one.
-  {
-    x: 3180,
-    y: 145,
-    width: 100,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 190,
-    ghostOnRatio: 0.6,
-  },
-
-  { x: 3500, y: 130, width: 220, height: 20 },
-
-  {
-    x: 3880,
-    y: 100,
-    width: 120,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 40,
-    moveSpeed: 0.024,
-  },
-
-  { x: 4180, y: 90, width: 250, height: 20 },
-
-  { x: 4560, y: 90, width: 380, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 489, y: 371, width: 70, height: 28 },
+  { x: 720, y: 388, width: 157, height: 20 },
+  { x: 1014, y: 410, width: 117, height: 40 },
+  { x: 1330, y: 427, width: 74, height: 33, moveAxis: "x", moveRange: 65, moveSpeed: 0.029, movePhase: 2.2 },
+  { x: 1555, y: 427, width: 279, height: 12 },
+  { x: 2025, y: 456, width: 89, height: 13 },
+  { x: 2267, y: 502, width: 158, height: 41, melt: true, meltDelay: 30 },
+  { x: 2633, y: 540, width: 199, height: 40 },
+  { x: 3040, y: 566, width: 216, height: 45 },
+  { x: 3386, y: 566, width: 208, height: 32 },
+  { x: 3787, y: 587, width: 157, height: 22, ghost: true, ghostPeriod: 197, ghostOnRatio: 0.6391304347826087 },
+  { x: 4257, y: 583, width: 120, height: 25 },
+  { x: 4567, y: 559, width: 175, height: 39 },
+  { x: 4930, y: 559, width: 368, height: 17 },
+  { x: 5467, y: 516, width: 174, height: 21 },
+  { x: 5780, y: 487, width: 228, height: 12 },
+  { x: 6215, y: 436, width: 137, height: 24 },
+  { x: 6489, y: 436, width: 342, height: 27 },
+  { x: 6991, y: 425, width: 417, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  // Danger strip beneath the first stepping-stone cluster.
-  { x: 550, y: 500, width: 700, height: 20 },
+  { x: 3293, y: 570, width: 119, height: 20 },
+  { x: 4765, y: 562, width: 132, height: 20 },
 ];
 
 window.spikes = [
-  { x: 750, y: 340, size: 20 },
-  { x: 1000, y: 300, size: 25 },
-  { x: 1600, y: 240, size: 20 },
-  { x: 2150, y: 170, size: 20 },
-  { x: 2200, y: 140, size: 25 },
-  { x: 4260, y: 90, size: 25 },
-  { x: 4340, y: 90, size: 20 },
-  { x: 4610, y: 90, size: 20 },
+  { x: 511, y: 371, size: 23 },
+  { x: 777, y: 388, size: 23 },
+  { x: 800, y: 388, size: 20 },
+  { x: 820, y: 388, size: 17 },
+  { x: 1035, y: 410, size: 25 },
+  { x: 3102, y: 566, size: 21 },
+  { x: 4274, y: 583, size: 25 },
+  { x: 6232, y: 436, size: 18 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 390, reached: false },
-  { x: 1470, y: 210, reached: false },
-  { x: 2770, y: 130, reached: false }, // right before the ghost-only gap
-  { x: 4230, y: 60, reached: false },
-  { x: 4740, y: 60, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1695, y: 397, reached: false },
+  { x: 3490, y: 536, reached: false },
+  { x: 5114, y: 529, reached: false },
+  { x: 6660, y: 406, reached: false },
+  { x: 7200, y: 395, reached: false }, // Final
 ];

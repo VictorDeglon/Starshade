@@ -1,102 +1,57 @@
-// Level 7 Data — "Twin Pillars"
-// Narrow (60-80px) pillar-top platforms, several of which move — this
-// level's identity is precision landing on a moving target, not just
-// clearing a gap.
+// Level 7 Data — "Level 7"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 7";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  { x: 380, y: 360, width: 70, height: 20 },
-  { x: 560, y: 320, width: 70, height: 20 },
-  { x: 740, y: 280, width: 70, height: 20 },
-
-  { x: 950, y: 260, width: 240, height: 20 }, // breather 1
-
-  {
-    x: 1320,
-    y: 220,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 55,
-    moveSpeed: 0.022,
-  },
-  { x: 1560, y: 180, width: 65, height: 20 },
-  {
-    x: 1780,
-    y: 140,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 45,
-    moveSpeed: 0.026,
-  },
-
-  { x: 2000, y: 140, width: 240, height: 20 }, // breather 2
-
-  // A ghost pillar — solid about half the time, flickering fair warning
-  // before it flips, fitting right in with this level's precision-landing
-  // identity.
-  {
-    x: 2300,
-    y: 130,
-    width: 70,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 150,
-    ghostOnRatio: 0.5,
-  },
-
-  { x: 2380, y: 120, width: 65, height: 20 },
-  {
-    x: 2600,
-    y: 90,
-    width: 65,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 35,
-    moveSpeed: 0.024,
-  },
-  { x: 2830, y: 120, width: 65, height: 20 },
-
-  { x: 3050, y: 110, width: 240, height: 20 }, // breather 3
-
-  {
-    x: 3430,
-    y: 90,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 60,
-    moveSpeed: 0.028,
-  },
-  { x: 3670, y: 70, width: 65, height: 20 },
-
-  { x: 3900, y: 100, width: 380, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 584, y: 333, width: 64, height: 41 },
+  { x: 849, y: 285, width: 222, height: 36, moveAxis: "y", moveRange: 74, moveSpeed: 0.029, movePhase: 3.66 },
+  { x: 1228, y: 247, width: 85, height: 12, moveAxis: "y", moveRange: 45, moveSpeed: 0.034, movePhase: 4.54 },
+  { x: 1638, y: 192, width: 167, height: 16 },
+  { x: 2002, y: 192, width: 351, height: 40 },
+  { x: 2556, y: 156, width: 77, height: 38, melt: true, meltDelay: 28 },
+  { x: 2808, y: 142, width: 196, height: 27 },
+  { x: 3134, y: 123, width: 141, height: 40, moveAxis: "y", moveRange: 77, moveSpeed: 0.034, movePhase: 4.35 },
+  { x: 3453, y: 127, width: 228, height: 18 },
+  { x: 3878, y: 127, width: 353, height: 18 },
+  { x: 4364, y: 151, width: 93, height: 33, ghost: true, ghostPeriod: 183, ghostOnRatio: 0.5956521739130435 },
+  { x: 4621, y: 187, width: 55, height: 41 },
+  { x: 4853, y: 248, width: 93, height: 18 },
+  { x: 5128, y: 301, width: 54, height: 37, melt: true, meltDelay: 28 },
+  { x: 5318, y: 301, width: 212, height: 30 },
+  { x: 5749, y: 337, width: 214, height: 16 },
+  { x: 6105, y: 364, width: 156, height: 40 },
+  { x: 6399, y: 374, width: 149, height: 25, moveAxis: "y", moveRange: 60, moveSpeed: 0.027, movePhase: 6.03 },
+  { x: 6849, y: 368, width: 156, height: 30 },
+  { x: 7153, y: 368, width: 258, height: 18 },
+  { x: 7574, y: 368, width: 421, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 1200, y: 500, width: 700, height: 20 },
-  { x: 2300, y: 500, width: 700, height: 20 },
-  { x: 3300, y: 500, width: 700, height: 20 },
+  { x: 1842, y: 200, width: 149, height: 20 },
+  { x: 3709, y: 133, width: 144, height: 20 },
+  { x: 4698, y: 179, width: 60, height: 20 },
+  { x: 4984, y: 257, width: 63, height: 20 },
+  { x: 7041, y: 377, width: 118, height: 20 },
 ];
 
 window.spikes = [
-  { x: 1000, y: 260, size: 25 },
-  { x: 1120, y: 260, size: 20 },
-  { x: 2050, y: 140, size: 25 },
-  { x: 2150, y: 140, size: 20 },
-  { x: 3150, y: 110, size: 20 },
-  { x: 3200, y: 110, size: 20 },
-  { x: 3970, y: 100, size: 25 },
+  { x: 1698, y: 192, size: 17 },
+  { x: 2849, y: 142, size: 13 },
+  { x: 2862, y: 142, size: 12 },
+  { x: 2874, y: 142, size: 16 },
+  { x: 4631, y: 187, size: 30 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 1000, y: 230, reached: false },
-  { x: 2050, y: 110, reached: false },
-  { x: 3100, y: 80, reached: false },
-  { x: 4080, y: 70, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 2178, y: 162, reached: false },
+  { x: 4055, y: 97, reached: false },
+  { x: 5424, y: 271, reached: false },
+  { x: 7282, y: 338, reached: false },
+  { x: 7785, y: 338, reached: false }, // Final
 ];
