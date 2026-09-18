@@ -1,110 +1,58 @@
-// Level 10 Data — "Starfall Gauntlet"
-// Everything from the previous levels in one longer run: spike beds,
-// deadly decoys, narrow moving pillars, and double-jump-only gaps.
+// Level 10 Data — "Level 10"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 10";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  { x: 380, y: 400, width: 450, height: 20 }, // spike bed #1
-
-  { x: 900, y: 360, width: 100, height: 20 }, // real, next to a decoy
-  { x: 1160, y: 320, width: 100, height: 20 },
-
-  {
-    x: 1400,
-    y: 280,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 55,
-    moveSpeed: 0.022,
-  },
-  { x: 1620, y: 240, width: 65, height: 20 },
-  {
-    x: 1840,
-    y: 200,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 45,
-    moveSpeed: 0.026,
-  },
-
-  { x: 2060, y: 200, width: 250, height: 20 }, // breather
-
-  // A melt platform — safe to land on, but don't linger: it crumbles away
-  // a moment after you step on it.
-  { x: 2380, y: 210, width: 90, height: 20, melt: true, meltDelay: 24 },
-
-  // Double-jump gap
-  { x: 2570, y: 220, width: 200, height: 20 },
-
-  { x: 2920, y: 220, width: 400, height: 20 }, // spike bed #2
-
-  {
-    x: 3470,
-    y: 170,
-    width: 130,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 40,
-    moveSpeed: 0.024,
-  },
-
-  { x: 3750, y: 150, width: 100, height: 20 }, // decoy nearby
-  { x: 4000, y: 180, width: 100, height: 20 },
-
-  { x: 4250, y: 180, width: 350, height: 20 }, // spike bed #3
-
-  {
-    x: 4750,
-    y: 130,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 70,
-    moveSpeed: 0.028,
-  },
-
-  { x: 5030, y: 100, width: 70, height: 20 },
-  { x: 5210, y: 70, width: 70, height: 20 },
-
-  { x: 5430, y: 90, width: 400, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 473, y: 417, width: 45, height: 44, moveAxis: "x", moveRange: 57, moveSpeed: 0.027, movePhase: 1.65 },
+  { x: 682, y: 457, width: 85, height: 37 },
+  { x: 936, y: 500, width: 171, height: 44, melt: true, meltDelay: 27 },
+  { x: 1314, y: 500, width: 260, height: 22 },
+  { x: 1735, y: 558, width: 227, height: 16 },
+  { x: 2138, y: 617, width: 156, height: 26, ghost: true, ghostPeriod: 172, ghostOnRatio: 0.5630434782608695 },
+  { x: 2479, y: 655, width: 217, height: 28 },
+  { x: 2848, y: 655, width: 373, height: 28 },
+  { x: 3382, y: 646, width: 84, height: 16 },
+  { x: 3784, y: 637, width: 135, height: 35 },
+  { x: 4209, y: 595, width: 55, height: 45, melt: true, meltDelay: 27 },
+  { x: 4438, y: 549, width: 135, height: 38, moveAxis: "x", moveRange: 65, moveSpeed: 0.031, movePhase: 0.33 },
+  { x: 4739, y: 549, width: 337, height: 14 },
+  { x: 5245, y: 479, width: 209, height: 45, melt: true, meltDelay: 27 },
+  { x: 5591, y: 424, width: 78, height: 30 },
+  { x: 5861, y: 363, width: 135, height: 29, melt: true, meltDelay: 27 },
+  { x: 6148, y: 363, width: 281, height: 12 },
+  { x: 6595, y: 341, width: 125, height: 20, ghost: true, ghostPeriod: 172, ghostOnRatio: 0.5630434782608695 },
+  { x: 6888, y: 351, width: 96, height: 26, melt: true, meltDelay: 27 },
+  { x: 7181, y: 370, width: 186, height: 14 },
+  { x: 7559, y: 388, width: 70, height: 31 },
+  { x: 7780, y: 399, width: 388, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 1030, y: 360, width: 100, height: 20 }, // decoy between the two real ledges
-  { x: 3890, y: 150, width: 100, height: 20 }, // decoy beneath the moving platform
+  { x: 1994, y: 554, width: 129, height: 20 },
+  { x: 2722, y: 654, width: 122, height: 20 },
+  { x: 5689, y: 415, width: 60, height: 20 },
 ];
 
 window.spikes = [
-  { x: 450, y: 400, size: 30 },
-  { x: 560, y: 400, size: 30 },
-  { x: 670, y: 400, size: 30 },
-  { x: 780, y: 400, size: 30 },
-
-  { x: 920, y: 360, size: 20 },
-
-  { x: 2960, y: 220, size: 30 },
-  { x: 3070, y: 220, size: 30 },
-  { x: 3180, y: 220, size: 30 },
-  { x: 3290, y: 220, size: 30 },
-
-  { x: 4280, y: 180, size: 30 },
-  { x: 4390, y: 180, size: 30 },
-  { x: 4500, y: 180, size: 30 },
-  { x: 4560, y: 180, size: 30 },
-  { x: 5050, y: 100, size: 20 },
-  { x: 5700, y: 90, size: 20 },
+  { x: 709, y: 457, size: 30 },
+  { x: 1787, y: 558, size: 14 },
+  { x: 1801, y: 558, size: 32 },
+  { x: 1833, y: 558, size: 29 },
+  { x: 3406, y: 646, size: 20 },
+  { x: 3426, y: 646, size: 17 },
+  { x: 5604, y: 424, size: 35 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 1210, y: 290, reached: false }, // right after the decoy stretch
-  { x: 2100, y: 170, reached: false }, // top of the pillars
-  { x: 2650, y: 190, reached: false }, // after the double-jump gap
-  { x: 4050, y: 100, reached: false }, // after the vertical moving platform
-  { x: 5580, y: 40, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1444, y: 470, reached: false },
+  { x: 3035, y: 625, reached: false },
+  { x: 4908, y: 519, reached: false },
+  { x: 6289, y: 333, reached: false },
+  { x: 7974, y: 369, reached: false }, // Final
 ];

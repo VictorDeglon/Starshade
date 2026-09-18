@@ -43,6 +43,31 @@ body {
   width: 400px;
   border-radius: 20px;
   box-shadow: 0px 0px 30px rgba(77, 63, 145, 0.7);
+  /* The settings list has grown past what a short/laptop viewport can show
+     in one screen — scroll the panel itself (body stays overflow:hidden,
+     so this is the only way to reach anything below the fold) rather than
+     letting content get cut off with no way to reach it. */
+  max-height: calc(100vh - 50px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.settings::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+}
+
+.settings::-webkit-scrollbar-thumb {
+  background: #4d3f91;
+  border-radius: 20px;
+}
+
+.settings::-webkit-scrollbar-thumb:hover {
+  background: #6c4eb1;
 }
 
 /* Logo Styling */

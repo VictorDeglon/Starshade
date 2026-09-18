@@ -23,6 +23,25 @@
     <!-- Coin-earned toast -->
     <div id="coinToast" class="coin-toast"></div>
 
+    <!-- On-screen touch controls — shown only on touch devices (see the
+         (pointer: coarse) rule in game.css), positioned for landscape
+         play since that's the only orientation the rotate prompt below
+         allows through. -->
+    <div id="touchControls" class="touch-controls">
+      <div class="touch-dpad">
+        <button id="touch-left" class="touch-button" aria-label="Move left">&#9664;</button>
+        <button id="touch-right" class="touch-button" aria-label="Move right">&#9654;</button>
+      </div>
+      <button id="touch-jump" class="touch-button touch-jump" aria-label="Jump">&#9650;</button>
+    </div>
+
+    <!-- Mobile is side-scrolling, so portrait doesn't work — this blocks
+         play until the device is rotated. Pure CSS (see game.css); no JS
+         needed since orientation is exactly what a media query is for. -->
+    <div id="rotatePrompt" class="rotate-prompt">
+      <p>Rotate your device to landscape to play</p>
+    </div>
+
     <!-- Visible pause trigger — Escape does the same thing, but that's not
          discoverable on its own. An inline SVG glyph instead of a unicode
          character so it's crisp and perfectly centered at any size. -->

@@ -1,83 +1,52 @@
-// Level 2 Data — "Steady Climb"
-// Still gentle, but introduces two firsts: a slow moving platform (safely
-// telegraphed with a checkpoint right before it), and a stretch of
-// narrower footing. Both are easy to fail without losing much progress.
+// Level 2 Data — "Level 2"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 2";
 
 window.platforms = [
-  { x: 50, y: 460, width: 300, height: 20 }, // Start
-
-  { x: 430, y: 430, width: 170, height: 20 },
-  { x: 680, y: 400, width: 170, height: 20 },
-  { x: 930, y: 370, width: 170, height: 20 },
-  { x: 1180, y: 400, width: 170, height: 20 }, // gentle dip
-
-  { x: 1450, y: 380, width: 260, height: 20 }, // breather 1
-
-  // First moving platform — small, slow, easy to read and time.
-  {
-    x: 1830,
-    y: 350,
-    width: 150,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 55,
-    moveSpeed: 0.018,
-  },
-
-  { x: 2140, y: 320, width: 210, height: 20 },
-
-  // A yellow ghost platform — solid most of the time, with a brief flicker
-  // warning before it flips. A bonus arc over the gap, not required.
-  {
-    x: 2390,
-    y: 230,
-    width: 90,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 200,
-    ghostOnRatio: 0.65,
-  },
-
-  { x: 2460, y: 290, width: 130, height: 20 },
-  { x: 2690, y: 290, width: 130, height: 20 },
-  { x: 2920, y: 260, width: 130, height: 20 },
-
-  { x: 3170, y: 250, width: 280, height: 20 }, // breather 2
-
-  {
-    x: 3560,
-    y: 220,
-    width: 140,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 35,
-    moveSpeed: 0.02,
-  },
-
-  { x: 3870, y: 190, width: 180, height: 20 },
-  { x: 4160, y: 160, width: 180, height: 20 },
-
-  { x: 4450, y: 160, width: 360, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 451, y: 333, width: 157, height: 38, melt: true, meltDelay: 30 },
+  { x: 881, y: 299, width: 211, height: 33, moveAxis: "x", moveRange: 41, moveSpeed: 0.025, movePhase: 0.99 },
+  { x: 1278, y: 282, width: 99, height: 28 },
+  { x: 1549, y: 282, width: 301, height: 32 },
+  { x: 2134, y: 281, width: 141, height: 37 },
+  { x: 2470, y: 287, width: 63, height: 45, moveAxis: "x", moveRange: 58, moveSpeed: 0.023, movePhase: 5.79 },
+  { x: 2719, y: 324, width: 177, height: 28, melt: true, meltDelay: 30 },
+  { x: 3048, y: 348, width: 136, height: 17, ghost: true, ghostPeriod: 200, ghostOnRatio: 0.65 },
+  { x: 3323, y: 348, width: 270, height: 43 },
+  { x: 3766, y: 401, width: 148, height: 18, moveAxis: "x", moveRange: 62, moveSpeed: 0.02, movePhase: 2.37 },
+  { x: 4120, y: 439, width: 55, height: 17 },
+  { x: 4376, y: 468, width: 73, height: 19 },
+  { x: 4665, y: 498, width: 183, height: 17 },
+  { x: 5058, y: 498, width: 222, height: 36 },
+  { x: 5479, y: 487, width: 166, height: 19 },
+  { x: 5802, y: 473, width: 207, height: 15 },
+  { x: 6146, y: 462, width: 184, height: 22 },
+  { x: 6460, y: 462, width: 191, height: 16 },
+  { x: 6814, y: 448, width: 405, height: 20 },
 ];
 
-window.deadlyPlatforms = [{ x: 1200, y: 500, width: 100, height: 20 }];
+window.deadlyPlatforms = [
+  { x: 2307, y: 272, width: 123, height: 20 },
+  { x: 4886, y: 505, width: 138, height: 20 },
+  { x: 5668, y: 486, width: 93, height: 20 },
+];
 
 window.spikes = [
-  { x: 480, y: 430, size: 20 },
-  { x: 860, y: 400, size: 25 },
-  { x: 1230, y: 400, size: 20 },
-  { x: 2160, y: 320, size: 20 },
-  { x: 2340, y: 320, size: 25 },
-  { x: 2740, y: 290, size: 20 },
-  { x: 3730, y: 190, size: 25 },
-  { x: 3900, y: 190, size: 20 },
+  { x: 2180, y: 281, size: 18 },
+  { x: 4130, y: 439, size: 19 },
+  { x: 4149, y: 439, size: 14 },
+  { x: 4394, y: 468, size: 18 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 430, reached: false },
-  { x: 1500, y: 350, reached: false }, // before the first moving platform
-  { x: 3220, y: 220, reached: false }, // before the vertical moving platform
-  { x: 4560, y: 130, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1700, y: 252, reached: false },
+  { x: 3458, y: 318, reached: false },
+  { x: 5169, y: 468, reached: false },
+  { x: 6556, y: 432, reached: false },
+  { x: 7017, y: 418, reached: false }, // Final
 ];

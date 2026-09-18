@@ -1,143 +1,59 @@
-// Level 12 Data — "Starshade's Reach"
-// The finale: every hazard type from the previous eleven levels, back to
-// back, with the tightest margins and the most moving platforms in the
-// game. Reaching the last checkpoint here (there is no level13.js) shows
-// the "You beat Starshade!" screen — see game.js's loadLevel().catch().
+// Level 12 Data — "Level 12"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 12";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  // Spike bed
-  { x: 380, y: 400, width: 400, height: 20 },
-
-  // Deadly decoys among narrow real ledges
-  { x: 850, y: 360, width: 85, height: 20 },
-  { x: 1110, y: 320, width: 85, height: 20 },
-  { x: 1370, y: 280, width: 85, height: 20 },
-
-  { x: 1580, y: 280, width: 220, height: 20 }, // breather
-
-  // Twin-pillar double jumps, first moving pillar
-  {
-    x: 1950,
-    y: 230,
-    width: 65,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 55,
-    moveSpeed: 0.024,
-  },
-  { x: 2170, y: 180, width: 65, height: 20 },
-  {
-    x: 2350,
-    y: 140,
-    width: 65,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 40,
-    moveSpeed: 0.026,
-  },
-
-  { x: 2540, y: 140, width: 220, height: 20 }, // breather
-
-  // Void bridge — wide double-jump gaps
-  { x: 3010, y: 170, width: 140, height: 20 },
-
-  // A ghost platform over the void — fast cycle, short solid window, the
-  // hardest-timed one in the game, fitting the finale.
-  {
-    x: 3200,
-    y: 185,
-    width: 90,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 140,
-    ghostOnRatio: 0.4,
-  },
-
-  {
-    x: 3450,
-    y: 200,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 65,
-    moveSpeed: 0.028,
-  },
-
-  // Final spike-and-decoy gauntlet
-  { x: 3830, y: 200, width: 380, height: 20 },
-
-  { x: 4400, y: 160, width: 300, height: 20 }, // mid-point, not the true final
-
-  // The hardest stretch — two fast moving platforms back to back, a decoy
-  // right next to the landing, and one last dense spike bed.
-  { x: 4880, y: 190, width: 180, height: 20 },
-  {
-    x: 5190,
-    y: 120,
-    width: 110,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 80,
-    moveSpeed: 0.035,
-  },
-  {
-    x: 5410,
-    y: 70,
-    width: 100,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 45,
-    moveSpeed: 0.035,
-  },
-  { x: 5640, y: 120, width: 150, height: 20 },
-  { x: 5940, y: 140, width: 350, height: 20 }, // final spike bed
-
-  { x: 6430, y: 180, width: 420, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 452, y: 415, width: 185, height: 20 },
+  { x: 813, y: 416, width: 98, height: 27 },
+  { x: 1205, y: 397, width: 77, height: 18 },
+  { x: 1433, y: 397, width: 256, height: 20 },
+  { x: 1878, y: 346, width: 69, height: 32, moveAxis: "x", moveRange: 57, moveSpeed: 0.038, movePhase: 4.51 },
+  { x: 2080, y: 302, width: 88, height: 22 },
+  { x: 2433, y: 249, width: 176, height: 36, melt: true, meltDelay: 26 },
+  { x: 2807, y: 184, width: 51, height: 38 },
+  { x: 2999, y: 184, width: 291, height: 26 },
+  { x: 3600, y: 145, width: 103, height: 22 },
+  { x: 3882, y: 108, width: 195, height: 31 },
+  { x: 4390, y: 96, width: 107, height: 15 },
+  { x: 4628, y: 96, width: 195, height: 33 },
+  { x: 4971, y: 108, width: 77, height: 13, ghost: true, ghostPeriod: 165, ghostOnRatio: 0.5413043478260869 },
+  { x: 5220, y: 133, width: 165, height: 14, ghost: true, ghostPeriod: 165, ghostOnRatio: 0.5413043478260869 },
+  { x: 5565, y: 195, width: 120, height: 12, melt: true, meltDelay: 26 },
+  { x: 5865, y: 195, width: 278, height: 32 },
+  { x: 6282, y: 260, width: 65, height: 38, ghost: true, ghostPeriod: 165, ghostOnRatio: 0.5413043478260869 },
+  { x: 6545, y: 326, width: 109, height: 17, moveAxis: "x", moveRange: 62, moveSpeed: 0.039, movePhase: 1.58 },
+  { x: 6848, y: 378, width: 226, height: 22, melt: true, meltDelay: 26 },
+  { x: 7258, y: 406, width: 89, height: 14 },
+  { x: 7547, y: 406, width: 327, height: 18 },
+  { x: 8071, y: 398, width: 386, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 980, y: 360, width: 85, height: 20 },
-  { x: 1240, y: 320, width: 85, height: 20 },
-  { x: 3960, y: 200, width: 90, height: 20 },
-  { x: 5790, y: 120, width: 90, height: 20 }, // right next to the last landing
-  { x: 900, y: 600, width: 5400, height: 20 }, // catch-net under the whole gauntlet
+  { x: 946, y: 420, width: 87, height: 20 },
+  { x: 1312, y: 400, width: 60, height: 20 },
+  { x: 2200, y: 293, width: 60, height: 20 },
+  { x: 4100, y: 114, width: 151, height: 20 },
+  { x: 7374, y: 403, width: 72, height: 20 },
 ];
 
 window.spikes = [
-  { x: 450, y: 400, size: 30 },
-  { x: 560, y: 400, size: 30 },
-  { x: 670, y: 400, size: 30 },
-  { x: 780, y: 400, size: 30 },
-
-  { x: 1630, y: 280, size: 25 },
-  { x: 1750, y: 280, size: 20 },
-  { x: 2580, y: 140, size: 25 },
-
-  { x: 3870, y: 200, size: 30 },
-  { x: 4150, y: 200, size: 35 },
-
-  { x: 4450, y: 160, size: 20 },
-  { x: 4650, y: 160, size: 20 },
-
-  { x: 5700, y: 120, size: 20 },
-
-  { x: 5960, y: 140, size: 30 },
-  { x: 6070, y: 140, size: 30 },
-  { x: 6180, y: 140, size: 35 },
-  { x: 6260, y: 140, size: 30 },
+  { x: 1218, y: 397, size: 17 },
+  { x: 1235, y: 397, size: 18 },
+  { x: 2101, y: 302, size: 33 },
+  { x: 2817, y: 184, size: 18 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 1630, y: 250, reached: false }, // after the decoy stretch
-  { x: 2600, y: 110, reached: false }, // after the pillars
-  { x: 3080, y: 140, reached: false }, // mid void bridge
-  { x: 3920, y: 170, reached: false }, // after the bridge
-  { x: 4550, y: 130, reached: false }, // mid-point
-  { x: 5460, y: 40, reached: false }, // after both fast moving platforms
-  { x: 6630, y: 150, reached: false }, // Final — beats the game
+  { x: 150, y: 350, reached: false },
+  { x: 1561, y: 367, reached: false },
+  { x: 3145, y: 154, reached: false },
+  { x: 4726, y: 66, reached: false },
+  { x: 6004, y: 165, reached: false },
+  { x: 7711, y: 376, reached: false },
+  { x: 8264, y: 368, reached: false }, // Final
 ];

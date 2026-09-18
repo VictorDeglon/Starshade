@@ -1,90 +1,51 @@
-// Level 4 Data — "Ashfall Ruins"
-// A field of rubble where nearly every real platform has a same-height
-// deadly decoy right next to it — always visually distinct (red vs. blue),
-// so this tests attention under time pressure, not memory. Two moving
-// platforms thread through the middle and late sections.
+// Level 4 Data — "Level 4"
+// Generated to fit the established difficulty curve (see
+// docs/gameplay.md) — every gap here is verified against the same
+// physics .claude/audit-gaps.js checks, and any ghost-gated gap is
+// confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 4";
 
 window.platforms = [
-  { x: 50, y: 400, width: 250, height: 20 }, // Start
-
-  { x: 380, y: 360, width: 110, height: 20 },
-  { x: 640, y: 320, width: 110, height: 20 },
-  { x: 900, y: 280, width: 110, height: 20 },
-
-  { x: 1150, y: 260, width: 220, height: 20 }, // breather 1
-
-  {
-    x: 1500,
-    y: 220,
-    width: 130,
-    height: 20,
-    moveAxis: "x",
-    moveRange: 65,
-    moveSpeed: 0.02,
-  },
-
-  { x: 1800, y: 200, width: 110, height: 20 },
-
-  // A ghost platform hovering over the rubble — solid a bit more than half
-  // the time, with the usual flicker warning before it flips.
-  {
-    x: 1960,
-    y: 165,
-    width: 80,
-    height: 20,
-    ghost: true,
-    ghostPeriod: 180,
-    ghostOnRatio: 0.55,
-  },
-
-  { x: 2050, y: 180, width: 110, height: 20 },
-  { x: 2300, y: 160, width: 110, height: 20 },
-
-  { x: 2560, y: 150, width: 260, height: 20 }, // breather 2
-
-  {
-    x: 2960,
-    y: 190,
-    width: 130,
-    height: 20,
-    moveAxis: "y",
-    moveRange: 45,
-    moveSpeed: 0.022,
-  },
-
-  { x: 3260, y: 220, width: 100, height: 20 },
-  { x: 3500, y: 190, width: 100, height: 20 },
-  { x: 3740, y: 160, width: 100, height: 20 },
-
-  { x: 3990, y: 150, width: 380, height: 20 }, // Final
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 433, y: 410, width: 153, height: 24 },
+  { x: 797, y: 456, width: 226, height: 13, moveAxis: "y", moveRange: 39, moveSpeed: 0.026, movePhase: 1.14 },
+  { x: 1164, y: 508, width: 59, height: 21 },
+  { x: 1418, y: 508, width: 369, height: 37 },
+  { x: 1932, y: 547, width: 62, height: 35 },
+  { x: 2198, y: 590, width: 224, height: 16, moveAxis: "y", moveRange: 50, moveSpeed: 0.02, movePhase: 3.42 },
+  { x: 2616, y: 606, width: 94, height: 43 },
+  { x: 2864, y: 614, width: 66, height: 19 },
+  { x: 3078, y: 614, width: 354, height: 24 },
+  { x: 3603, y: 591, width: 101, height: 36, melt: true, meltDelay: 29 },
+  { x: 3901, y: 544, width: 230, height: 16 },
+  { x: 4285, y: 498, width: 89, height: 23 },
+  { x: 4536, y: 469, width: 188, height: 43 },
+  { x: 4910, y: 469, width: 394, height: 29 },
+  { x: 5587, y: 426, width: 201, height: 36, moveAxis: "x", moveRange: 69, moveSpeed: 0.029, movePhase: 1.44 },
+  { x: 6112, y: 403, width: 45, height: 22, moveAxis: "y", moveRange: 52, moveSpeed: 0.026, movePhase: 4.33 },
+  { x: 6441, y: 376, width: 219, height: 15 },
+  { x: 6807, y: 376, width: 332, height: 40 },
+  { x: 7323, y: 376, width: 171, height: 13, ghost: true, ghostPeriod: 193, ghostOnRatio: 0.6282608695652174 },
+  { x: 7664, y: 388, width: 415, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 520, y: 360, width: 110, height: 20 }, // decoy next to 380
-  { x: 780, y: 320, width: 110, height: 20 }, // decoy next to 640
-  { x: 1040, y: 280, width: 110, height: 20 }, // decoy next to 900
-  { x: 1940, y: 200, width: 100, height: 20 }, // decoy next to 1800/2050
-  { x: 2190, y: 180, width: 100, height: 20 },
-  { x: 3380, y: 220, width: 100, height: 20 }, // decoy under/around moving platform
-  { x: 3620, y: 190, width: 100, height: 20 },
+  { x: 606, y: 416, width: 130, height: 20 },
 ];
 
 window.spikes = [
-  { x: 430, y: 360, size: 20 },
-  { x: 950, y: 280, size: 20 },
-  { x: 1230, y: 260, size: 25 },
-  { x: 2100, y: 180, size: 20 },
-  { x: 2350, y: 160, size: 20 },
-  { x: 2650, y: 150, size: 25 },
-  { x: 3870, y: 160, size: 30 },
+  { x: 2644, y: 606, size: 15 },
+  { x: 2886, y: 614, size: 20 },
+  { x: 3940, y: 544, size: 20 },
+  { x: 4573, y: 469, size: 24 },
 ];
 
 window.checkpoints = [
-  { x: 150, y: 370, reached: false },
-  { x: 1200, y: 230, reached: false },
-  { x: 2610, y: 120, reached: false }, // before the vertical moving platform
-  { x: 3800, y: 130, reached: false },
-  { x: 4180, y: 120, reached: false }, // Final
+  { x: 150, y: 350, reached: false },
+  { x: 1603, y: 478, reached: false },
+  { x: 3255, y: 584, reached: false },
+  { x: 5107, y: 439, reached: false },
+  { x: 6973, y: 346, reached: false },
+  { x: 7872, y: 358, reached: false }, // Final
 ];

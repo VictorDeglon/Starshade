@@ -210,43 +210,52 @@ original finale and on into 13-25. Every gap and checkpoint across all 25
 is verified safe by the two audit scripts described in
 [Adding a level](#adding-a-level).
 
-Levels 1-12 are hand-authored, each with a distinct visual identity (see
-the table below). Levels 13-25 are procedurally generated —
-`.claude/gen-levels.js` builds each one from the exact same physics the
-audits check (the same single/double-jump feasibility simulation), so
-every gap is verified achievable *as it's placed*, not hand-tuned and
-hoped safe; only whether a gap needs a double jump, an occasional
-ghost-platform-only gate, and the moving/ghost/melt/spike/decoy density
-are randomized, scaling up with level number. See the comment at the top
-of that script for the exact ramp.
+Level 1 is hand-authored (see its own tutorial-tips section below).
+Levels 2-25 are procedurally generated — `.claude/gen-levels.js` builds
+each one from the exact same physics the audits check (the same
+single/double-jump feasibility simulation), so every gap is verified
+achievable *as it's placed*, not hand-tuned and hoped safe. Platform size
+(width **and** height — a real platformer's boxes aren't all the same
+stamped slab), spike size, spike clusters (2-4 side by side instead of
+one), and moving/ghost/melt/decoy density all scale up with level number;
+see the comment at the top of that script for the exact ramp, and
+[Adding a level](#adding-a-level) for how to regenerate or extend it.
+Level names beyond 1 (in `levels.js`, for the level map) are just flavor
+text — the generator doesn't theme a level around its name the way the
+original hand-authored 2-12 did.
 
-| # | Name | Length | Moving platforms | Theme |
-|---|---|---|---|---|
-| 1 | First Light | 4490px | 0 | Tutorial — a gentle rise-dip-rise wave, minimal hazards |
-| 2 | Steady Climb | 4810px | 2 | First moving platforms (one horizontal, one vertical), each telegraphed with a checkpoint right before it |
-| 3 | Nebula Steps | 4660px | 2 | Alternating small/large stepping stones in a loose spiral; the game's first double-jump-only gap, and its first *mandatory* ghost platform |
-| 4 | Ashfall Ruins | 4370px | 2 | A rubble field — nearly every real platform has a same-height deadly decoy right next to it |
-| 5 | Spike Gardens | 5080px | 2 | Ground-level spike beds alternating with clear ledges, climbing overall; two wide double-jump gaps |
-| 6 | The Long Fall | 5860px | 2 | A dramatic rollercoaster — climb, huge fall, climb, even bigger fall; its first melt platform |
-| 7 | Twin Pillars | 4280px | 4 | Narrow (60-80px) pillars, several of which move — precision landing on a moving target is the whole point |
-| 8 | Void Bridge | 5230px | 3 | A long crossing over open void on stepping platforms, some moving, some static |
-| 9 | Ember Labyrinth | 4930px | 4 | A zig-zag that doubles back on itself vertically, with deadly "wrong turn" decoys and moving platforms right at each turn |
-| 10 | Starfall Gauntlet | 5830px | 4 | Combines every earlier hazard type — spike beds, decoys, moving pillars, double jumps, a melt platform — into one longer run |
-| 11 | The Ascent | 4350px | 3 | Sustained double-jump/precision chaining, right up against the top of the visible band |
-| 12 | Starshade's Reach | 6850px | 5 | Every hazard type from 1-11, two fast moving platforms back to back, one mandatory ghost gate — the hardest margins of the hand-authored levels |
-| 13 | Crimson Descent | 6585px | 1 | First of the generated levels — the ramp starts gentle, close to level 12's density |
-| 14 | Glass Causeway | 6694px | 1 | |
-| 15 | Wraith's Crossing | 6366px | 5 | |
-| 16 | The Hollow Spiral | 6800px | 2 | |
-| 17 | Emberfall Reach | 7180px | 3 | |
-| 18 | Phantom Causeway | 7213px | 4 | |
-| 19 | The Shattered Path | 7884px | 2 | First generated level with a mandatory ghost gate |
-| 20 | Void Marrow | 7939px | 3 | |
-| 21 | Starlit Precipice | 8484px | 3 | Mandatory ghost gate |
-| 22 | The Last Bastion | 9135px | 1 | Mandatory ghost gate |
-| 23 | Eclipse Corridor | 9765px | 1 | Up to two mandatory ghost gates |
-| 24 | The Abyssal Climb | 8705px | 3 | |
-| 25 | Starshade's Zenith | 10095px | 4 | Finale — the longest level, up to two mandatory ghost gates, the densest hazards and fastest cycles in the game |
+| # | Name | Length | Moving | Ghost | Melt | Spikes |
+|---|---|---|---|---|---|---|
+| 1 | First Light | 4490px | 0 | 0 | 0 | 8 |
+| 2 | Steady Climb | 7219px | 3 | 1 | 2 | 4 |
+| 3 | Nebula Steps | 7408px | 1 | 1 | 1 | 8 |
+| 4 | Ashfall Ruins | 8079px | 4 | 1 | 1 | 4 |
+| 5 | Spike Gardens | 8341px | 3 | 0 | 3 | 1 |
+| 6 | The Long Fall | 7651px | 0 | 0 | 6 | 4 |
+| 7 | Twin Pillars | 7995px | 4 | 1 | 2 | 5 |
+| 8 | Void Bridge | 8603px | 2 | 0 | 3 | 11 |
+| 9 | Ember Labyrinth | 8407px | 4 | 4 | 1 | 7 |
+| 10 | Starfall Gauntlet | 8168px | 2 | 2 | 5 | 7 |
+| 11 | The Ascent | 8870px | 4 | 7 | 0 | 6 |
+| 12 | Starshade's Reach | 8457px | 2 | 3 | 3 | 4 |
+| 13 | Crimson Descent | 9839px | 3 | 5 | 2 | 4 |
+| 14 | Glass Causeway | 9106px | 2 | 4 | 3 | 12 |
+| 15 | Wraith's Crossing | 10257px | 1 | 5 | 1 | 5 |
+| 16 | The Hollow Spiral | 9960px | 4 | 3 | 3 | 8 |
+| 17 | Emberfall Reach | 10312px | 5 | 3 | 1 | 15 |
+| 18 | Phantom Causeway | 10017px | 7 | 7 | 1 | 6 |
+| 19 | The Shattered Path | 10746px | 5 | 3 | 3 | 14 |
+| 20 | Void Marrow | 11459px | 4 | 2 | 5 | 13 |
+| 21 | Starlit Precipice | 11122px | 2 | 4 | 6 | 12 |
+| 22 | The Last Bastion | 11940px | 5 | 5 | 7 | 7 |
+| 23 | Eclipse Corridor | 11151px | 2 | 6 | 9 | 5 |
+| 24 | The Abyssal Climb | 12166px | 4 | 3 | 5 | 17 |
+| 25 | Starshade's Zenith | 11974px | 3 | 3 | 7 | 15 |
+
+A "Ghost" or "Melt" count includes both the mandatory-gate platforms (see
+below) and ordinary/optional ones — `audit-gaps.js`'s "IMPOSSIBLE"
+results (one per mandatory gate) are the way to tell which levels have a
+true gate, not this count.
 
 ## Ghost and melt platforms
 
@@ -259,14 +268,17 @@ platforms and moving platforms:
   in `game.js`), drawn bright yellow with a fast flicker warning just
   before every flip. `resolveAxis()` skips collision against one entirely
   while intangible. Most are optional bonus routes across a gap that's
-  already crossable by double jump alone — level 3 has the one exception:
-  the gap right after its second breather is wide enough that a double
-  jump genuinely can't clear it, so that ghost platform is the only way
-  across, not a shortcut. `.claude/audit-gaps.js` excludes ghost platforms
-  from its "is this level completable" check for exactly this reason (an
-  intermittent platform can't be part of the *guaranteed* path) — a level
-  showing an "IMPOSSIBLE even with a double jump" result for a gap that
-  has a ghost platform in it is expected, not a bug.
+  already crossable by double jump alone — every level from 13 on has at
+  least one *mandatory* gate instead: a gap wide enough that a double jump
+  genuinely can't clear it, so that one ghost platform is the only way
+  across, not a shortcut (`.claude/gen-levels.js` sanity-checks this at
+  generation time — see its `directDx`/`directRise` check — rather than
+  hoping it's true). `.claude/audit-gaps.js` excludes ghost platforms from
+  its "is this level completable" check for exactly this reason (an
+  intermittent platform can't be part of the *guaranteed* path) — the
+  "IMPOSSIBLE even with a double jump" results it reports (one per
+  mandatory gate — currently levels 13-25, two apiece on 22 and 24) are
+  expected, not a bug.
 - **Melt platforms** (`melt: true`, optional `meltDelay`, default 28
   frames) look and behave like ordinary solid ground until you actually
   stand on one — then a short countdown starts, and it crumbles away for
@@ -277,31 +289,60 @@ platforms and moving platforms:
   `audit-gaps.js`/`audit-checkpoints.js`, since they're always there the
   *first* time you reach them.
 
-## Anti-cheat ceiling and level centering
+## Level centering and the screen-pinned ceiling
 
 `applyLevelVerticalLayout()` in `game.js` runs once per level load (from
 `resetLevelState()`), after the level script has populated
 `platforms`/`deadlyPlatforms`/`spikes`/`checkpoints` but before the first
-frame renders, and does two things — both pure translations/additions of
-already-verified geometry, so neither can turn a previously-safe checkpoint
-or previously-possible jump into a bad one:
+frame renders. It **centers the level vertically** on the actual viewport
+instead of wherever a level file happened to author its numbers —
+`window.innerHeight` varies per player, but every level was written
+against one nominal band. It shifts every platform/hazard/checkpoint y
+(and the player's start y) by the same constant, so every gap's rise and
+every checkpoint's relative safety survive unchanged (`.claude/audit-*.js`
+both check relative distances, not absolute ones).
 
-1. **Centers the level vertically** on the actual viewport instead of
-   wherever a level file happened to author its numbers — `window.innerHeight`
-   varies per player, but every level was written against one nominal
-   band. It shifts every platform/hazard/checkpoint y (and the player's
-   start y) by the same constant, so every gap's rise and every
-   checkpoint's relative safety survive unchanged (`.claude/audit-*.js`
-   both check relative distances, not absolute ones).
-2. **Adds an invisible ceiling** 240px above the level's own highest
-   platform (`ROOF_CLEARANCE` — comfortably more than a single jump's
-   ~144px rise, but less than the ~280px a double jump can reach if timed
-   to maximize height). Since nothing in a level is ever *above* its own
-   topmost platform, this can only cap climbing past where the level
-   already ends — it's what stops a double jump from being chained to
-   soar above the intended platforms and skip past hazards below, drawn as
-   a dark, hazard-striped boundary (`drawRoofPlatforms()`) distinct from
-   every hand-placed platform color.
+The anti-cheat ceiling is a separate mechanism, in `updatePlayer()`:
+rather than a solid platform placed in level space (which used to need
+recomputing whenever the window resized), it's a direct clamp —
+`SCREEN_TOP_MARGIN` (16px) from the literal top edge of the canvas, every
+frame, using the live `canvas.height`. It can never go stale across a
+resize, and it's invisible on purpose: nothing is drawn for it, it's a
+boundary, not a platform. This is what stops a double jump from being
+chained to soar above the intended platforms and skip past hazards below.
+
+## Frame-rate independence
+
+Every per-frame physics/animation increment (`gravity`, `horizontalSpeed`,
+moving-platform phase, particle life, camera easing, squash/stretch,
+screen shake, melt timers) is written as "how much per 60fps-equivalent
+tick" and multiplied by `dtScale` — `gameLoop(timestamp)` computes it each
+frame from the real elapsed time since the last one (1 at a steady 60Hz,
+~0.5 at 120Hz, ~2 at 30fps), clamped to `MAX_DT_SCALE` (3) so resuming
+from a backgrounded tab can't fling the player through geometry in one
+huge leap. At `dtScale === 1` this reproduces the exact discrete-frame
+trajectory the old fixed-per-frame code did (verified against
+`.claude/audit-gaps.js`'s own simulation), so the physics reference the
+audits check is unchanged — the point is that gameplay now runs at the
+same *real-world* speed on any display, not that the numbers changed.
+Exponential easings (camera follow, squash) use `1 - (1-rate)^dtScale`
+rather than a flat `*= dtScale` — the mathematically correct
+generalization of a per-tick decay factor, so a high-refresh-rate display
+doesn't converge faster just because it's taking more, smaller steps.
+
+## Mobile
+
+`game.html` includes an on-screen d-pad (bottom-left) and jump button
+(bottom-right) — `.touch-controls` in `game.css`, shown only under
+`(pointer: coarse)` so a resized desktop browser window never grows them.
+The buttons feed a `touchState` object that `anyPressed()` in `game.js`
+OR's in alongside the rebindable keyboard bindings (touch isn't "a key,"
+so it can't be one of the user's rebindable ones); the jump button calls
+`tryJump()` directly and always works, regardless of the Click/Tap to
+Jump setting (that setting is about clicking anywhere, not this dedicated
+button). Portrait on a touch device shows a "rotate to landscape" prompt
+instead of rendering a sideways platformer (`(pointer: coarse) and
+(orientation: portrait)` — pure CSS, no JS needed).
 
 ## First-playthrough tutorial tips
 
@@ -377,13 +418,13 @@ exist — see
 
 Two ways to add `level26.js` and beyond:
 
-- **By hand**, like levels 1-12: follow the pattern in the existing files
-  — assign `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
+- **By hand**, like level 1: follow the pattern in the existing files —
+  assign `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
   `window.checkpoints`, and `window.levelText` (plain property assignment,
   not `const`/`let` — see [architecture.md](architecture.md) for why that
   distinction matters). Keep every `y` value within the visible band
   described above (no vertical scroll!).
-- **Generated**, like levels 13-25: `node .claude/gen-levels.js . 26 26`
+- **Generated**, like levels 2-25: `node .claude/gen-levels.js . 26 26`
   (or a wider range to regenerate/extend a whole block at once — see the
   usage comment at the top of that script). Every gap it places is
   checked against the same physics as the audits below as it's generated.
@@ -404,7 +445,7 @@ node .claude/audit-checkpoints.js  # flags any checkpoint whose respawn
 Both simulate the real per-frame physics (`gravity`/`jumpStrength`/
 `horizontalSpeed`) and the real `resetPlayer()` respawn logic rather than
 eyeballing pixel distances — every gap and every checkpoint in the current
-25 levels passes both (the "IMPOSSIBLE" gaps `audit-gaps.js` reports for
-levels 3, 21, 22, 23, and 25 are deliberate — each is bridged by a
-mandatory ghost platform, which is intentionally excluded from that check;
-see [Ghost and melt platforms](#ghost-and-melt-platforms) above).
+25 levels passes both (the 15 "IMPOSSIBLE" gaps `audit-gaps.js` reports,
+across levels 13-25, are deliberate — each is bridged by a mandatory ghost
+platform, which is intentionally excluded from that check; see
+[Ghost and melt platforms](#ghost-and-melt-platforms) above).

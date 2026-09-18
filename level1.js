@@ -2,7 +2,7 @@
 // A fresh, gentle wave: rise, dip, rise, dip. Sparse hazards, no moving
 // platforms, every gap comfortably inside single-jump range. The point is
 // to teach the controls, not test them — see docs/gameplay.md for the
-// difficulty curve across all 12 levels.
+// difficulty curve across all 25 levels.
 
 window.levelText = "Level 1";
 

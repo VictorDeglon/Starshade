@@ -18,6 +18,12 @@ const jumpStrength = -12;
 const horizontalSpeed = 5;
 let doubleJumpUsed = false;
 
+// Invisible anti-cheat ceiling (see updatePlayer()) — how close to the
+// literal top edge of the viewport the player can get before being
+// stopped. Small on purpose: it's a last-resort "can't leave the visible
+// area" boundary, not a level-design element.
+const SCREEN_TOP_MARGIN = 16;
+
 // Difficulty (set on the Settings page, StarshadeEconomy.getDifficulty()
 // reads the same localStorage key) — Easy slows hazards down and widens
 // the checkpoint touch radius; Hard speeds hazards up and tightens it.
@@ -107,13 +113,13 @@ function spawnParticles(x, y, count, options = {}) {
   }
 }
 
-function updateParticles() {
+function updateParticles(dtScale) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.vy += p.gravity;
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life--;
+    p.vy += p.gravity * dtScale;
+    p.x += p.vx * dtScale;
+    p.y += p.vy * dtScale;
+    p.life -= dtScale;
     if (p.life <= 0) particles.splice(i, 1);
   }
 }
@@ -214,7 +220,15 @@ function loadKeyBindings() {
 
 const keyBindings = loadKeyBindings();
 const isBound = (action, key) => keyBindings[action].includes(key);
-const anyPressed = (action) => keyBindings[action].some((k) => keys[k]);
+
+// Touch d-pad state (see the #touch-left/#touch-right listeners below) —
+// a separate flag rather than synthesizing key events, since key bindings
+// are user-rebindable and a touch button isn't "a key" at all.
+const touchState = { left: false, right: false };
+const anyPressed = (action) =>
+  keyBindings[action].some((k) => keys[k]) ||
+  (action === "left" && touchState.left) ||
+  (action === "right" && touchState.right);
 
 // -------------------------------------------------------------
 // LEVEL LOADING
@@ -296,29 +310,21 @@ function resetLevelState() {
   }
 }
 
-// Anti-cheat clearance above a level's own highest platform: comfortably
-// more than a single jump's ~144px rise (so ordinary jumps near the top of
-// a level are untouched) but less than the ~280-290px a double jump can
-// reach if timed to maximize height rather than distance — the only way a
-// player could reach that much height is by standing on the level's own
-// topmost platform (there's nothing higher to legitimately reach for) and
-// deliberately chaining straight up, which is exactly the "climb on top of
-// everything and skip the intended path" cheese this caps.
-const ROOF_CLEARANCE = 240;
-// How far the ceiling extends past the level's own platforms on each side
-// — comfortably more than any camera/backtracking range.
-const ROOF_MARGIN = 1000;
-
 // Re-centers a level's vertical layout on the *actual* viewport instead of
 // wherever level authors happened to place it (window.innerHeight varies
 // per player, but every levelN.js was authored against one nominal band —
-// see docs/gameplay.md), then caps how high the player can climb above the
-// level's own highest platform. Both are pure translations/additions of
-// already-verified geometry: shifting every y by the same amount preserves
-// every gap's rise and every checkpoint's relative safety (the audits in
-// .claude/ check *relative* distances), and the roof sits above the
-// highest legitimate point in the level, so neither can turn a
-// previously-safe checkpoint or previously-possible jump into a bad one.
+// see docs/gameplay.md). A pure translation of already-verified geometry:
+// shifting every y by the same amount preserves every gap's rise and
+// every checkpoint's relative safety (the audits in .claude/ check
+// *relative* distances), so this can't turn a previously-safe checkpoint
+// or previously-possible jump into a bad one.
+//
+// The anti-cheat ceiling that used to live here (a solid platform placed
+// above the level's own highest point) is gone — see the screen-pinned
+// clamp in updatePlayer() instead: pinning to the live viewport rather
+// than level-space geometry means it can't go stale across a window
+// resize, and it's invisible on purpose (nothing to draw — you just can't
+// go there).
 function applyLevelVerticalLayout() {
   if (typeof platforms === "undefined" || !platforms.length) return;
 
@@ -351,21 +357,6 @@ function applyLevelVerticalLayout() {
     checkpoints.forEach((c) => (c.y += shiftY));
     player.y += shiftY;
   }
-
-  const topPlatformY = Math.min(...platforms.map((p) => p.y));
-  const allX = platforms
-    .concat(deadlyPlatforms)
-    .flatMap((p) => [p.x, p.x + p.width]);
-  const roofLeft = Math.min(0, ...allX) - ROOF_MARGIN;
-  const roofRight = Math.max(...allX) + ROOF_MARGIN;
-
-  platforms.push({
-    x: roofLeft,
-    y: topPlatformY - ROOF_CLEARANCE,
-    width: roofRight - roofLeft,
-    height: 30,
-    roof: true,
-  });
 }
 
 function advanceToNextLevel() {
@@ -567,7 +558,7 @@ function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
 
 function drawPlatforms() {
   platforms.forEach((platform) => {
-    if (platform.ghost || platform.roof || platform.melt) return; // drawn separately, see below
+    if (platform.ghost || platform.melt) return; // drawn separately, see below
     drawInsetRect(
       platformX(platform),
       platformY(platform),
@@ -632,24 +623,6 @@ function drawMeltPlatforms() {
       "rgba(255, 150, 40, 0.9)"
     );
     ctx.restore();
-  });
-}
-
-// The anti-cheat ceiling added by applyLevelVerticalLayout() — drawn as a
-// dark, hazard-striped boundary (distinct from every hand-placed platform
-// color) so if a player ever does bump it, it reads as "the top of the
-// world," not a bug.
-function drawRoofPlatforms() {
-  platforms.forEach((platform) => {
-    if (!platform.roof) return;
-    drawInsetRect(
-      platform.x,
-      platform.y,
-      platform.width,
-      platform.height,
-      "rgba(20, 18, 28, 0.85)",
-      "rgba(120, 60, 160, 0.5)"
-    );
   });
 }
 
@@ -827,11 +800,18 @@ function drawFadeOverlay() {
 // offset from each other so they don't all move in lockstep). Position is
 // a simple sine wave — smooth, perfectly periodic, and easy to reason
 // about when designing a level around one ("it'll be back here in about
-// N frames").
+// N ticks").
+//
+// `levelFrameCount` advances by `dtScale` each real frame rather than a
+// flat 1 — dtScale is "how many 60fps-equivalent ticks this frame
+// represents" (see gameLoop()), so this clock (and everything driven by
+// it: platform motion, ghost-platform cycles) runs at the same real-world
+// speed regardless of the display's refresh rate or how consistently the
+// browser is delivering frames.
 let levelFrameCount = 0;
 
-function updateMovingPlatforms() {
-  levelFrameCount++;
+function updateMovingPlatforms(dtScale) {
+  levelFrameCount += dtScale;
   platforms.forEach((p) => {
     if (!p.moveAxis) return;
     const prevOffset = p._offset || 0;
@@ -889,10 +869,13 @@ function updateGhostPlatforms() {
 // only as wide as the platform is thick (or a hardcoded few px for walls),
 // so a big enough dx/dy could land entirely on the far side of it within a
 // single frame and never appear "inside" the check at all.
-function resolveAxis(axis) {
+function resolveAxis(axis, dtScale) {
   const isX = axis === "x";
   const size = isX ? player.width : player.height;
-  const delta = isX ? player.dx : player.dy;
+  // player.dx/dy are velocities in px per 60fps-equivalent tick; the
+  // actual distance moved this frame is that times however many ticks
+  // this frame represents (see gameLoop()'s dtScale).
+  const delta = (isX ? player.dx : player.dy) * dtScale;
   const oldPos = isX ? player.x : player.y;
   let newPos = oldPos + delta;
 
@@ -973,17 +956,30 @@ function resolveAxis(axis) {
   return { grounded, groundedOn };
 }
 
-function updatePlayer() {
-  updateMovingPlatforms();
+function updatePlayer(dtScale) {
+  updateMovingPlatforms(dtScale);
   updateGhostPlatforms();
-  player.dy += gravity;
+  player.dy += gravity * dtScale;
 
   if (anyPressed("right")) player.dx = horizontalSpeed;
   else if (anyPressed("left")) player.dx = -horizontalSpeed;
   else player.dx = 0;
 
-  resolveAxis("x");
-  const { grounded, groundedOn } = resolveAxis("y");
+  resolveAxis("x", dtScale);
+  const { grounded, groundedOn } = resolveAxis("y", dtScale);
+
+  // An invisible ceiling pinned to the actual top of the screen — not
+  // level space, so it can't go stale across a window resize the way a
+  // fixed-in-level-coordinates barrier could. Always there regardless of
+  // level content, so a jump (or a double jump chained purely for height)
+  // can never carry the player above the visible play area, let alone
+  // skip over hazards below it. Nothing is drawn for this on purpose:
+  // it's a boundary, not a platform.
+  const screenTop = SCREEN_TOP_MARGIN + player.height / 2;
+  if (player.y < screenTop) {
+    player.y = screenTop;
+    if (player.dy < 0) player.dy = 0;
+  }
 
   // Melt platforms (`melt: true`) look solid but give way shortly after
   // you land on them — the countdown only runs while you're actually
@@ -992,7 +988,7 @@ function updatePlayer() {
   platforms.forEach((p) => {
     if (!p.melt || p._melted) return;
     if (groundedOn === p) {
-      p._meltTimer = (p._meltTimer || 0) + 1;
+      p._meltTimer = (p._meltTimer || 0) + dtScale;
       if (p._meltTimer > (p.meltDelay || 28)) {
         p._melted = true;
         spawnParticles(
@@ -1027,15 +1023,15 @@ function updatePlayer() {
 
   // Circle skins roll proportional to horizontal speed and give a tiny
   // extra rebound on landing (Y only, purely cosmetic — see drawPlayer()).
-  circleRollAngle += player.dx * 0.05;
+  circleRollAngle += player.dx * 0.05 * dtScale;
   if (grounded && !wasGrounded) circleBounceOffset = -4;
-  circleBounceOffset *= 0.8;
+  circleBounceOffset *= Math.pow(0.8, dtScale);
   if (Math.abs(circleBounceOffset) < 0.1) circleBounceOffset = 0;
 
   // Triangle skins sometimes tumble while airborne, settling back to
   // point-up the instant they land.
   if (triangleSpinActive) {
-    if (player.dy !== 0) triangleSpinAngle += triangleSpinSpeed;
+    if (player.dy !== 0) triangleSpinAngle += triangleSpinSpeed * dtScale;
     else {
       triangleSpinActive = false;
       triangleSpinAngle = 0;
@@ -1143,14 +1139,22 @@ function updatePlayer() {
     resetPlayer();
   }
 
+  // Exponential easing (camera follow, landing squash) is naturally a
+  // per-tick decay factor — raising it to dtScale keeps the same
+  // real-world catch-up speed regardless of frame rate, instead of a
+  // higher-fps display converging faster just because it's taking more,
+  // smaller steps per second.
   const targetCameraOffsetX = player.x - canvas.width / 2;
-  cameraOffsetX += (targetCameraOffsetX - cameraOffsetX) * cameraSmoothing;
+  cameraOffsetX +=
+    (targetCameraOffsetX - cameraOffsetX) *
+    (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
   // Ease the landing squash back to a normal 1:1 scale.
-  squashX += (1 - squashX) * 0.2;
-  squashY += (1 - squashY) * 0.2;
+  const squashEase = 1 - Math.pow(0.8, dtScale);
+  squashX += (1 - squashX) * squashEase;
+  squashY += (1 - squashY) * squashEase;
 
-  if (shakeTime > 0) shakeTime--;
+  if (shakeTime > 0) shakeTime -= dtScale;
 }
 
 function updateTutorialTips() {
@@ -1264,7 +1268,7 @@ function resetPlayer() {
 // -------------------------------------------------------------
 let isPaused = false;
 
-function update() {
+function update(dtScale) {
   if (isPaused) {
     draw();
     return;
@@ -1274,11 +1278,11 @@ function update() {
   // have been cleared by loadLevel() — skip gameplay updates and just let
   // the overlay run until the new level is ready.
   if (!isFading || fadeDirection === -1) {
-    updatePlayer();
+    updatePlayer(dtScale);
     updateLevelText();
     updateTutorialTips();
   }
-  updateParticles();
+  updateParticles(dtScale);
   draw();
 }
 
@@ -1303,7 +1307,6 @@ function draw() {
   }
 
   if (typeof platforms !== "undefined") {
-    drawRoofPlatforms();
     drawPlatforms();
     drawGhostPlatforms();
     drawMeltPlatforms();
@@ -1320,8 +1323,28 @@ function draw() {
   drawFadeOverlay(); // <-- overlay on top of everything, unaffected by shake
 }
 
-function gameLoop() {
-  update();
+// Frame-rate independence: rAF hands the callback a real timestamp (ms),
+// so `dtScale` is "how many 60fps-equivalent ticks this real frame
+// represents" — 1 at a steady 60Hz, ~0.5 at 120Hz, ~2 at 30fps. Every
+// per-frame physics/animation increment in the game is written in terms
+// of a 60fps tick and multiplied by this, so gameplay speed (jump arcs,
+// platform cycles, camera easing, particle life) stays the same real-world
+// speed on any display or under any frame-rate variance, rather than a
+// game that quietly runs faster on a higher-refresh-rate screen. Clamped
+// so resuming from a backgrounded/suspended tab (which can hand rAF one
+// huge delta) doesn't fling the player through geometry in a single leap.
+let lastFrameTime = null;
+const MAX_DT_SCALE = 3;
+
+function gameLoop(timestamp) {
+  if (lastFrameTime === null) lastFrameTime = timestamp;
+  const dtScale = Math.min(
+    MAX_DT_SCALE,
+    Math.max(0, (timestamp - lastFrameTime) / (1000 / 60))
+  );
+  lastFrameTime = timestamp;
+
+  update(dtScale);
   requestAnimationFrame(gameLoop);
 }
 
@@ -1372,6 +1395,52 @@ canvas.addEventListener("click", () => {
   if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
 });
 
+// -------------------------------------------------------------
+// TOUCH CONTROLS (mobile)
+// -------------------------------------------------------------
+// Press-and-hold left/right buttons feed touchState (read by anyPressed()
+// above); jump is a dedicated button and always works regardless of the
+// Click/Tap to Jump setting, since it's an explicit control, not the
+// "click anywhere" convenience that setting toggles.
+function bindTouchButton(id, onDown, onUp) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = (e) => {
+    e.preventDefault();
+    onDown();
+  };
+  const end = (e) => {
+    e.preventDefault();
+    onUp();
+  };
+  el.addEventListener("touchstart", start, { passive: false });
+  el.addEventListener("touchend", end);
+  el.addEventListener("touchcancel", end);
+  // Also mouse-bindable so the buttons work when testing with the
+  // browser's device-emulation mode, which sends mouse events, not touch.
+  el.addEventListener("mousedown", start);
+  el.addEventListener("mouseup", end);
+  el.addEventListener("mouseleave", end);
+}
+
+bindTouchButton(
+  "touch-left",
+  () => (touchState.left = true),
+  () => (touchState.left = false)
+);
+bindTouchButton(
+  "touch-right",
+  () => (touchState.right = true),
+  () => (touchState.right = false)
+);
+bindTouchButton(
+  "touch-jump",
+  () => {
+    if (!isPaused && !isFading) tryJump();
+  },
+  () => {}
+);
+
 function spawnJumpDust() {
   spawnParticles(player.x, player.y + player.height / 2, 6, {
     colors: ["rgba(255,255,255,0.7)", "rgba(200,200,220,0.6)"],
@@ -1393,7 +1462,10 @@ document.addEventListener("keyup", (e) => {
 // -------------------------------------------------------------
 loadLevel(currentLevel)
   .then(() => {
-    gameLoop();
+    // Always enter the loop via rAF (never call it directly) so the very
+    // first call is guaranteed a real timestamp argument — gameLoop()
+    // needs one to compute dtScale.
+    requestAnimationFrame(gameLoop);
   })
   .catch(() => {
     // Saved progress points past the last level (the player already beat

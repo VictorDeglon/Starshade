@@ -253,7 +253,7 @@ canvas {
     font-size: 3rem;
   }
 
-  .menu button {
+  .menu-button {
     font-size: 1.2rem;
     padding: 10px 18px;
   }
@@ -265,5 +265,86 @@ canvas {
   .item {
     width: 80px;
     height: 80px;
+  }
+}
+
+/* -------------------------------------------------------------
+   MOBILE: touch controls + landscape-only prompt
+   ------------------------------------------------------------- */
+
+/* Hidden by default — shown only on actual touch devices (a mouse-driven
+   laptop with a narrow window shouldn't suddenly grow on-screen buttons).
+   (pointer: coarse) is true for touchscreens and false for mice/trackpads,
+   including on a resized desktop browser window. */
+.touch-controls {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touch-controls {
+    display: block;
+  }
+}
+
+.touch-dpad {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 16px;
+  z-index: 900;
+}
+
+.touch-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(77, 63, 145, 0.9);
+  background: rgba(20, 10, 40, 0.55);
+  color: #dcd4ff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none; /* stop the browser turning a hold into a scroll/zoom gesture */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.touch-button:active {
+  background: rgba(77, 63, 145, 0.75);
+}
+
+.touch-jump {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  width: 80px;
+  height: 80px;
+  font-size: 1.8rem;
+  z-index: 900;
+}
+
+/* Portrait on a touch device: block play instead of rendering a sideways
+   platformer. `pointer: coarse` keeps this from ever showing on a narrow
+   desktop browser window (which has no orientation to rotate). */
+.rotate-prompt {
+  display: none;
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  .rotate-prompt {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    background: #0d0d0d;
+    color: #dcd4ff;
+    font-family: 'Cinzel', serif;
+    font-size: 1.3rem;
   }
 }
