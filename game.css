@@ -854,13 +854,50 @@ canvas {
   margin: 0;
 }
 
+#levelMapOverlay .levelmap-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
 #levelMapOverlay .coin-balance {
-  margin: 8px 0 0;
+  margin: 0;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
   color: #ffcf4d;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#levelMapOverlay .levelmap-progress {
+  width: 100%;
+  max-width: 240px;
+}
+
+#levelMapOverlay .levelmap-progress-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.75rem;
+  color: #9C97C4;
+  margin-bottom: 6px;
+}
+
+#levelMapOverlay .levelmap-progress-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+#levelMapOverlay .levelmap-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8B5CF6, #22D3EE);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.9);
+  transition: width 0.4s ease;
 }
 
 #levelMapOverlay .tree-wrap {
@@ -917,6 +954,41 @@ canvas {
   stroke: rgba(251, 191, 36, 0.55);
   stroke-width: 2.5;
   stroke-dasharray: 1 6;
+}
+
+/* Chapter dividers (see CHAPTERS in levels.js) — absolutely positioned
+   at a JS-computed `top` inside .tree-nodes, spanning its full width.
+   pointer-events: none because .tree-nodes otherwise only holds clickable
+   .level-node buttons; this should never intercept a click meant for one
+   near it. */
+#levelMapOverlay .levelmap-chapter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 6px;
+  pointer-events: none;
+}
+
+#levelMapOverlay .levelmap-chapter::before,
+#levelMapOverlay .levelmap-chapter::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197, 178, 255, 0.35), transparent);
+}
+
+#levelMapOverlay .levelmap-chapter-label {
+  flex: 0 0 auto;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9C97C4;
+  white-space: nowrap;
 }
 
 #levelMapOverlay .level-node {
@@ -1008,6 +1080,43 @@ canvas {
 
 #levelMapOverlay .menu-button {
   margin-top: 16px;
+}
+
+/* Jump-to-current-level FAB — bottom-right corner of .menu, mirroring
+   .overlay-close-x's top-right placement/glass-pill treatment but in
+   cyan (vs. violet) so the two are never confused at a glance. Exists
+   because the trail can run past 10,000px tall (100 levels); this is the
+   way back after scrolling off to browse other levels, same as how
+   .overlay-close-x is the way out regardless of scroll position. */
+#levelMapOverlay .levelmap-jump-button {
+  position: absolute;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 211, 238, 0.45);
+  background: rgba(20, 10, 45, 0.55);
+  backdrop-filter: blur(6px);
+  color: #67E8F9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.3);
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+#levelMapOverlay .levelmap-jump-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+#levelMapOverlay .levelmap-jump-button:hover {
+  background: rgba(34, 211, 238, 0.22);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+  transform: scale(1.08);
 }
 
 /* -------------------------------------------------------------

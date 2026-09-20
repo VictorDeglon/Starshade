@@ -128,9 +128,48 @@ const TOTAL_LEVELS = LEVEL_NAMES.length;
 // and the "bonus" path/node below).
 const BONUS_LEVEL_NUMBERS = new Set([35, 50, 65, 82, 95]);
 
+// Purely organizational — 100 unbroken levels on one winding trail reads
+// as an undifferentiated wall of dots (and gives a player no sense of
+// "how far into the game am I"), so the trail is split into five named
+// stretches. Titles are new (not level names) and deliberately don't
+// reuse LEVEL_NAMES entries. Chapter 1 doesn't get a divider drawn (see
+// renderLevels()) — it's already the top of the map, right under the
+// "Level Map" heading.
+const CHAPTERS = [
+  { start: 1, title: "The Nebula Climb" },
+  { start: 21, title: "Emberlight Reaches" },
+  { start: 41, title: "The Hollow Expanse" },
+  { start: 61, title: "Starfall Depths" },
+  { start: 81, title: "The Final Ascent" },
+];
+// Extra vertical breathing room inserted once per chapter boundary (see
+// chapterGapBefore()) — both to give the divider label somewhere to sit
+// without crowding the node above/below it, and so the connecting trail
+// itself visibly stretches at that point, reading as "distance" between
+// chapters rather than just a label dropped on top of an unbroken line.
+const CHAPTER_GAP_EXTRA = 70;
+
+function chapterGapBefore(n) {
+  let gap = 0;
+  for (const chapter of CHAPTERS) {
+    if (chapter.start > 1 && n >= chapter.start) gap += CHAPTER_GAP_EXTRA;
+  }
+  return gap;
+}
+
 function updateCoinBalance() {
   document.getElementById("coin-balance").textContent =
     `${StarshadeEconomy.getCoins()} Coins`;
+}
+
+// Updates the "X / 100 completed" label + fill under the coin balance.
+// Separate from updateCoinBalance() (coins can change without completion
+// changing, e.g. from the shop) but always called alongside it below.
+function updateProgressSummary(completed) {
+  const label = document.getElementById("levelmap-progress-label");
+  const fill = document.getElementById("levelmap-progress-fill");
+  if (label) label.textContent = `${completed.length} / ${TOTAL_LEVELS} completed`;
+  if (fill) fill.style.width = `${Math.round((completed.length / TOTAL_LEVELS) * 100)}%`;
 }
 
 // A level is unlocked once the one before it has been completed — level 1
@@ -157,6 +196,12 @@ const TOP_PAD = 30;
 // and undistorted; only the node and a short spur line (see renderLevels())
 // use the offset `x`.
 const BONUS_BRANCH_OFFSET = 70;
+// Half a .level-node's own width (see game.css) — bonus nodes clamp to
+// stay this far from either edge of the wrap so the branch offset can
+// never push one half off the side and force a horizontal scrollbar
+// (it could: amplitude alone already reaches close to the edge, and
+// BONUS_BRANCH_OFFSET adds up to 70px more on top of that).
+const NODE_HALF_WIDTH = 46;
 
 function computeNodePositions(width) {
   const centerX = width / 2;
@@ -164,15 +209,12 @@ function computeNodePositions(width) {
   const positions = [];
   for (let n = 1; n <= TOTAL_LEVELS; n++) {
     const onPathX = centerX + Math.sin((n - 1) * 0.85) * amplitude;
-    const y = TOP_PAD + (n - 1) * SPACING_Y;
+    const y = TOP_PAD + (n - 1) * SPACING_Y + chapterGapBefore(n);
     const isBonus = BONUS_LEVEL_NUMBERS.has(n);
     const side = onPathX >= centerX ? 1 : -1;
-    positions.push({
-      x: isBonus ? onPathX + side * BONUS_BRANCH_OFFSET : onPathX,
-      onPathX,
-      y,
-      isBonus,
-    });
+    const rawX = isBonus ? onPathX + side * BONUS_BRANCH_OFFSET : onPathX;
+    const x = Math.max(NODE_HALF_WIDTH, Math.min(width - NODE_HALF_WIDTH, rawX));
+    positions.push({ x, onPathX, y, isBonus });
   }
   return positions;
 }
@@ -201,10 +243,12 @@ function renderLevels() {
   const completed = StarshadeEconomy.getCompletedLevels();
   const unlockedThrough = highestUnlockedLevel();
   const currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+  updateProgressSummary(completed);
 
   const width = wrap.clientWidth || 340;
   const positions = computeNodePositions(width);
-  const totalHeight = TOP_PAD + (TOTAL_LEVELS - 1) * SPACING_Y + 60;
+  const totalHeight =
+    TOP_PAD + (TOTAL_LEVELS - 1) * SPACING_Y + chapterGapBefore(TOTAL_LEVELS) + 60;
 
   nodesContainer.style.height = `${totalHeight}px`;
   svg.setAttribute("viewBox", `0 0 ${width} ${totalHeight}`);
@@ -245,6 +289,21 @@ function renderLevels() {
     svg.appendChild(spur);
   });
 
+  // Chapter dividers — see CHAPTERS above. Sits in the extra gap
+  // chapterGapBefore() already opened up before this chapter's first
+  // node, roughly centered in it (60px above the node vs. ~70px of added
+  // gap), so it never has to compete with either that node's circle or
+  // the previous node's name label for space.
+  CHAPTERS.forEach((chapter) => {
+    if (chapter.start <= 1 || chapter.start > TOTAL_LEVELS) return;
+    const startPos = positions[chapter.start - 1];
+    const divider = document.createElement("div");
+    divider.className = "levelmap-chapter";
+    divider.style.top = `${startPos.y - 60}px`;
+    divider.innerHTML = `<span class="levelmap-chapter-label">${chapter.title}</span>`;
+    nodesContainer.appendChild(divider);
+  });
+
   positions.forEach((pos, idx) => {
     const n = idx + 1;
     const isCompleted = completed.includes(n);
@@ -253,6 +312,7 @@ function renderLevels() {
 
     const node = document.createElement("button");
     node.className = "level-node";
+    node.dataset.level = String(n);
     if (pos.isBonus) node.classList.add("bonus");
     if (isCompleted) node.classList.add("completed");
     else if (isCurrent) node.classList.add("current");
@@ -318,10 +378,46 @@ if (topBackButton) {
   topBackButton.addEventListener("click", () => levelMapBackButton.click());
 }
 
+// The level a fresh open (or the jump button) should scroll to: the
+// player's in-progress level, or — if that one's already done (e.g. they
+// finished it and haven't started the next yet) — the next unlocked one.
+function focusLevelNumber() {
+  const completed = StarshadeEconomy.getCompletedLevels();
+  const currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+  if (completed.includes(currentLevel)) {
+    return Math.min(TOTAL_LEVELS, highestUnlockedLevel());
+  }
+  return currentLevel;
+}
+
+// With 100 levels at 128px+ apart, the trail runs well past 10,000px
+// tall — opening the map used to always drop the player at level 1, so
+// finding "where am I" meant scrolling for a while first. .menu-panel is
+// the actual scrolling element (see game.css), and scrollIntoView finds
+// it as the nearest scrollable ancestor on its own, so no manual offset
+// math against menu-panel/tree-wrap's own padding is needed here.
+function scrollToLevel(n, behavior) {
+  const node = document.querySelector(`#tree-nodes .level-node[data-level="${n}"]`);
+  if (node) node.scrollIntoView({ behavior: behavior || "auto", block: "center", inline: "nearest" });
+}
+
+const jumpButton = document.getElementById("levelmap-jump-button");
+if (jumpButton) {
+  jumpButton.addEventListener("click", () => scrollToLevel(focusLevelNumber(), "smooth"));
+}
+
 // Exposed so game.js can re-run these each time the overlay opens (coin
 // balance/unlock state can have changed since the last time it was shown).
 window.updateLevelMapCoinBalance = updateCoinBalance;
 window.renderLevelMap = renderLevels;
+// Separate from renderLevelMap on purpose: renderLevels() also reruns on
+// every window resize (see below), and yanking the player's scroll
+// position back to their current level on every resize — rather than
+// only the moment the overlay opens — would fight anyone who scrolled
+// away on purpose to browse other levels.
+window.focusLevelMapOnOpen = function () {
+  scrollToLevel(focusLevelNumber(), "auto");
+};
 
 updateCoinBalance();
 renderLevels();

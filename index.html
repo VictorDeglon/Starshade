@@ -322,9 +322,25 @@
       <button class="overlay-close-x" data-closes="level-map-back-button" aria-label="Close level map">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
+      <!-- Jump-to-current is a DOM sibling of .menu-panel, not a child of
+           it, for the same reason as .overlay-close-x above: .menu-panel
+           is what scrolls (100 levels makes it a genuinely long scroll),
+           so this needs to sit outside that to stay reachable no matter
+           how far the player has scrolled. See levels.js's jumpButton. -->
+      <button class="levelmap-jump-button" id="levelmap-jump-button" aria-label="Jump to current level" title="Jump to current level">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 C8 2 5 5 5 9 C5 14 12 22 12 22 C12 22 19 14 19 9 C19 5 16 2 12 2 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5" fill="currentColor" stroke="none"/></svg>
+      </button>
       <div class="menu-panel">
         <h1>Level Map</h1>
-        <div class="coin-balance" id="coin-balance">0 Coins</div>
+        <div class="levelmap-summary">
+          <div class="coin-balance" id="coin-balance">0 Coins</div>
+          <div class="levelmap-progress">
+            <div class="levelmap-progress-label" id="levelmap-progress-label">0 / 100 completed</div>
+            <div class="levelmap-progress-bar">
+              <div class="levelmap-progress-fill" id="levelmap-progress-fill"></div>
+            </div>
+          </div>
+        </div>
         <div class="tree-wrap">
           <svg id="tree-lines" class="tree-lines"></svg>
           <div class="tree-nodes" id="tree-nodes"></div>

@@ -1111,6 +1111,11 @@ function openLevelMapOverlay() {
   // actually finished loading and run (see its IIFE).
   if (typeof window.updateLevelMapCoinBalance === "function") window.updateLevelMapCoinBalance();
   if (typeof window.renderLevelMap === "function") window.renderLevelMap();
+  // Scrolls the (often very long, 100-level) trail to wherever the player
+  // actually is, so opening the map doesn't drop them at level 1 with a
+  // long manual scroll ahead of them. Separate call from renderLevelMap()
+  // above — see levels.js's comment on window.focusLevelMapOnOpen.
+  if (typeof window.focusLevelMapOnOpen === "function") window.focusLevelMapOnOpen();
 }
 function closeLevelMapOverlay() {
   closeSubOverlays();
