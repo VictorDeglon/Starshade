@@ -279,6 +279,15 @@ let tutorialTipShownAt = 0;
 // happens in-page via advanceToNextLevel() and never touches this read.
 let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
 
+// How far through the game's 25 levels the backdrop should look (see
+// drawBackground()) — 0 at level 1 (low-altitude sky) to 1 at level 25
+// (deep cosmos), recomputed once per level load in resetLevelState().
+// Deliberately just currentLevel/(last level), not tied to anything about
+// a level's actual content, so it still degrades sensibly if the level
+// count ever changes.
+const SCENE_THEME_LEVEL_COUNT = 25;
+let sceneProgress = 0;
+
 // The level's actual spawn point, captured once per level load (see
 // resetLevelState()) *after* applyLevelVerticalLayout() has shifted the
 // authored (100, 300) start position to match wherever it centered this
@@ -379,6 +388,11 @@ function loadLevel(levelNumber) {
 }
 
 function resetLevelState() {
+  sceneProgress = Math.max(
+    0,
+    Math.min(1, (currentLevel - 1) / (SCENE_THEME_LEVEL_COUNT - 1))
+  );
+
   // Re-check the canvas size here too, not just on an actual window
   // resize — if the very first frame happened to run before the viewport
   // had finished laying out (see known-issues.md #15), viewportWidth/
@@ -580,6 +594,204 @@ function getSkinImage(src) {
     skinImageCache[src] = img;
   }
   return skinImageCache[src];
+}
+
+// -------------------------------------------------------------
+// BACKGROUND — layered parallax sky, blending into deep cosmos
+// -------------------------------------------------------------
+// A few small math helpers used only by the background — kept local to
+// this section rather than pulled in from a utility library that doesn't
+// exist in this no-build-step project.
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function lerpColor(c1, c2, t) {
+  return [
+    Math.round(lerp(c1[0], c2[0], t)),
+    Math.round(lerp(c1[1], c2[1], t)),
+    Math.round(lerp(c1[2], c2[2], t)),
+  ];
+}
+
+// Deterministic pseudo-random in [0, 1) from integer cell coordinates plus
+// a salt (so several independent "random" values can be drawn per cell —
+// position, size, phase — without needing to store anything). The same
+// cell always produces the same stars/clouds, so scrolling away and back
+// never makes them jump or re-roll; and since nothing is stored, a level's
+// backdrop can cover arbitrarily large x/y ranges (see the vertical camera
+// work in docs/gameplay.md) for zero memory cost.
+function hash01(ix, iy, salt) {
+  let h = (ix * 374761393) ^ (iy * 668265263) ^ (salt * 2147483647);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+// Each background layer scrolls at its own fraction of the real camera
+// movement ("parallax") — smaller fractions read as farther away, since
+// distant things appear to move less as you travel. Sizes are cell
+// side-lengths in world px; layers are deliberately sparse-per-cell (a
+// `hash01(...) > threshold` skip) rather than one-per-cell, so density
+// varies without needing a second pass.
+const STAR_CELL = 260;
+const STAR_PARALLAX = 0.08;
+const STARS_PER_CELL = 3;
+
+const CLOUD_CELL = 480;
+const CLOUD_PARALLAX = 0.2;
+
+const PLANET_CELL = 1800;
+const PLANET_PARALLAX = 0.03;
+
+// Iterates every cell of `cellSize` overlapping the current viewport at
+// the given parallax fraction, handing back both the cell indices (for
+// hashing) and the screen-space camera offset to draw against.
+function forEachVisibleCell(cellSize, parallax, fn) {
+  const camX = cameraOffsetX * parallax;
+  const camY = cameraOffsetY * parallax;
+  const cx0 = Math.floor(camX / cellSize) - 1;
+  const cx1 = Math.floor((camX + viewportWidth) / cellSize) + 1;
+  const cy0 = Math.floor(camY / cellSize) - 1;
+  const cy1 = Math.floor((camY + viewportHeight) / cellSize) + 1;
+  for (let cx = cx0; cx <= cx1; cx++) {
+    for (let cy = cy0; cy <= cy1; cy++) {
+      fn(cx, cy, camX, camY);
+    }
+  }
+}
+
+// Farthest layer: a starfield that fades in as the backdrop climbs toward
+// deep cosmos — level 1 shows essentially none, matching a low-altitude
+// daylit-enough sky having no visible stars.
+function drawStarLayer() {
+  const alpha = smoothstep(0.12, 0.65, sceneProgress);
+  if (alpha <= 0.01) return;
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  const now = Date.now();
+  forEachVisibleCell(STAR_CELL, STAR_PARALLAX, (cx, cy, camX, camY) => {
+    for (let i = 0; i < STARS_PER_CELL; i++) {
+      const rx = hash01(cx, cy, i * 4 + 1);
+      const ry = hash01(cx, cy, i * 4 + 2);
+      const rsize = hash01(cx, cy, i * 4 + 3);
+      const rphase = hash01(cx, cy, i * 4 + 4);
+      const screenX = cx * STAR_CELL + rx * STAR_CELL - camX;
+      const screenY = cy * STAR_CELL + ry * STAR_CELL - camY;
+      const size = 0.6 + rsize * 1.6;
+      const twinkle = 0.55 + 0.45 * Math.sin(now / 550 + rphase * Math.PI * 2);
+      ctx.globalAlpha = alpha * twinkle;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+// Mid layer: soft, blurred-looking blobs (a plain radial gradient, cheaper
+// than a canvas blur filter — this has to stay fast on mobile) that read
+// as puffy white clouds early on and are gradually recolored toward
+// purple/pink nebula wisps as the backdrop climbs — the same shapes doing
+// double duty rather than swapping to a wholly different asset partway
+// through the game.
+const CLOUD_COLOR_LOW = [235, 240, 250];
+const CLOUD_COLOR_HIGH = [150, 100, 220];
+
+function drawCloudLayer() {
+  const color = lerpColor(CLOUD_COLOR_LOW, CLOUD_COLOR_HIGH, sceneProgress);
+  const baseAlpha = lerp(0.32, 0.22, sceneProgress);
+  forEachVisibleCell(CLOUD_CELL, CLOUD_PARALLAX, (cx, cy, camX, camY) => {
+    if (hash01(cx, cy, 90) > 0.55) return; // sparse — not every cell gets one
+    const rx = hash01(cx, cy, 1);
+    const ry = hash01(cx, cy, 2);
+    const rw = hash01(cx, cy, 3);
+    const screenX = cx * CLOUD_CELL + rx * CLOUD_CELL - camX;
+    const screenY = cy * CLOUD_CELL + ry * CLOUD_CELL - camY;
+    const w = 130 + rw * 130;
+    ctx.save();
+    ctx.translate(screenX, screenY);
+    ctx.scale(1, 0.45);
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
+    grad.addColorStop(0, `rgba(${color[0]},${color[1]},${color[2]},${baseAlpha})`);
+    grad.addColorStop(1, `rgba(${color[0]},${color[1]},${color[2]},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, w, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Nearest (but still very slow — these read as huge and distant) layer:
+// sparse glowing planets, only appearing in the back half of the game as
+// a "you've come a long way" payoff, each with a random pastel-cosmic hue
+// so they don't all look identical.
+function drawPlanetLayer() {
+  const alpha = smoothstep(0.35, 0.8, sceneProgress);
+  if (alpha <= 0.01) return;
+  forEachVisibleCell(PLANET_CELL, PLANET_PARALLAX, (cx, cy, camX, camY) => {
+    if (hash01(cx, cy, 55) > 0.35) return; // most cells have no planet at all
+    const rx = hash01(cx, cy, 1);
+    const ry = hash01(cx, cy, 2);
+    const rsize = hash01(cx, cy, 3);
+    const rhue = hash01(cx, cy, 4);
+    const screenX = cx * PLANET_CELL + rx * PLANET_CELL - camX;
+    const screenY = cy * PLANET_CELL + ry * PLANET_CELL - camY;
+    const r = 30 + rsize * 50;
+    const hue = Math.round(250 + rhue * 90);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.85;
+    const grad = ctx.createRadialGradient(
+      screenX - r * 0.3,
+      screenY - r * 0.3,
+      r * 0.1,
+      screenX,
+      screenY,
+      r
+    );
+    grad.addColorStop(0, `hsla(${hue}, 70%, 72%, 0.9)`);
+    grad.addColorStop(1, `hsla(${hue}, 60%, 30%, 0.12)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Sky gradient colors at the two ends of the game's progress — dusky
+// indigo-violet at level 1 (still dark, matching this game's cosmic-purple
+// look throughout, just lighter/warmer than deep space) fading to
+// near-black cosmos by level 25, close to the #050012 used on every other
+// page's background.
+const SKY_TOP_LOW = [18, 22, 46];
+const SKY_TOP_HIGH = [4, 2, 10];
+const SKY_BOTTOM_LOW = [64, 66, 112];
+const SKY_BOTTOM_HIGH = [10, 5, 22];
+
+// Draws the full backdrop for this frame: the sky gradient (screen-space —
+// a fixed backdrop, not part of the scrolling world) followed by the
+// three parallax layers above, back-to-front. Fully opaque, so this
+// doubles as the frame clear that used to be a plain ctx.clearRect() —
+// see draw().
+function drawBackground() {
+  const top = lerpColor(SKY_TOP_LOW, SKY_TOP_HIGH, sceneProgress);
+  const bottom = lerpColor(SKY_BOTTOM_LOW, SKY_BOTTOM_HIGH, sceneProgress);
+  const grad = ctx.createLinearGradient(0, 0, 0, viewportHeight);
+  grad.addColorStop(0, `rgb(${top[0]}, ${top[1]}, ${top[2]})`);
+  grad.addColorStop(1, `rgb(${bottom[0]}, ${bottom[1]}, ${bottom[2]})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+
+  drawPlanetLayer();
+  drawStarLayer();
+  drawCloudLayer();
 }
 
 // -------------------------------------------------------------
@@ -1494,7 +1706,11 @@ function setPaused(paused) {
 }
 
 function draw(dtScale) {
-  ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+  // Fully opaque, so this is the frame clear too — no separate
+  // ctx.clearRect() needed. Drawn before the shake save/restore below so
+  // the backdrop stays put while the foreground shakes on death, the same
+  // way the plain clear it replaced was never shaken either.
+  drawBackground();
 
   ctx.save();
   if (shakeTime > 0 && screenShakeEnabled) {

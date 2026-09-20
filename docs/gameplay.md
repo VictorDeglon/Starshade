@@ -95,6 +95,48 @@ solid collision, so the tunneling concern doesn't apply the same way.
   [Skins & the coin economy](#skins--the-coin-economy) below), not a
   hardcoded look.
 
+## Background: layered parallax, low altitude to deep cosmos
+
+`drawBackground()` in `game.js` replaces what used to be a plain
+`ctx.clearRect()` — it's fully opaque, so it doubles as the frame clear,
+drawn before the shake save/restore in `draw()` so the backdrop stays put
+while the foreground shakes on death. Every frame it draws, back to front:
+
+1. A full-screen vertical gradient (screen-space, not part of the
+   scrolling world) — dusky indigo at level 1, fading toward near-black
+   cosmos by level 25.
+2. **Planets** (`drawPlanetLayer()`) — sparse, huge, glowing circles, only
+   appearing in the back half of the game.
+3. **Stars** (`drawStarLayer()`) — small white dots with a gentle sine
+   twinkle, fading in from level ~4 to fully visible by level ~17.
+4. **Clouds/nebula** (`drawCloudLayer()`) — soft radial-gradient blobs,
+   present from level 1 and gradually recolored from white cloud to
+   purple/pink nebula as the game progresses — the same shapes doing
+   double duty rather than swapping to a different asset partway through.
+
+**Progress, not physics**: `sceneProgress` (0 at level 1, 1 at level 25)
+is computed once per level load in `resetLevelState()`, purely from
+`currentLevel` — it has nothing to do with a level's actual platform
+layout or altitude. Levels change abruptly (a new `currentLevel` the
+instant a level loads), but the player only ever sees that change through
+the existing fade-to-black transition (`isFading` — see
+[architecture.md](architecture.md)), which happens to already cover the
+switch: the backdrop is a different theme by the time the screen fades
+back in, with no separate cross-fade logic needed.
+
+**Parallax without storing anything**: each layer scrolls at its own
+fraction of the real camera movement (`STAR_PARALLAX`/`CLOUD_PARALLAX`/
+`PLANET_PARALLAX` — smaller fractions read as farther away, since distant
+things appear to move less). Rather than storing star/cloud/planet
+positions for a level's whole range (unbounded now that levels can scroll
+vertically too — see the camera section above), `forEachVisibleCell()`
+divides world space into a fixed-size grid and, for each cell overlapping
+the current viewport at that layer's parallax fraction, deterministically
+derives that cell's stars from a seeded hash of its coordinates
+(`hash01()`). The same cell always produces the same stars, so scrolling
+away and back never makes them jump or re-roll, and memory cost is zero
+regardless of how far the camera has traveled.
+
 ## Particles
 
 `spawnParticles(x, y, count, options)` in `game.js` adds plain objects to
