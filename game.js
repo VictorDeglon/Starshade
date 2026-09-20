@@ -3607,10 +3607,14 @@ function tryJump() {
   vibrateHaptic(10);
 
   // A triangle skin only tumbles some of the time — "can rotate in the
-  // air sometimes," not a spin on every single jump.
+  // air sometimes," not a spin on every single jump. Speed range lowered
+  // (was 0.3-0.55 rad/tick) — full-speed pinwheeling read as chaotic
+  // rather than a subtle in-air tumble, especially on custom triangle
+  // skins where it's the only motion cue since they don't roll/rim-mark
+  // like a circle does.
   if (StarshadeEconomy.getEquippedSkin().shape === "triangle" && Math.random() < 0.5) {
     triangleSpinActive = true;
-    triangleSpinSpeed = (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.25);
+    triangleSpinSpeed = (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.1);
   }
 }
 
