@@ -144,16 +144,25 @@
       card.style.setProperty("--glow", skin.glow || rarityColor);
       applyClaimAnimationIfRecent(card, skin.id);
 
+      // The lock badge lives in a plain, never-animated wrapper sibling to
+      // the swatch (not a child of it) — `shape-animated` skins rotate the
+      // swatch itself via transform, and a child inherits that rotation
+      // visually, which is what made locked+animated skins show a spinning
+      // lock. The wrapper is display:inline-block so it shrinks exactly to
+      // the swatch's own box, keeping the badge centered on it either way.
+      const swatchWrap = document.createElement("div");
+      swatchWrap.className = "shop-swatch-wrap";
       const swatch = document.createElement("div");
       applySkinShape(swatch, skin, "shop-item-swatch");
       if (!unlocked) swatch.classList.add("locked");
+      swatchWrap.appendChild(swatch);
       if (!unlocked) {
         const lockBadge = document.createElement("div");
         lockBadge.className = "skin-lock-badge";
         lockBadge.innerHTML = LOCK_ICON_SVG;
-        swatch.appendChild(lockBadge);
+        swatchWrap.appendChild(lockBadge);
       }
-      card.appendChild(swatch);
+      card.appendChild(swatchWrap);
 
       const h3 = document.createElement("h3");
       h3.textContent = skin.name;
