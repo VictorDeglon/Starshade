@@ -50,7 +50,55 @@ const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
 const gravity = 0.5;
 const jumpStrength = -12;
 const horizontalSpeed = 5;
-let doubleJumpUsed = false;
+// How many mid-air jumps have been used since the last time the player
+// was grounded — generalized from a plain "has the double jump been used"
+// boolean so a skin can grant more than one (see extraAirJumps() below;
+// the "Triple Threat" skin's tripleJump ability sets this to 2 instead of
+// the default 1).
+let airJumpsUsed = 0;
+
+// How many *extra* (mid-air) jumps the currently equipped skin grants on
+// top of the always-available grounded jump — 1 for every skin by
+// default (a normal double jump), 2 for a skin with `ability: "tripleJump"`.
+function extraAirJumps() {
+  return StarshadeEconomy.getEquippedSkin().ability === "tripleJump" ? 2 : 1;
+}
+
+// Dash ability — a double-tap of Left/Right (keyboard or the touch d-pad,
+// see onDirectionTap() below) fires a short, fast burst in that direction
+// for any skin with `ability: "dash"`. A no-op for every other skin, and
+// for a double-tap while a dash is already in progress (no re-triggering
+// mid-dash).
+let dashTimeRemaining = 0;
+let dashDirection = 0; // -1 left, 1 right, meaningless while dashTimeRemaining <= 0
+const DASH_SPEED = horizontalSpeed * 2.6;
+const DASH_DURATION_TICKS = 10; // in 60fps-equivalent ticks, like everything else physics-timed
+const DASH_DOUBLE_TAP_WINDOW_MS = 300;
+const lastDirectionTapAt = { left: 0, right: 0 };
+
+function onDirectionTap(direction) {
+  if (isPaused || isFading) return;
+  if (StarshadeEconomy.getEquippedSkin().ability !== "dash") return;
+  const now = Date.now();
+  if (
+    dashTimeRemaining <= 0 &&
+    now - lastDirectionTapAt[direction] < DASH_DOUBLE_TAP_WINDOW_MS
+  ) {
+    dashTimeRemaining = DASH_DURATION_TICKS;
+    dashDirection = direction === "right" ? 1 : -1;
+    vibrateHaptic(20);
+    spawnParticles(player.x, player.y, 10, {
+      colors: ["rgba(255,255,255,0.85)", "rgba(200,220,255,0.7)"],
+      speed: 4,
+      life: 16,
+      size: 3,
+      spread: 0.5,
+      baseAngle: dashDirection > 0 ? Math.PI : 0, // burst backward, away from travel direction
+      gravity: 0,
+    });
+  }
+  lastDirectionTapAt[direction] = now;
+}
 
 // Invisible anti-cheat ceiling (see updatePlayer()) — how close to the
 // literal top edge of the viewport the player can get before being
@@ -494,7 +542,7 @@ function resetLevelState() {
   player.y = 300;
   player.dx = 0;
   player.dy = 0;
-  doubleJumpUsed = false;
+  airJumpsUsed = 0;
   // The player starts standing on the level's opening platform, not
   // airborne — wasGrounded is what tryJump() actually checks for "can
   // take a fresh (non-double) jump," so this needs to be true from frame
@@ -508,6 +556,7 @@ function resetLevelState() {
   squashX = 1;
   squashY = 1;
   cameraZoom = 1;
+  dashTimeRemaining = 0;
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
@@ -616,6 +665,7 @@ function applyLevelVerticalLayout() {
 function advanceToNextLevel() {
   const coinsEarned = StarshadeEconomy.markLevelCompleted(currentLevel);
   if (coinsEarned > 0) showCoinToast(`+${coinsEarned} Coins`);
+  StarshadeAchievements.checkAndNotify();
 
   currentLevel++;
   localStorage.setItem("savedLevel", String(currentLevel));
@@ -625,6 +675,7 @@ function advanceToNextLevel() {
     // last level.
     const bonus = StarshadeEconomy.setGameCompleted();
     showGameCompleteScreen(bonus);
+    StarshadeAchievements.checkAndNotify();
     // So the next "Play" from the main menu starts a fresh run instead of
     // immediately hitting this same "no next level" case forever.
     localStorage.setItem("savedLevel", "1");
@@ -667,6 +718,9 @@ document
   });
 document.getElementById("pause-levels-button").addEventListener("click", () => {
   window.location.href = "levels.html";
+});
+document.getElementById("pause-achievements-button").addEventListener("click", () => {
+  window.location.href = "achievements.html";
 });
 document.getElementById("pause-quit-button").addEventListener("click", () => {
   window.location.href = "index.html";
@@ -802,36 +856,34 @@ function drawStarLayer() {
 }
 
 // Mid layer: soft, blurred-looking blobs (a plain radial gradient, cheaper
-// than a canvas blur filter — this has to stay fast on mobile). Muted
-// slate-blue/violet "night cloud" tones rather than bright white — this
-// is always a night sky (see the sky gradient), so a pure-white cloud read
-// as oddly bright against it — gradually recoloring toward purple/pink
-// nebula wisps as the backdrop climbs; the same shapes doing double duty
-// rather than swapping to a wholly different asset partway through.
-const CLOUD_COLOR_LOW = [108, 118, 156];
-const CLOUD_COLOR_HIGH = [150, 100, 220];
-
+// than a canvas blur filter — this has to stay fast on mobile). HSL rather
+// than a two-color RGB lerp, so hue can drift across a wide, genuinely
+// nebula-like band (blue/violet/magenta/pink) with real per-cloud
+// variation instead of everything sharing one or two repeating tones —
+// gradually warming from cooler blue-violets toward magenta/pink as the
+// backdrop climbs toward deep cosmos.
 function drawCloudLayer() {
-  const color = lerpColor(CLOUD_COLOR_LOW, CLOUD_COLOR_HIGH, sceneProgress);
-  const baseAlpha = lerp(0.22, 0.16, sceneProgress);
+  const baseAlpha = lerp(0.3, 0.26, sceneProgress);
+  const hueBase = lerp(230, 300, sceneProgress);
   forEachVisibleCell(CLOUD_CELL, CLOUD_PARALLAX, (cx, cy, camX, camY) => {
-    if (hash01(cx, cy, 90) > 0.55) return; // sparse — not every cell gets one
+    if (hash01(cx, cy, 90) > 0.6) return; // sparse — not every cell gets one
     const rx = hash01(cx, cy, 1);
     // Skewed toward 1 (the bottom of the cell) — the mirror image of the
     // star layer's top bias above, so clouds read as "low in the sky"
     // without needing a single fixed world-space "bottom" to anchor to.
     const ry = 1 - Math.pow(hash01(cx, cy, 2), 1.8);
     const rw = hash01(cx, cy, 3);
-    // A per-cloud brightness/squash jitter so a whole field of these
-    // doesn't look like one shape copy-pasted everywhere — some read as
-    // nearly round "puffs," others as flatter, wider ovals.
-    const brightness = 0.8 + hash01(cx, cy, 4) * 0.4;
+    // A per-cloud squash jitter so a whole field of these doesn't look
+    // like one shape copy-pasted everywhere — some read as nearly round
+    // "puffs," others as flatter, wider ovals.
     const squash = 0.4 + hash01(cx, cy, 5) * 0.4;
-    const c = [
-      Math.min(255, Math.round(color[0] * brightness)),
-      Math.min(255, Math.round(color[1] * brightness)),
-      Math.min(255, Math.round(color[2] * brightness)),
-    ];
+    // A wide hue spread around the current base — real nebula photos are
+    // patches of several distinct colors next to each other, not one
+    // uniform tint.
+    const hueJitter = (hash01(cx, cy, 6) - 0.5) * 140;
+    const hue = Math.round(((hueBase + hueJitter) % 360 + 360) % 360);
+    const sat = Math.round(55 + hash01(cx, cy, 7) * 30);
+    const light = Math.round(45 + hash01(cx, cy, 8) * 20);
     const screenX = cx * CLOUD_CELL + rx * CLOUD_CELL - camX;
     const screenY = cy * CLOUD_CELL + ry * CLOUD_CELL - camY;
     const w = 130 + rw * 130;
@@ -839,8 +891,8 @@ function drawCloudLayer() {
     ctx.translate(screenX, screenY);
     ctx.scale(1, squash);
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
-    grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${baseAlpha})`);
-    grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    grad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, ${baseAlpha})`);
+    grad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light}%, 0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(0, 0, w, 0, Math.PI * 2);
@@ -886,15 +938,17 @@ function drawPlanetLayer() {
   });
 }
 
-// Sky gradient colors at the two ends of the game's progress — dusky
-// indigo-violet at level 1 (still dark, matching this game's cosmic-purple
-// look throughout, just lighter/warmer than deep space) fading to
-// near-black cosmos by level 25, close to the #050012 used on every other
-// page's background.
-const SKY_TOP_LOW = [18, 22, 46];
-const SKY_TOP_HIGH = [4, 2, 10];
-const SKY_BOTTOM_LOW = [64, 66, 112];
-const SKY_BOTTOM_HIGH = [10, 5, 22];
+// Sky gradient colors at the two ends of the game's progress — darker
+// overall than a plain dusky blue, with a vibrant purple-magenta band
+// through the middle (a nebula glowing against mostly-black space, rather
+// than an evenly-lit sky) fading toward near-black cosmos by level 25,
+// close to the #050012 used on every other page's background.
+const SKY_TOP_LOW = [6, 5, 16];
+const SKY_TOP_HIGH = [2, 1, 5];
+const SKY_MID_LOW = [46, 16, 74];
+const SKY_MID_HIGH = [28, 8, 48];
+const SKY_BOTTOM_LOW = [14, 9, 30];
+const SKY_BOTTOM_HIGH = [5, 2, 12];
 
 // Draws the full backdrop for this frame: the sky gradient (screen-space —
 // a fixed backdrop, not part of the scrolling world) followed by the
@@ -903,9 +957,11 @@ const SKY_BOTTOM_HIGH = [10, 5, 22];
 // see draw().
 function drawBackground() {
   const top = lerpColor(SKY_TOP_LOW, SKY_TOP_HIGH, sceneProgress);
+  const mid = lerpColor(SKY_MID_LOW, SKY_MID_HIGH, sceneProgress);
   const bottom = lerpColor(SKY_BOTTOM_LOW, SKY_BOTTOM_HIGH, sceneProgress);
   const grad = ctx.createLinearGradient(0, 0, 0, viewportHeight);
   grad.addColorStop(0, `rgb(${top[0]}, ${top[1]}, ${top[2]})`);
+  grad.addColorStop(0.55, `rgb(${mid[0]}, ${mid[1]}, ${mid[2]})`);
   grad.addColorStop(1, `rgb(${bottom[0]}, ${bottom[1]}, ${bottom[2]})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
@@ -1356,6 +1412,7 @@ function resolveAxis(axis, dtScale) {
 
   let grounded = false;
   let groundedOn = null;
+  let wallHit = false; // isX only — see the sticky ability in updatePlayer()
 
   platforms.forEach((platform) => {
     if (platform.ghost && platform._solid === false) return; // intangible right now
@@ -1412,8 +1469,10 @@ function resolveAxis(axis, dtScale) {
       const newFar = newPos + size / 2;
       if (oldFar <= pNearOld + landingForgiveness && newFar > pNear) {
         newPos = pNear - size / 2;
-        if (isX) player.dx = 0;
-        else {
+        if (isX) {
+          player.dx = 0;
+          wallHit = true;
+        } else {
           player.dy = 0;
           grounded = true;
           groundedOn = platform;
@@ -1423,18 +1482,26 @@ function resolveAxis(axis, dtScale) {
       const newNear = newPos - size / 2;
       if (oldNear >= pFarOld && newNear < pFar) {
         newPos = pFar + size / 2;
-        if (isX) player.dx = 0;
-        else player.dy = 0;
+        if (isX) {
+          player.dx = 0;
+          wallHit = true;
+        } else player.dy = 0;
       }
     }
   });
 
   if (isX) player.x = newPos;
   else player.y = newPos;
-  return { grounded, groundedOn };
+  return { grounded, groundedOn, wallHit };
 }
 
 function updatePlayer(dtScale) {
+  // Fetched once and reused for every ability check below (dash,
+  // slippery movement, sticky wall-cling, bouncy landing) — the equipped
+  // skin can't change mid-frame, so there's no reason for each check to
+  // re-look-it-up.
+  const equippedSkin = StarshadeEconomy.getEquippedSkin();
+
   updateMovingPlatforms(dtScale);
   updateGhostPlatforms();
 
@@ -1464,13 +1531,47 @@ function updatePlayer(dtScale) {
 
   player.dy += gravity * dtScale;
 
-  if (anyPressed("right")) player.dx = horizontalSpeed;
-  else if (anyPressed("left")) player.dx = -horizontalSpeed;
-  else player.dx = 0;
+  const targetDx = anyPressed("right")
+    ? horizontalSpeed
+    : anyPressed("left")
+    ? -horizontalSpeed
+    : 0;
 
-  resolveAxis("x", dtScale);
+  if (dashTimeRemaining > 0) {
+    // A dash overrides normal input entirely for its short duration — a
+    // fixed high speed in whichever direction it was triggered, not
+    // whatever's currently held, so releasing the direction key mid-dash
+    // can't cut it short.
+    dashTimeRemaining -= dtScale;
+    player.dx = DASH_SPEED * dashDirection;
+  } else if (equippedSkin.ability === "slippery") {
+    // Eases toward the target speed instead of snapping to it, and keeps
+    // coasting after the input is released instead of stopping dead —
+    // momentum, not instant start/stop, is what actually reads as "hard
+    // to control precisely" (icy/slippery) rather than just "slower."
+    const accel = 1 - Math.pow(1 - 0.1, dtScale);
+    player.dx += (targetDx - player.dx) * accel;
+    if (Math.abs(player.dx) < 0.05) player.dx = 0;
+  } else {
+    player.dx = targetDx;
+  }
+
+  const incomingDy = player.dy; // captured before resolveAxis can zero it on landing — see the bouncy ability below
+  const { wallHit } = resolveAxis("x", dtScale);
   const { grounded, groundedOn } = resolveAxis("y", dtScale);
   riddenPlatform = grounded ? groundedOn : null;
+
+  // Sticky wall-cling: pressed into a wall while airborne, fall is slowed
+  // to a slow slide instead of falling at normal speed, and the air jump
+  // is refreshed every frame it holds — a "wall jump" is always available
+  // for as long as the player keeps holding toward the wall. Stops the
+  // instant they let go of the direction key (wallHit only fires while
+  // actively trying to move into the wall — see resolveAxis()), so it
+  // never turns into an accidental permanent stop mid-fall.
+  if (!grounded && wallHit && equippedSkin.ability === "sticky" && player.dy > 1.2) {
+    player.dy = 1.2;
+    airJumpsUsed = 0;
+  }
 
   // An invisible ceiling pinned to the actual top of the screen — not
   // level space, so it can't go stale across a window resize, or now that
@@ -1534,7 +1635,7 @@ function updatePlayer(dtScale) {
   }
 
   if (grounded) {
-    doubleJumpUsed = false;
+    airJumpsUsed = 0;
     if (!wasGrounded) {
       // Just landed — a quick squash that eases back to normal in draw(),
       // plus a small dust-impact burst along the ground.
@@ -1549,12 +1650,19 @@ function updatePlayer(dtScale) {
         baseAngle: -Math.PI / 2,
         gravity: 0.2,
       });
+      // Bouncy: rebounds a fraction of the incoming fall speed straight
+      // back up instead of coming to rest, decaying with each successive
+      // bounce until it's too small to trigger and the player finally
+      // settles — a real, small bounce on landing, not just a visual
+      // flourish.
+      if (equippedSkin.ability === "bouncy" && incomingDy > 3) {
+        player.dy = -incomingDy * 0.55;
+      }
     }
   }
   wasGrounded = grounded;
 
   // Continuous motion trail for skins that opt in (see skinsData.js).
-  const equippedSkin = StarshadeEconomy.getEquippedSkin();
   if (equippedSkin.trail && (player.dx !== 0 || player.dy !== 0)) {
     spawnParticles(player.x, player.y, 1, {
       colors: [equippedSkin.fill || "rgba(255,255,255,0.7)"],
@@ -1644,12 +1752,39 @@ function updatePlayer(dtScale) {
     resetPlayer();
   }
 
+  // What the camera targets — normally just the player, but see the
+  // riddenPlatform adjustment below.
+  let cameraTargetX = player.x;
+  let cameraTargetY = player.y;
+
+  // Riding a moving platform carries the player by the platform's own
+  // live oscillation every frame (see the carry step above) — if the
+  // camera tracked the player's raw position, it would faithfully chase
+  // that whole sine wave, which reads as "the level is swaying/scrolling"
+  // rather than "I'm standing on something that's moving": the platform
+  // and player stay glued to the screen's center while everything else
+  // (other platforms, the backdrop) appears to slide past instead.
+  // Subtracting the platform's current offset from the camera's target
+  // cancels that out — the camera settles near the platform's *resting*
+  // position instead of chasing its bob, so the platform (and the player
+  // riding it) visibly moves across a comparatively stable frame, which
+  // reads as "I'm moving" instead. The instant the player steps off
+  // (riddenPlatform becomes null), this stops applying and the camera
+  // eases back to tracking the player directly like normal.
+  if (riddenPlatform && riddenPlatform.moveAxis) {
+    if (riddenPlatform.moveAxis === "x") {
+      cameraTargetX -= riddenPlatform._offset || 0;
+    } else {
+      cameraTargetY -= riddenPlatform._offset || 0;
+    }
+  }
+
   // Exponential easing (camera follow, landing squash) is naturally a
   // per-tick decay factor — raising it to dtScale keeps the same
   // real-world catch-up speed regardless of frame rate, instead of a
   // higher-fps display converging faster just because it's taking more,
   // smaller steps per second.
-  const targetCameraOffsetX = player.x - viewportWidth / 2;
+  const targetCameraOffsetX = cameraTargetX - viewportWidth / 2;
   cameraOffsetX +=
     (targetCameraOffsetX - cameraOffsetX) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
@@ -1658,7 +1793,7 @@ function updatePlayer(dtScale) {
   // than one screen's worth of height (a tall climb, a long drop) instead
   // of every platform needing to stay within a single fixed on-screen
   // band (see applyLevelVerticalLayout()/docs/gameplay.md).
-  const targetCameraOffsetY = player.y - viewportHeight / 2;
+  const targetCameraOffsetY = cameraTargetY - viewportHeight / 2;
   cameraOffsetY +=
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
@@ -1751,6 +1886,8 @@ function resetPlayer() {
   shakeTime = 15;
   shakeMagnitude = 6;
   consecutiveDeaths++;
+  StarshadeEconomy.incrementTotalDeaths();
+  StarshadeAchievements.checkAndNotify();
   vibrateHaptic([30, 40, 30]);
 
   // Give every melt platform back — dying and retrying a section shouldn't
@@ -1788,6 +1925,7 @@ function resetPlayer() {
   wasGrounded = true;
   riddenPlatform = null; // respawning off of whatever they died on/near
   cameraZoom = 1; // dying mid-air shouldn't leave the view zoomed out on respawn
+  dashTimeRemaining = 0;
 
   // Snap (don't smoothly lerp) the camera to the respawn point — same
   // reasoning as resetLevelState()'s snap on a level load. This is a
@@ -1921,26 +2059,28 @@ document.addEventListener("keydown", (e) => {
   if (e.repeat) return;
 
   if (isBound("jump", e.key)) tryJump();
+  if (isBound("left", e.key)) onDirectionTap("left");
+  if (isBound("right", e.key)) onDirectionTap("right");
 });
 
 // Shared by the keyboard jump binding and click/tap-to-jump (see
 // settings.js's "Click/Tap to Jump" toggle) so both trigger the exact same
-// jump-or-double-jump logic.
+// jump-or-extra-jump logic.
 function tryJump() {
   // wasGrounded (not player.dy === 0) is the correct "on solid ground"
   // signal — dy also lands on exactly 0 for one frame when the player
   // bonks their head on a platform's underside, or on the invisible
   // screen-top ceiling, while still fully airborne. Using dy alone meant
   // a jump press timed into that exact frame granted a free ungrounded
-  // "first jump" (not consuming the double jump) instead of correctly
+  // "first jump" (not consuming an air jump) instead of correctly
   // requiring it already be used.
   if (wasGrounded) {
     player.dy = jumpStrength;
-  } else if (!doubleJumpUsed) {
+  } else if (airJumpsUsed < extraAirJumps()) {
     player.dy = jumpStrength;
-    doubleJumpUsed = true;
+    airJumpsUsed++;
   } else {
-    return; // already used the double jump — this press does nothing
+    return; // no air jumps left — this press does nothing
   }
   squashX = 0.7;
   squashY = 1.3;
@@ -2013,12 +2153,18 @@ function bindTouchButton(id, onDown, onUp) {
 
 bindTouchButton(
   "touch-left",
-  () => (touchState.left = true),
+  () => {
+    touchState.left = true;
+    onDirectionTap("left");
+  },
   () => (touchState.left = false)
 );
 bindTouchButton(
   "touch-right",
-  () => (touchState.right = true),
+  () => {
+    touchState.right = true;
+    onDirectionTap("right");
+  },
   () => (touchState.right = false)
 );
 bindTouchButton(

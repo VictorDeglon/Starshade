@@ -132,18 +132,28 @@ body {
   animation: skin-float 4s ease-in-out infinite, skin-spin 5s linear infinite;
 }
 
+/* Dimmed rather than hidden — the point of a locked preview is "here's
+   what you're working toward," not a mystery silhouette, so the skin's
+   actual colors/shape need to still read clearly through the overlay. */
 .skin-preview.locked {
-  filter: grayscale(0.85) brightness(0.6);
+  filter: grayscale(0.5) brightness(0.75);
 }
 
-.skin-preview.locked::after {
-  content: "\1F512";
+/* The lock badge itself is a real SVG element appended by skins.js
+   (renderSkin()), not this pseudo-element — kept here only to center it
+   and give it a backdrop that reads against any skin color underneath. */
+.skin-lock-badge {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+}
+
+.skin-lock-badge svg {
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 0 10px rgba(80, 60, 160, 0.85));
 }
 
 @keyframes skin-float {
@@ -187,6 +197,20 @@ body {
   color: #87cefa;
 }
 
+.rarity-badge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rarity-color, #7c88b8);
+  border: 1.5px solid var(--rarity-color, #7c88b8);
+  background: rgba(10, 6, 30, 0.6);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rarity-color, #7c88b8) 55%, transparent);
+}
+
 .shop-action-button {
   font-size: 1rem;
   padding: 10px 22px;
@@ -210,16 +234,23 @@ body {
   cursor: default;
 }
 
-/* Dot indicators */
+/* Dot indicators — wraps onto multiple rows and caps its width now that
+   the collection is 60+ skins deep; without flex-wrap this was a single
+   unbroken flex row wider than any viewport, silently overflowing off
+   both edges with no way to scroll to (or even see) most of it. */
 .dots {
   display: flex;
-  gap: 10px;
-  margin: 10px 0 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px auto 30px;
+  max-width: 560px;
+  padding: 0 20px;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   border: 2px solid #4d3f91;
   background: transparent;

@@ -41,11 +41,37 @@ function applySkinShape(el, skin) {
   if (skin.animated) el.classList.add("shape-animated");
 }
 
+// A real SVG element (see renderSkin()) rather than a unicode "🔒" glyph
+// — crisp at any size, and themed to the game's purple/blue/black look
+// instead of whatever a given OS/browser's default emoji lock looks like.
+const LOCK_ICON_SVG = `
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="5" y="11" width="14" height="10" rx="2.5" fill="#1e0f3f" stroke="#9b86ff" stroke-width="1.4" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="#9b86ff" stroke-width="1.8" stroke-linecap="round" />
+    <circle cx="12" cy="15" r="1.5" fill="#9b86ff" />
+    <rect x="11.25" y="15.3" width="1.5" height="3.2" rx="0.75" fill="#9b86ff" />
+  </svg>
+`;
+
+// Purple/blue/black throughout, per rarity tier — see skinsData.js's
+// `rarity` field. Just a badge color; it doesn't gate anything.
+const RARITY_COLORS = {
+  common: "#7c88b8",
+  rare: "#4fb3e0",
+  epic: "#a042d3",
+  legendary: "#8a5cff",
+  mythic: "#c9b6ff",
+};
+
 function describeUnlock(skin, unlocked) {
   if (skin.unlockType === "free") return "Starting skin";
   if (skin.unlockType === "coins") {
     return unlocked ? "Owned" : `${skin.cost} Coins`;
   }
+  // 'completion' and 'achievement' skins share this path — both show
+  // "Owned" once granted, and their `achievement` string (the thing that
+  // grants them) otherwise.
+  if (unlocked) return "Owned";
   return skin.achievement || "Beat the game to unlock";
 }
 
@@ -63,11 +89,21 @@ function renderSkin(index) {
 
   const preview = document.createElement("div");
   applySkinShape(preview, skin);
-  if (!unlocked) preview.classList.add("locked");
+  if (!unlocked) {
+    preview.classList.add("locked");
+    const lockBadge = document.createElement("div");
+    lockBadge.className = "skin-lock-badge";
+    lockBadge.innerHTML = LOCK_ICON_SVG;
+    preview.appendChild(lockBadge);
+  }
 
   const info = document.createElement("div");
   info.className = "skin-info";
-  info.innerHTML = `<h2>${skin.name}</h2><p><span class="coins">${describeUnlock(skin, unlocked)}</span></p>`;
+  const rarityColor = RARITY_COLORS[skin.rarity] || RARITY_COLORS.common;
+  const rarityLabel = skin.rarity
+    ? `<span class="rarity-badge" style="--rarity-color: ${rarityColor}">${skin.rarity}</span>`
+    : "";
+  info.innerHTML = `<h2>${skin.name}</h2>${rarityLabel}<p><span class="coins">${describeUnlock(skin, unlocked)}</span></p>`;
 
   const actionButton = document.createElement("button");
   actionButton.className = "shop-action-button";
@@ -86,6 +122,7 @@ function renderSkin(index) {
     actionButton.addEventListener("click", () => {
       if (StarshadeEconomy.unlockWithCoins(skin)) {
         updateCoinBalance();
+        StarshadeAchievements.checkAndNotify();
         renderSkin(currentIndex);
       }
     });
@@ -140,6 +177,11 @@ document.addEventListener("keydown", (e) => {
 document.getElementById("back-button").addEventListener("click", () => {
   window.location.href = "index.html";
 });
+
+// Catches anything already earned before this page loaded (coins spent
+// elsewhere, levels completed since the last visit here) rather than only
+// reacting to a purchase made on this page.
+StarshadeAchievements.checkAndNotify();
 
 // Start on the currently-equipped skin rather than always the first.
 const equippedIndex = STARSHADE_SKINS.findIndex(
