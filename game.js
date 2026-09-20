@@ -1293,7 +1293,14 @@ loadTexturePattern("assets/textures/ghost-texture.svg", (pattern) => {
 // The ordinary-checkpoint beacon (see drawCheckpoints()) — a discrete
 // rotating rune icon drawn with drawImage(), the same treatment the
 // level-finish Starshade logo already gets, rather than a tiled pattern.
+// Idle and claimed are two entirely separate pieces of art (not one image
+// recolored with a source-atop tint) — checkpoint-beacon-claimed.svg is a
+// "bloomed open" redesign (a radiant 8-point star core instead of the
+// idle beacon's closed diamond, a lit glass mid-ring instead of a bare
+// outline), so claiming a checkpoint changes what it *is*, not just what
+// color it is.
 const checkpointBeaconImage = getSkinImage("assets/textures/checkpoint-beacon.svg");
+const checkpointBeaconClaimedImage = getSkinImage("assets/textures/checkpoint-beacon-claimed.svg");
 
 // -------------------------------------------------------------
 // BACKGROUND — layered parallax sky, blending into deep cosmos
@@ -2173,7 +2180,20 @@ function drawCheckpoints() {
       // exactly 0 extra by the time claimT reaches 1, so it hands off to
       // the ambient spin without a visible seam.
       const activationSpin = (1 - claimT) * (1 - claimT) * Math.PI * 2.4;
-      const rotation = now / 5000 + checkpoint.x + activationSpin; // offset by x so checkpoints don't all spin in lockstep
+      // Claimed spins counter to idle, and noticeably faster — its own
+      // art (checkpoint-beacon-claimed.svg) reads as an actively
+      // energized device, not just a recolored idle beacon, so it should
+      // move differently too, not just look different while holding still.
+      const ambientRotation = checkpoint.reached ? -now / 2200 : now / 5000;
+      const rotation = ambientRotation + checkpoint.x + activationSpin; // offset by x so checkpoints don't all spin in lockstep
+      // A slow continuous "breathing" pulse on the claimed beacon's own
+      // size — independent of the one-shot claim pop above — so it keeps
+      // reading as alive long after that burst finishes, rather than
+      // settling into the exact same kind of static (if spinning) art the
+      // idle beacon already has.
+      const claimedBreath = checkpoint.reached ? 1 + Math.sin(now / 480 + checkpoint.x) * 0.06 : 1;
+      const drawR = r * claimedBreath;
+      const beaconImage = checkpoint.reached ? checkpointBeaconClaimedImage : checkpointBeaconImage;
       const glowColor = checkpoint.reached ? "rgba(80,255,120,0.85)" : "rgba(255,205,90,0.8)";
 
       ctx.save();
@@ -2186,18 +2206,10 @@ function drawCheckpoints() {
       ctx.fill();
       ctx.restore();
 
-      if (checkpointBeaconImage.complete && checkpointBeaconImage.naturalWidth > 0) {
+      if (beaconImage.complete && beaconImage.naturalWidth > 0) {
         ctx.save();
         ctx.rotate(rotation);
-        ctx.drawImage(checkpointBeaconImage, -r, -r, r * 2, r * 2);
-        if (checkpoint.reached) {
-          // Same source-atop green tint the finish logo uses on reach —
-          // recolors the beacon's own baked-in gold without needing a
-          // second image asset.
-          ctx.globalCompositeOperation = "source-atop";
-          ctx.fillStyle = "rgba(60, 220, 100, 0.6)";
-          ctx.fillRect(-r, -r, r * 2, r * 2);
-        }
+        ctx.drawImage(beaconImage, -drawR, -drawR, drawR * 2, drawR * 2);
         ctx.restore();
       } else {
         // Fallback for the one frame or two before the image finishes
