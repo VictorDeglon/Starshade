@@ -20,6 +20,14 @@
     <meta name="apple-mobile-web-app-title" content="Starshade" />
   </head>
   <body>
+    <!-- Top-corner back button — a quicker way out than scrolling all the
+         way down to "Back to Menu" (see contact.js). -->
+    <button id="top-back-button" class="top-back-button" aria-label="Back">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M15 4 L7 12 L15 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+
     <div class="background-overlay"></div>
     <div class="contact-section">
       <h2>Contact Form</h2>
