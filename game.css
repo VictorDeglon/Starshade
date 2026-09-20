@@ -2,10 +2,23 @@
 body {
   margin: 0;
   padding: 0;
-  background: linear-gradient(to bottom, #0d0d0d, #1a1a2e, #162447);
-  font-family: 'Cinzel', serif;
+  background: #08061A;
+  font-family: 'Space Grotesk', sans-serif;
   overflow: hidden;
-  color: #f4f4f4;
+  color: #F7F4FF;
+}
+
+/* Fixed behind everything (z-index: -1) so it shows through the loading
+   overlay and every semi-transparent .menu panel — see index.html. A
+   static <canvas> with no z-index still paints above a negative-z-index
+   fixed element (CSS stacking order: negative-z positioned boxes paint
+   first/below, then normal-flow content), so this never covers the
+   actual game rendering once game.js's draw loop starts. */
+.galaxy-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
 }
 
 canvas {
@@ -17,10 +30,12 @@ canvas {
   cursor: none;
 }
 
-/* Menu Styles — matches the cosmic-purple look used everywhere else in the
-   game (see styles.css's .menu/.menu-button on the main menu); game.html
-   doesn't load styles.css, so the shared look is duplicated here rather
-   than shared across a stylesheet boundary that doesn't otherwise exist. */
+/* Menu shell — every overlay (main menu, pause, settings, levels,
+   achievements, profile, shop, contact) shares this .menu/.menu-panel/
+   .menu-button base. Deliberately translucent/glassy rather than an
+   opaque box: the whole point of .galaxy-bg (and, once gameplay is
+   running, the live canvas behind it) is that it shows through here —
+   see docs/design-standards.md's art-direction notes. */
 .menu {
   display: flex;
   flex-direction: column;
@@ -37,10 +52,10 @@ canvas {
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
     env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  color: #fff;
-  font-family: 'Staatliches', sans-serif;
+  background: rgba(6, 4, 20, 0.55);
+  backdrop-filter: blur(5px);
+  color: #F7F4FF;
+  font-family: 'Space Grotesk', sans-serif;
   transition: opacity 0.4s ease-in-out;
   z-index: 1000;
 }
@@ -52,9 +67,9 @@ canvas {
 }
 
 .menu-panel {
-  background: rgba(25, 0, 51, 0.9);
-  border: 3px solid #4d3f91;
-  border-radius: 20px;
+  background: rgba(20, 10, 45, 0.4);
+  border: 1.5px solid rgba(197, 178, 255, 0.35);
+  border-radius: 22px;
   padding: 40px 50px;
   min-width: 280px;
   box-sizing: border-box;
@@ -66,33 +81,37 @@ canvas {
      genuinely unreachable — not just visually clipped, but un-clickable. */
   max-height: 100%;
   overflow-y: auto;
-  box-shadow: 0 0 30px rgba(77, 63, 145, 0.7);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   text-align: center;
 }
 
 .menu h1 {
-  font-size: 2.6rem;
+  font-size: 2.2rem;
   margin-bottom: 20px;
-  color: #b7a0ff;
-  text-shadow: 2px 2px 6px #8a4de4;
-  font-family: 'Almendra Display', serif;
+  color: #F7F4FF;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(168, 120, 255, 0.7), 0 0 50px rgba(139, 92, 246, 0.4);
 }
 
 .menu-button {
-  padding: 12px 25px;
-  font-size: 1.3rem;
-  color: #dcd4ff;
-  background: #1e0f3f;
-  border: 2px solid #4d3f91;
-  border-radius: 12px;
+  padding: 14px 25px;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: #F7F4FF;
+  background: rgba(139, 92, 246, 0.14);
+  border: 1.5px solid rgba(197, 178, 255, 0.45);
+  border-radius: 14px;
   cursor: pointer;
   margin: 8px auto;
   display: block;
   width: 220px;
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
-  animation: pulse 2.5s infinite;
-  transition: background-color 0.3s ease, transform 0.2s;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.25);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s;
 }
 
 /* On a genuinely short landscape phone, shrink the panel's own chrome
@@ -118,17 +137,23 @@ canvas {
 }
 
 .menu-button:hover {
-  background-color: #0e2338;
-  transform: scale(1.06);
+  background: rgba(139, 92, 246, 0.26);
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.45);
+  transform: scale(1.03);
 }
 
 .menu-button:active {
   transform: scale(0.97);
 }
 
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(138, 77, 228, 0.6); }
-  50% { box-shadow: 0 0 14px rgba(138, 77, 228, 0.9); }
+/* The primary action in a given overlay (Play, Resume) gets a slightly
+   brighter fill so it reads as the obvious next step without needing a
+   whole different button style — see #main-menu-play-button/#resume-button
+   below. */
+.menu-button-primary {
+  background: rgba(139, 92, 246, 0.24);
+  border-color: rgba(197, 178, 255, 0.65);
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.4);
 }
 
 /* Fading Level Text */
@@ -432,9 +457,10 @@ canvas {
 #settingsOverlay h1 {
   font-size: 2rem;
   text-align: center;
-  color: #b7a0ff;
-  text-shadow: 2px 2px 6px #8a4de4;
-  font-family: 'Almendra Display', serif;
+  color: #F7F4FF;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
   margin: 0 0 16px;
 }
 
@@ -537,9 +563,10 @@ canvas {
 
 #levelMapOverlay h1 {
   font-size: 2rem;
-  color: #6a5acd;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-family: 'Almendra Display', serif;
+  color: #F7F4FF;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
   margin: 0;
 }
 
@@ -696,9 +723,10 @@ canvas {
 
 #achievementsOverlay h1 {
   font-size: 2rem;
-  color: #6a5acd;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-family: 'Almendra Display', serif;
+  color: #F7F4FF;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
   margin: 0;
 }
 
@@ -708,5 +736,146 @@ canvas {
 }
 
 #achievementsOverlay .menu-button {
+  margin-top: 16px;
+}
+
+/* -------------------------------------------------------------
+   LOADING OVERLAY (embedded loading.html content — see the boot sequence
+   in game.js). Shown once, at app launch, then hidden for the rest of the
+   session — there's no separate page to navigate back to it from anymore.
+   ------------------------------------------------------------- */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  /* Transparent — .galaxy-bg (see index.html) shows through instead of a
+     separate flat gradient, so the very first thing a player sees is the
+     same art the menus and levels use, not a different backdrop. */
+  background: rgba(6, 4, 20, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.loading-overlay.boot-complete {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-overlay h1 {
+  font-size: 1.8rem;
+  color: #F7F4FF;
+  margin-bottom: 30px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
+}
+
+.loading-overlay .progress-container {
+  width: 70%;
+  max-width: 380px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-overlay #progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8B5CF6, #22D3EE);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.9);
+  transition: width 0.3s;
+}
+
+.loading-overlay #progress-text {
+  margin-top: 15px;
+  font-size: 0.95rem;
+  color: #9C97C4;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* -------------------------------------------------------------
+   MAIN MENU OVERLAY (was the standalone index.html) — reuses .menu/
+   .menu-panel/.menu-button from the top of this file, plus its own
+   logo/tagline/welcome-message, which nothing else needs.
+   ------------------------------------------------------------- */
+#mainMenuOverlay .menu-panel {
+  width: 400px;
+  max-width: 92vw;
+}
+
+#mainMenuOverlay h4 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  color: #B9AEDD;
+  margin: -8px 0 18px;
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+}
+
+#mainMenuOverlay .welcome-message {
+  font-size: 0.9rem;
+  color: #9C97C4;
+  margin: -8px 0 16px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+#mainMenuOverlay .logo {
+  width: 36px;
+  margin-top: 16px;
+  opacity: 0.85;
+}
+
+/* -------------------------------------------------------------
+   CONTACT OVERLAY (embedded contact.html content) — contact.css supplies
+   the form's own look (.contact-section/.contact-form/etc.); this just
+   fits that panel inside the shared .menu-panel shell.
+   ------------------------------------------------------------- */
+#contactOverlay .contact-panel {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+#contactOverlay .contact-section {
+  margin: 0 0 16px;
+}
+
+/* -------------------------------------------------------------
+   SHOP OVERLAY (skins/particles/skills/power-ups — see shop.js/shop.css).
+   Base layout only; shop.css owns the tab/grid/card visuals and the
+   desktop-vs-mobile split (see .layout-desktop/.layout-mobile below).
+   ------------------------------------------------------------- */
+#shopOverlay .shop-panel {
+  width: 900px;
+  max-width: 96vw;
+}
+
+#shopOverlay h1 {
+  font-size: 2rem;
+  color: #F7F4FF;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
+  margin: 0;
+}
+
+#shopOverlay .coin-balance {
+  margin: 8px 0 16px;
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.1rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#shopOverlay .menu-button {
   margin-top: 16px;
 }

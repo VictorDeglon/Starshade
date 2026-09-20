@@ -4,64 +4,89 @@ No build step, no bundler, no module system — every `.js` file is a plain
 classic (non-module) `<script>`. That matters more than usual here because
 of how level data is loaded (see below).
 
-## Page flow
+## Single-page app — one HTML file, loaded once
+
+`index.html` is now the *entire* app. There used to be 8 separate HTML
+pages (`index.html`, `loading.html`, `game.html`, `levels.html`,
+`skins.html`, `settings.html`, `achievements.html`, `contact.html`), each
+a real `window.location.href` navigation apart. Every one of those screens
+is now a `<div class="menu">` overlay inside `index.html` itself, shown or
+hidden with a `.hidden` class toggle instead of a navigation — the browser
+loads this one page exactly once per app launch (a real refresh/URL entry)
+and never again for the rest of the session.
 
 ```
-index.html --Play---------> loading.html --(1.5s fake progress)--> game.html
-    |------Levels--------> levels.html --pick a level--> loading.html --> game.html
-    |                          '--Back to Menu--> index.html
-    |------Skins---------> skins.html --Back to Menu--> index.html
-    |------Achievements--> achievements.html --Back to Menu--> index.html
-    |----Settings--------> settings.html --Back to Menu--> index.html
-    '----Contact---------> contact.html --Back to Menu--> index.html
+Loading overlay (once, at launch)
+    |
+    +--(!isTouchDevice)--> Main Menu overlay --Play--> game running
+    |
+    '--(isTouchDevice)---> game running directly (rotate-prompt CSS gates
+                            visibility until the phone is in landscape —
+                            see game.css's `(pointer: coarse) and
+                            (hover: none) and (orientation: portrait)` rule;
+                            nothing to tap)
 
-game.html --pause menu--> Settings / Level Map / Achievements (all in-page
-                           overlays, see below) / Quit to Menu (real nav)
-game.html --(no next level)--> "You beat Starshade!" screen --Back--> index.html
+game running --pause menu / main menu--> Settings, Level Map, Achievements,
+    Shop, Contact (all overlays — see below) / Main Menu (was "Quit to
+    Menu"; now just shows the main-menu overlay, doesn't navigate)
+game running --(no next level)--> "You beat Starshade!" screen --Back-->
+    main-menu overlay
 ```
 
-`levels.html` picking a level just writes `localStorage.savedLevel` and
-goes through the same `loading.html` → `game.html` path as Play — it's not
-a separate way to enter the game, just a way to aim Play at a different
-level. A level is unlocked once the one before it is in
-`StarshadeEconomy.getCompletedLevels()`; level 1 is always unlocked.
+A level picked from the Level Map, or Play pressed from the main menu
+before any run has started, both just call `startGame()`/`loadLevel()`
+in-page — never a separate way to "enter the game." A level is unlocked
+once the one before it is in `StarshadeEconomy.getCompletedLevels()`;
+level 1 is always unlocked.
 
-**The pause menu's Settings/Level Map/Achievements are overlays, not
-navigations.** `game.html` also loads `settings.js`, `levels.js`, and
-`achievements.js` directly (after `game.js` — order matters, see below),
-each driving a copy of that page's markup embedded in `game.html` itself
-(`#settingsOverlay`/`#levelMapOverlay`/`#achievementsOverlay`) instead of
-running on their own standalone page. Opening one hides the pause menu and
-shows it in place; closing one (Back, the top-left arrow, or Escape)
-reverses that. The reason is `game.js`'s `audio` element: navigating to
-another page tears it down and recreates it on return, silently cutting
-the music (see "Menu music vs. game music" below) — an overlay never
-navigates at all, so the same `Audio` object just keeps playing
-underneath. Quit to Menu is the one pause-menu action that still does a
-real navigation, since actually leaving the game is the one case where
-stopping the music is correct.
+**Why the merge:** the pause menu's Settings/Level Map/Achievements were
+already overlays rather than navigations (a prior change, kept as-is) for
+one specific reason — `game.js`'s `audio` element gets torn down and
+recreated by any real navigation, silently cutting the music, and a
+navigation also loses all in-memory level/physics state. That same
+argument applies to *every* screen once you don't want the loading screen
+replaying on every single Play click — so the main menu, Shop, and
+Contact became overlays too, and `index.html` absorbed everything
+`game.html`/`loading.html`/`skins.html`/`contact.html` used to be.
+`game.html`, `loading.html`/`.js`/`.css`, `skins.html`/`.js`/`.css`
+(replaced by `shop.js`/`shop.css`), `contact.html`/`.js`, `styles.css`,
+and the standalone `levels.html`/`.css`, `settings.html`, and
+`achievements.html` (their embedded/overlay versions are the only copies
+left) are all deleted — nothing else in the repo referenced them once
+this landed.
 
-Each of those three scripts detects it's embedded by checking for a
-function only `game.js` defines (`window.closeSettingsOverlay`,
-`window.startLevelFromOverlay`, `window.closeAchievementsOverlay`) and
-branches its back-button/level-pick/etc. behavior accordingly; on their
-own standalone pages, where none of those exist, they fall back to the
-original navigation unchanged. All three are wrapped in an IIFE (an
-immediately-invoked `(function () { ... })();` around the whole file) —
-without that, several of their top-level `const`/`let` names collide with
-game.js's own (or with each other's) once all four files share one
-document's global scope, which throws the exact `SyntaxError` described
-below for level scripts. The IIFE sidesteps that regardless of what
-either file happens to be named internally.
+**Two "root" screens, five "sub" overlays.** `game.js` tracks
+`ROOT_MENU_IDS = ["pauseMenu", "mainMenuOverlay"]` — exactly one of these
+two is visible whenever a sub-overlay is opened, and `openSubOverlay()`
+remembers which one to restore when that sub-overlay closes (Back, the
+top-left arrow, or Escape). `SUB_OVERLAY_IDS` covers
+`settingsOverlay`/`levelMapOverlay`/`achievementsOverlay`/`shopOverlay`/
+`contactOverlay`. This generalizes what used to be a pause-menu-only
+`SUB_OVERLAY_IDS` covering just the first three — the same
+`window.closeSettingsOverlay`/`window.startLevelFromOverlay`/
+`window.closeAchievementsOverlay`/`window.closeShopOverlay`/
+`window.closeContactOverlay` detection functions each embedded script
+checks for still work exactly the same way, there just isn't a standalone
+page for any of them to fall back to anymore — `shop.js` (skins.js's
+replacement) and the main-menu/contact wiring in `game.js` were written
+overlay-only from the start, no dual-mode branching needed.
 
-Each page is a standalone HTML file with its own `<link>`/`<script>` tags —
-there's no shared header/nav component, so navigation buttons are wired up
-by hand in each page's own `*.js` file (`document.getElementById(...).
-addEventListener('click', ...)`).
+Every embedded script (`settings.js`, `levels.js`, `achievements.js`,
+`shop.js`) is still wrapped in its own IIFE — without that, several of
+their top-level names collide with `game.js`'s own (or each other's) once
+every script shares one document's global scope, which throws the exact
+`SyntaxError` described below for level scripts.
 
-## Menu music (`script.js`) vs. game music (`game.js`)
+## Menu music (was `script.js`) vs. game music (`game.js`)
 
-These are two **separate** `Audio` objects that don't know about each other:
+`script.js` — the old main-menu page's separate `AudioContext`+`GainNode`
+fade-in player — is retired along with `index.html`'s old standalone form.
+There is now exactly one `Audio` object in the whole app (`game.js`'s),
+started on the first click/keypress and never recreated, since there's
+only one page load left to recreate it on.
+
+Historical two-player split (no longer applies, kept for context on why
+`game.js`'s player is written the way it is):
 
 - `script.js` (loaded only by `index.html`) drives the main-menu track via
   the Web Audio API (`AudioContext` + `GainNode`) so it can fade in over 3

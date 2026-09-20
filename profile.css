@@ -12,10 +12,11 @@
 }
 
 #profileOverlay h1 {
-  font-size: 2rem;
-  color: #6a5acd;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-family: "Almendra Display", serif;
+  font-size: 1.7rem;
+  color: #F7F4FF;
+  font-family: "Orbitron", sans-serif;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
   margin: 0 0 20px;
 }
 
@@ -48,10 +49,10 @@
 }
 
 .profile-name {
-  font-family: "Staatliches", sans-serif;
-  font-size: 1.4rem;
-  color: #fff;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: #F7F4FF;
 }
 
 .profile-journey {
@@ -59,27 +60,26 @@
 }
 
 .profile-journey-label {
-  font-family: "Staatliches", sans-serif;
-  font-size: 1rem;
-  color: #ffcf4d;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.8rem;
+  color: #9C97C4;
   margin-bottom: 8px;
 }
 
 .profile-journey-bar {
   width: 100%;
-  height: 10px;
+  height: 4px;
   border-radius: 999px;
-  background: rgba(10, 6, 30, 0.6);
-  border: 1.5px solid #4d3f91;
+  background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
 
 .profile-journey-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #6a5acd, #8a5cff, #ffcf4d);
-  box-shadow: 0 0 10px rgba(138, 92, 255, 0.7);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8B5CF6, #22D3EE);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.9);
   transition: width 0.4s ease;
 }
 
@@ -91,22 +91,22 @@
 }
 
 .profile-stat-card {
-  padding: 12px 10px;
-  background: rgba(25, 0, 51, 0.75);
-  border: 2px solid #4d3f91;
-  border-radius: 14px;
-  box-shadow: 0 0 16px rgba(77, 63, 145, 0.3);
+  padding: 14px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
 }
 
 .profile-stat-value {
-  font-family: "Staatliches", sans-serif;
-  font-size: 1.3rem;
-  color: #fff;
+  font-family: "Orbitron", sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #F7F4FF;
 }
 
 .profile-stat-label {
-  font-size: 0.75rem;
-  color: #b7a0ff;
+  font-size: 0.72rem;
+  color: #8B86B3;
   margin-top: 2px;
 }
 

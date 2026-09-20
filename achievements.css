@@ -159,16 +159,15 @@ body {
   align-items: center;
   gap: 14px;
   padding: 16px;
-  background: rgba(25, 0, 51, 0.75);
-  border: 2px solid #4d3f91;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 16px;
-  box-shadow: 0 0 20px rgba(77, 63, 145, 0.3);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .achievement-card.unlocked {
-  border-color: #8a5cff;
-  box-shadow: 0 0 26px rgba(138, 92, 255, 0.4);
+  border-color: rgba(197, 178, 255, 0.55);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
 .achievement-card.locked {
@@ -189,15 +188,16 @@ body {
 }
 
 .achievement-card-name {
-  font-family: "Staatliches", sans-serif;
-  font-size: 1.15rem;
-  color: #fff;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #F7F4FF;
   margin: 0 0 4px;
 }
 
 .achievement-card-desc {
   font-size: 0.85rem;
-  color: #b7a0ff;
+  color: #9C97C4;
   margin: 0 0 6px;
 }
 
@@ -205,7 +205,7 @@ body {
   display: inline-block;
   padding: 2px 12px;
   border-radius: 999px;
-  font-family: "Staatliches", sans-serif;
+  font-family: "Space Grotesk", sans-serif;
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
