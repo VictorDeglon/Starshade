@@ -1,0 +1,522 @@
+/* Shop overlay — skins, particles, skills, power-ups. Base panel sizing
+   lives in game.css (#shopOverlay .shop-panel/h1/.coin-balance); this file
+   owns the tab/grid/card/builder visuals and the desktop-vs-mobile split
+   (see .layout-desktop/.layout-mobile, set once on <body> in game.js from
+   the same isTouchDevice test everything else on the page already uses).
+
+   Desktop/tablet has room to spread out: tabs run down a left rail and
+   each panel's cards lay out in a wide multi-column grid. Mobile is
+   compact instead: tabs run along the top as a horizontal scrollable
+   strip, and cards stack single-column so nothing needs to shrink past
+   legibility to fit. */
+
+#shopOverlay .shop-tab-panels {
+  width: 100%;
+}
+
+/* ---- Tab bar ---- */
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.shop-tab {
+  flex: 1 1 auto;
+  padding: 10px 14px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #b7a0ff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, color 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.shop-tab:hover {
+  background-color: #0e2338;
+}
+
+.shop-tab[aria-selected="true"] {
+  background: #4d3f91;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(138, 92, 255, 0.6);
+}
+
+.shop-tab-panel.hidden {
+  display: none;
+}
+
+/* ---- Generic item grid (Particles/Skills/Power-Ups tabs) ---- */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  padding: 6px 2px 4px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.shop-item-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: rgba(15, 8, 35, 0.6);
+  border: 2px solid #4d3f91;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.shop-item-swatch {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid #4d3f91;
+  box-shadow: 0 0 22px var(--glow, rgba(106, 90, 205, 0.5));
+}
+
+.shop-item-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #f4f4f4;
+  font-family: "Staatliches", sans-serif;
+}
+
+.shop-item-card p.shop-item-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #9b91c9;
+  min-height: 2.2em;
+}
+
+.shop-item-card .rarity-badge {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rarity-color, #7c88b8);
+  border: 1.5px solid var(--rarity-color, #7c88b8);
+  background: rgba(10, 6, 30, 0.6);
+}
+
+/* ---- Skins gallery (reuses the original carousel look) ---- */
+.shop-subtabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.shop-subtab {
+  flex: 1 1 auto;
+  padding: 8px 12px;
+  border: 2px solid #4d3f91;
+  background: transparent;
+  color: #9b91c9;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  font-size: 0.85rem;
+}
+
+.shop-subtab.active {
+  background: #1e0f3f;
+  color: #dcd4ff;
+}
+
+.shop-subtab-panel.hidden {
+  display: none;
+}
+
+.carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 10px 0 20px;
+}
+
+.carousel-arrow {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.carousel-arrow:hover {
+  background-color: #0e2338;
+  transform: scale(1.08);
+}
+
+.showcase {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.showcase-track {
+  display: flex;
+  justify-content: center;
+}
+
+.skin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.skin-card.enter {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.skin-preview {
+  width: 180px;
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  background-color: #161a45;
+  border: 3px solid #4d3f91;
+  box-shadow: 0 0 40px var(--glow, rgba(106, 90, 205, 0.5)),
+    inset 0 0 30px rgba(0, 0, 0, 0.4);
+  animation: skin-float 4s ease-in-out infinite;
+  position: relative;
+}
+
+.skin-preview.shape-circle {
+  border-radius: 50%;
+}
+
+.skin-preview.shape-square {
+  border-radius: 12px;
+}
+
+.skin-preview.shape-triangle {
+  border-radius: 0;
+  border: none;
+  background-color: transparent !important;
+  clip-path: polygon(50% 4%, 96% 96%, 4% 96%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 25px var(--glow, rgba(106, 90, 205, 0.5)));
+}
+
+.skin-preview.shape-animated {
+  animation: skin-float 4s ease-in-out infinite, skin-spin 5s linear infinite;
+}
+
+.skin-preview.locked {
+  filter: grayscale(0.5) brightness(0.75);
+}
+
+.skin-lock-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skin-lock-badge svg {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 10px rgba(80, 60, 160, 0.85));
+}
+
+@keyframes skin-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes skin-spin {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(360deg); }
+}
+
+.skin-info {
+  text-align: center;
+  font-family: "Staatliches", sans-serif;
+}
+
+.skin-info h2 {
+  font-size: 1.4rem;
+  color: #f4f4f4;
+  margin: 0 0 6px;
+}
+
+.skin-info .coins {
+  font-weight: bold;
+  color: #87cefa;
+}
+
+.rarity-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rarity-color, #7c88b8);
+  border: 1.5px solid var(--rarity-color, #7c88b8);
+  background: rgba(10, 6, 30, 0.6);
+}
+
+.shop-action-button {
+  font-size: 0.95rem;
+  padding: 9px 20px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  font-weight: bold;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.shop-action-button:hover:not(:disabled) {
+  background-color: #0e2338;
+  transform: scale(1.05);
+}
+
+.shop-action-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px auto 8px;
+  max-width: 480px;
+  padding: 0 20px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #4d3f91;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.dot:hover { transform: scale(1.2); }
+.dot.active { background: #87cefa; border-color: #87cefa; }
+.dot.owned { border-color: #32cd32; }
+
+/* ---- Custom skin builder ---- */
+.skin-builder {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.skin-builder-preview .skin-preview {
+  width: 140px;
+  height: 140px;
+  animation: none;
+}
+
+.skin-builder-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.builder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.builder-field label {
+  font-size: 0.8rem;
+  color: #b7a0ff;
+  font-family: "Staatliches", sans-serif;
+}
+
+.builder-field-inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.builder-field input[type="color"] {
+  width: 100%;
+  height: 36px;
+  border: 2px solid #4d3f91;
+  border-radius: 8px;
+  background: #1e0f3f;
+  cursor: pointer;
+}
+
+.builder-field input[type="text"] {
+  padding: 8px 10px;
+  border: 2px solid #4d3f91;
+  border-radius: 8px;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  font-family: "Cinzel", serif;
+}
+
+.builder-swatch-row {
+  display: flex;
+  gap: 8px;
+}
+
+.builder-shape-option {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.builder-shape-option.active {
+  border-color: #87cefa;
+  box-shadow: 0 0 10px rgba(135, 206, 250, 0.6);
+}
+
+.builder-shape-option[data-shape="circle"] { border-radius: 50%; }
+.builder-shape-option[data-shape="triangle"] {
+  clip-path: polygon(50% 8%, 92% 92%, 8% 92%);
+}
+
+.builder-saved-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.builder-saved-item {
+  padding: 6px 12px;
+  border: 2px solid #4d3f91;
+  border-radius: 999px;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.builder-saved-item.equipped {
+  border-color: #87cefa;
+  color: #87cefa;
+}
+
+/* -------------------------------------------------------------
+   DESKTOP / TABLET — spread out, more room
+   ------------------------------------------------------------- */
+.layout-desktop #shopOverlay .shop-panel {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  grid-template-areas:
+    "title title"
+    "tabs  panels";
+  column-gap: 24px;
+  text-align: left;
+}
+
+.layout-desktop #shopOverlay h1,
+.layout-desktop #shopOverlay .coin-balance {
+  grid-area: title;
+  text-align: center;
+}
+
+.layout-desktop .shop-tabs {
+  grid-area: tabs;
+  flex-direction: column;
+  align-self: start;
+}
+
+.layout-desktop .shop-tab-panels {
+  grid-area: panels;
+}
+
+.layout-desktop #shopOverlay .menu-button {
+  grid-column: 1 / -1;
+}
+
+.layout-desktop .shop-grid {
+  grid-template-columns: repeat(3, 1fr);
+  max-height: 50vh;
+}
+
+.layout-desktop .showcase {
+  max-width: 420px;
+}
+
+.layout-desktop .skin-preview {
+  width: 220px;
+  height: 220px;
+}
+
+/* -------------------------------------------------------------
+   MOBILE — compact, tabbed/sectioned
+   ------------------------------------------------------------- */
+.layout-mobile #shopOverlay .shop-panel {
+  width: 94vw;
+  padding: 16px 14px;
+}
+
+.layout-mobile .shop-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.layout-mobile .shop-tab {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  padding: 8px 12px;
+}
+
+.layout-mobile .shop-grid {
+  grid-template-columns: 1fr;
+  max-height: 38vh;
+}
+
+.layout-mobile .skin-builder {
+  flex-direction: column;
+  align-items: center;
+}
+
+.layout-mobile .skin-builder-controls {
+  width: 100%;
+}
+
+@media screen and (max-height: 420px) {
+  .layout-mobile .shop-grid {
+    max-height: 30vh;
+  }
+}

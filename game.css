@@ -710,3 +710,139 @@ canvas {
 #achievementsOverlay .menu-button {
   margin-top: 16px;
 }
+
+/* -------------------------------------------------------------
+   LOADING OVERLAY (embedded loading.html content — see the boot sequence
+   in game.js). Shown once, at app launch, then hidden for the rest of the
+   session — there's no separate page to navigate back to it from anymore.
+   ------------------------------------------------------------- */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, #003556e2, #210327e2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.loading-overlay.boot-complete {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-overlay h1 {
+  font-size: 2.2rem;
+  color: #b7a0ff;
+  margin-bottom: 30px;
+  text-shadow: 2px 2px 6px #8a4de4;
+  font-family: 'Almendra Display', serif;
+}
+
+.loading-overlay .progress-container {
+  width: 80%;
+  max-width: 500px;
+  height: 20px;
+  background: #100429;
+  border: 3px solid #181528;
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(77, 63, 145, 0.7);
+  overflow: hidden;
+}
+
+.loading-overlay #progress-bar {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(to right, #6f42c1, #4d3f91);
+  border-radius: 20px 0 0 20px;
+  transition: width 0.3s;
+}
+
+.loading-overlay #progress-text {
+  margin-top: 15px;
+  font-size: 1.1rem;
+  color: #dcd4ff;
+  text-shadow: 1px 1px 4px #8a4de4;
+  font-family: 'Almendra Display', serif;
+}
+
+/* -------------------------------------------------------------
+   MAIN MENU OVERLAY (was the standalone index.html) — reuses .menu/
+   .menu-panel/.menu-button from the top of this file, plus its own
+   logo/tagline/welcome-message, which nothing else needs.
+   ------------------------------------------------------------- */
+#mainMenuOverlay .menu-panel {
+  width: 400px;
+  max-width: 92vw;
+}
+
+#mainMenuOverlay h4 {
+  font-size: 1.1rem;
+  color: #dcd4ff;
+  margin: 0 0 12px;
+  text-shadow: 1px 1px 4px #6c4eb1;
+  font-family: 'Staatliches', sans-serif;
+  font-weight: normal;
+}
+
+#mainMenuOverlay .welcome-message {
+  font-size: 0.9rem;
+  color: #b7a0ff;
+  margin: -8px 0 16px;
+  font-family: 'Staatliches', sans-serif;
+}
+
+#mainMenuOverlay .logo {
+  width: 40px;
+  margin-top: 16px;
+}
+
+/* -------------------------------------------------------------
+   CONTACT OVERLAY (embedded contact.html content) — contact.css supplies
+   the form's own look (.contact-section/.contact-form/etc.); this just
+   fits that panel inside the shared .menu-panel shell.
+   ------------------------------------------------------------- */
+#contactOverlay .contact-panel {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+#contactOverlay .contact-section {
+  margin: 0 0 16px;
+}
+
+/* -------------------------------------------------------------
+   SHOP OVERLAY (skins/particles/skills/power-ups — see shop.js/shop.css).
+   Base layout only; shop.css owns the tab/grid/card visuals and the
+   desktop-vs-mobile split (see .layout-desktop/.layout-mobile below).
+   ------------------------------------------------------------- */
+#shopOverlay .shop-panel {
+  width: 900px;
+  max-width: 96vw;
+}
+
+#shopOverlay h1 {
+  font-size: 2rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: 'Almendra Display', serif;
+  margin: 0;
+}
+
+#shopOverlay .coin-balance {
+  margin: 8px 0 16px;
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.1rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#shopOverlay .menu-button {
+  margin-top: 16px;
+}
