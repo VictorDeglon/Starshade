@@ -1,0 +1,245 @@
+/* -------------------------------------------------------------
+   ACHIEVEMENT POPUP NOTIFICATIONS
+   Shared across every page that includes achievementsData.js — a fixed
+   stack (top-right) so several unlocking at once queue up as separate
+   cards instead of overlapping. See showPopup()/getAchievementPopupContainer()
+   in achievementsData.js.
+   ------------------------------------------------------------- */
+#achievement-popup-stack {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.achievement-popup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  padding: 12px 16px;
+  background: rgba(15, 8, 35, 0.92);
+  border: 2px solid #4d3f91;
+  border-radius: 14px;
+  box-shadow: 0 0 24px rgba(106, 66, 179, 0.55), 0 8px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.35s ease;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.achievement-popup.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.achievement-popup.hide {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.achievement-popup-icon {
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.achievement-popup-text {
+  min-width: 0;
+  font-family: "Cinzel", serif;
+  color: #dcd4ff;
+}
+
+.achievement-popup-label {
+  font-family: "Staatliches", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffcf4d;
+  text-shadow: 0 0 6px rgba(255, 207, 77, 0.6);
+}
+
+.achievement-popup-name {
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.achievement-popup-desc {
+  font-size: 0.8rem;
+  color: #b7a0ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (pointer: coarse) and (orientation: landscape) {
+  /* Forced-landscape game.html: keep clear of the pause button (top-left,
+     doesn't collide) and don't run so wide it fights the coin toast,
+     which shares this same corner. */
+  #achievement-popup-stack {
+    top: calc(76px + env(safe-area-inset-top, 0px));
+  }
+
+  .achievement-popup {
+    width: 260px;
+  }
+}
+
+/* -------------------------------------------------------------
+   ACHIEVEMENTS GALLERY PAGE (achievements.html)
+   Mirrors levels.css's shell — same scrollable vertical page pattern.
+   ------------------------------------------------------------- */
+html {
+  background: #050012;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: "Cinzel", serif;
+  background: radial-gradient(circle at 50% 50%, #10133a, #050012);
+  color: #f4f4f4;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header {
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  background-color: #0e1a3c;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: "Almendra Display", serif;
+  margin: 0;
+}
+
+.achievements-progress {
+  margin-top: 8px;
+  font-family: "Staatliches", sans-serif;
+  font-size: 1.2rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.achievements-grid {
+  width: 100%;
+  max-width: 1000px;
+  padding: 40px 24px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  box-sizing: border-box;
+}
+
+.achievement-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: rgba(25, 0, 51, 0.75);
+  border: 2px solid #4d3f91;
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(77, 63, 145, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.achievement-card.unlocked {
+  border-color: #8a5cff;
+  box-shadow: 0 0 26px rgba(138, 92, 255, 0.4);
+}
+
+.achievement-card.locked {
+  opacity: 0.6;
+}
+
+.achievement-card:hover {
+  transform: translateY(-3px);
+}
+
+.achievement-card-icon {
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.achievement-card-body {
+  min-width: 0;
+}
+
+.achievement-card-name {
+  font-family: "Staatliches", sans-serif;
+  font-size: 1.15rem;
+  color: #fff;
+  margin: 0 0 4px;
+}
+
+.achievement-card-desc {
+  font-size: 0.85rem;
+  color: #b7a0ff;
+  margin: 0 0 6px;
+}
+
+.achievement-card-rarity {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-family: "Staatliches", sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rarity-color, #7c88b8);
+  border: 1.5px solid var(--rarity-color, #7c88b8);
+  background: rgba(10, 6, 30, 0.6);
+}
+
+.achievement-card-reward {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #87cefa;
+}
+
+/* Back button, matching the theme used on every other page */
+.back-button {
+  font-size: 22px;
+  padding: 12px 25px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: "Cinzel", serif;
+  transition: background-color 0.3s, transform 0.3s;
+  margin: 10px auto 40px;
+  display: block;
+}
+
+.back-button:hover {
+  background-color: #0e2338;
+  transform: scale(1.1);
+}
+
+@media screen and (max-width: 500px) {
+  .achievements-grid {
+    grid-template-columns: 1fr;
+    padding: 24px 16px 10px;
+  }
+}

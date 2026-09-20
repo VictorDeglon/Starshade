@@ -7,14 +7,15 @@ of how level data is loaded (see below).
 ## Page flow
 
 ```
-index.html --Play------> loading.html --(1.5s fake progress)--> game.html
-    |------Levels------> levels.html --pick a level--> loading.html --> game.html
-    |                        '--Back to Menu--> index.html
-    |------Skins-------> skins.html --Back to Menu--> index.html
-    |----Settings------> settings.html --Back to Menu--> index.html
-    '----Contact-------> contact.html --Back to Menu--> index.html
+index.html --Play---------> loading.html --(1.5s fake progress)--> game.html
+    |------Levels--------> levels.html --pick a level--> loading.html --> game.html
+    |                          '--Back to Menu--> index.html
+    |------Skins---------> skins.html --Back to Menu--> index.html
+    |------Achievements--> achievements.html --Back to Menu--> index.html
+    |----Settings--------> settings.html --Back to Menu--> index.html
+    '----Contact---------> contact.html --Back to Menu--> index.html
 
-game.html --pause menu--> Level Map (levels.html) / Settings / Quit to Menu
+game.html --pause menu--> Level Map / Achievements / Settings / Quit to Menu
 game.html --(no next level)--> "You beat Starshade!" screen --Back--> index.html
 ```
 

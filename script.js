@@ -75,6 +75,10 @@ document.getElementById("skins-button").addEventListener("click", () => {
   window.location.href = "skins.html"; // Navigates to skins page
 });
 
+document.getElementById("achievements-button").addEventListener("click", () => {
+  window.location.href = "achievements.html";
+});
+
 document.getElementById("contact-button").addEventListener("click", () => {
   window.location.href = "contact.html"; // Navigates to contact page
 });
