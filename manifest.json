@@ -1,7 +1,7 @@
 {
   "name": "Starshade - The Cosmic Platformer",
   "short_name": "Starshade",
-  "description": "A cosmic 2D platformer with 25 levels, skins, and coins.",
+  "description": "A cosmic 2D platformer with 100 levels, skins, and coins.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
