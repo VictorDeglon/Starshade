@@ -95,8 +95,17 @@ function simulateFall(startX, startY, platforms, maxFrames) {
 let maxLevel = 1;
 while (fs.existsSync(path.join(__dirname, "..", `level${maxLevel + 1}.js`))) maxLevel++;
 
+// See audit-gaps.js's identical comment — the ten branch levels aren't
+// part of the numeric probe loop above, so they're appended explicitly.
+const BRANCH_IDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10"];
+
 const issues = [];
-for (let n = 1; n <= maxLevel; n++) {
+const allIds = [];
+for (let n = 1; n <= maxLevel; n++) allIds.push(n);
+BRANCH_IDS.forEach((id) => {
+  if (fs.existsSync(path.join(__dirname, "..", `level${id}.js`))) allIds.push(id);
+});
+for (const n of allIds) {
   const level = loadLevel(n);
   level.checkpoints.forEach((cp, index) => {
     const spawnX = cp.x;
@@ -122,8 +131,11 @@ for (let n = 1; n <= maxLevel; n++) {
     // Ghost platforms (see game.js's updateGhostPlatforms()) are only
     // sometimes solid — a checkpoint must be safe to land on regardless of
     // where a ghost platform's cycle happens to be, so they're excluded
-    // here rather than treated as guaranteed ground.
-    const solidPlatforms = level.platforms.filter((p) => !p.ghost);
+    // here rather than treated as guaranteed ground. Gated platforms
+    // (levels 50+ — see .claude/gen-levels.js's Pass 7) start intangible
+    // until their switch is thrown, exactly the same "not guaranteed
+    // solid" case, so they're excluded here too.
+    const solidPlatforms = level.platforms.filter((p) => !p.ghost && !p.gated);
     const fall = simulateFall(spawnX, spawnY, solidPlatforms, 600);
     if (!fall.landed) {
       issues.push({
@@ -148,7 +160,7 @@ for (let n = 1; n <= maxLevel; n++) {
 }
 
 if (issues.length === 0) {
-  console.log(`No checkpoint safety issues found across all ${maxLevel} levels.`);
+  console.log(`No checkpoint safety issues found across all ${maxLevel} levels (plus ${allIds.length - maxLevel} branch level(s)).`);
 } else {
   console.log(`Found ${issues.length} issue(s):\n`);
   issues.forEach((i) => {

@@ -128,6 +128,37 @@ const TOTAL_LEVELS = LEVEL_NAMES.length;
 // and the "bonus" path/node below).
 const BONUS_LEVEL_NUMBERS = new Set([35, 50, 65, 82, 95]);
 
+// Ten stand-alone "true" branch levels (levelB1.js..levelB10.js) — unlike
+// BONUS_LEVEL_NUMBERS above (which are still ordinary numbered rungs on
+// the 1-100 ladder, just drawn off to one side and mechanic-focused),
+// these are NOT part of the sequential path at all: each is reachable
+// only by clicking its own node here, never auto-advanced into or out of
+// (see game.js's startBranchLevelFromOverlay()/completeBranchLevel()).
+// `anchorLevel` is the main-path level that has to be completed first for
+// this branch to unlock — its node is drawn as a spur off that level's
+// position, further out than an ordinary bonus spur (see
+// TRUE_BRANCH_OFFSET) so it visibly reads as leaving the path rather than
+// just leaning off it. `logo` is a small inline SVG emblem (see
+// docs/gameplay.md) used as the node's own icon instead of a numbered
+// circle — every other property here must stay in sync with that
+// branch's levelB<N>.js (`window.levelText`/`window.levelBranchId`/
+// `window.levelTheme`) and with THEMES[theme] in game.js.
+const TRUE_BRANCH_LEVELS = [
+  { id: "b1", name: "Ember Forge", anchorLevel: 32, theme: "ember", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2c1 3-2 4-2 7a3 3 0 106 0c0-1-1-2-1-3 2 1 3 4 3 6a6 6 0 11-12 0c0-4 3-6 6-10z\" fill=\"#ff9838\"/></svg>" },
+  { id: "b2", name: "Glacier Spire", anchorLevel: 39, theme: "glacier", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2l4 7-4 3-4-3 4-7z\" fill=\"#8fe0ff\"/><path d=\"M4 20l8-8 8 8-4 2H8z\" fill=\"#c9f3ff\"/></svg>" },
+  { id: "b3", name: "Toxic Hollow", anchorLevel: 46, theme: "toxic", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2c3 4 7 9 7 13a7 7 0 11-14 0c0-4 4-9 7-13z\" fill=\"#9dff4d\"/><circle cx=\"9\" cy=\"15\" r=\"1.6\" fill=\"#0e1c06\"/><circle cx=\"14\" cy=\"17\" r=\"1.1\" fill=\"#0e1c06\"/></svg>" },
+  { id: "b4", name: "Storm Reach", anchorLevel: 53, theme: "storm", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M13 2L4 14h6l-2 8 10-13h-6l1-7z\" fill=\"#bfe6ff\"/></svg>" },
+  { id: "b5", name: "Gilded Vault", anchorLevel: 60, theme: "gilded", logo: "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"none\" stroke=\"#ffd15c\" stroke-width=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"3.4\" fill=\"#ffd15c\"/><path d=\"M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M5.6 18.4l2-2M16.4 7.6l2-2\" stroke=\"#ffd15c\" stroke-width=\"1.6\"/></svg>" },
+  { id: "b6", name: "Abyssal Trench", anchorLevel: 68, theme: "abyssal", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M6 11a6 6 0 1112 0c0 2-1 3-1 3H7s-1-1-1-3z\" fill=\"#4de8d8\"/><path d=\"M8 14v6M12 14v7M16 14v6\" stroke=\"#4de8d8\" stroke-width=\"1.6\" stroke-linecap=\"round\" fill=\"none\"/></svg>" },
+  { id: "b7", name: "Crimson Bastion", anchorLevel: 75, theme: "crimson", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2l8 3v6c0 6-4 9-8 11-4-2-8-5-8-11V5z\" fill=\"#ff5a5a\"/><path d=\"M12 6v12\" stroke=\"#2a0303\" stroke-width=\"1.6\"/></svg>" },
+  { id: "b8", name: "Aurora Veil", anchorLevel: 83, theme: "aurora", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M2 9c3-3 5 3 8 0s5 3 8 0s4 1 4 1\" fill=\"none\" stroke=\"#8fffc8\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M2 14c3-3 5 3 8 0s5 3 8 0s4 1 4 1\" fill=\"none\" stroke=\"#ff9fd6\" stroke-width=\"1.6\" stroke-linecap=\"round\" opacity=\"0.85\"/><path d=\"M2 19c3-3 5 3 8 0s5 3 8 0s4 1 4 1\" fill=\"none\" stroke=\"#9fc8ff\" stroke-width=\"1.3\" stroke-linecap=\"round\" opacity=\"0.7\"/></svg>" },
+  { id: "b9", name: "Obsidian Rift", anchorLevel: 90, theme: "obsidian", logo: "<svg viewBox=\"0 0 24 24\"><path d=\"M12 2l3 6-2 2 4 3-3 2 1 7-4-6-3 2 1-6-4-2 4-3-2-4z\" fill=\"#b98fff\"/></svg>" },
+  { id: "b10", name: "Solar Crown", anchorLevel: 98, theme: "solar", logo: "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"13\" r=\"5\" fill=\"#ffe27a\"/><path d=\"M12 1v3M12 22v1M2 13h3M19 13h3M4.6 5.6l2 2M17.4 5.6l-2 2M4.6 20l2-2M17.4 20l-2-2\" stroke=\"#ffe27a\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg>" },
+];
+const TRUE_BRANCH_OFFSET = 150;
+const TRUE_BRANCH_NODE_HALF_WIDTH = 34;
+
+
 // Purely organizational — 100 unbroken levels on one winding trail reads
 // as an undifferentiated wall of dots (and gives a player no sense of
 // "how far into the game am I"), so the trail is split into five named
@@ -219,6 +250,27 @@ function computeNodePositions(width) {
   return positions;
 }
 
+// Resolves each TRUE_BRANCH_LEVELS entry (see its own comment above) to a
+// screen position hung off its anchorLevel's own node — same
+// "onPathX vs. actual x" split computeNodePositions() uses for an
+// ordinary bonus node, just offset further out (TRUE_BRANCH_OFFSET) so it
+// reads as leaving the path rather than leaning off it, and toward
+// whichever side of the trail has more room at that point rather than a
+// fixed alternating pattern.
+function computeBranchNodePositions(width, positions) {
+  const centerX = width / 2;
+  return TRUE_BRANCH_LEVELS.map((branch) => {
+    const anchorPos = positions[branch.anchorLevel - 1];
+    const side = anchorPos.onPathX >= centerX ? -1 : 1;
+    const rawX = anchorPos.x + side * TRUE_BRANCH_OFFSET;
+    const x = Math.max(
+      TRUE_BRANCH_NODE_HALF_WIDTH,
+      Math.min(width - TRUE_BRANCH_NODE_HALF_WIDTH, rawX)
+    );
+    return { branch, x, y: anchorPos.y, anchorX: anchorPos.x };
+  });
+}
+
 // `useOnPath` draws through each node's undistorted on-path position
 // (see computeNodePositions()) rather than its actual (possibly
 // branch-offset) one — used for the main winding path so a bonus node
@@ -289,6 +341,21 @@ function renderLevels() {
     svg.appendChild(spur);
   });
 
+  // A longer, violet-glowing spur out to each true branch node (see
+  // TRUE_BRANCH_LEVELS above) — visually distinct from an ordinary bonus
+  // node's short gold spur (tree-path-bonus) so "this leaves the path
+  // entirely" reads at a glance, not just "this leans off it."
+  const completedBranches = StarshadeEconomy.getCompletedBranchLevels
+    ? StarshadeEconomy.getCompletedBranchLevels()
+    : [];
+  const branchPositions = computeBranchNodePositions(width, positions);
+  branchPositions.forEach((bp) => {
+    const spur = document.createElementNS(svgNS, "path");
+    spur.setAttribute("d", `M${bp.anchorX},${bp.y} L${bp.x},${bp.y}`);
+    spur.setAttribute("class", "tree-path tree-path-branch");
+    svg.appendChild(spur);
+  });
+
   // Chapter dividers — see CHAPTERS above. Sits in the extra gap
   // chapterGapBefore() already opened up before this chapter's first
   // node, roughly centered in it (60px above the node vs. ~70px of added
@@ -343,6 +410,47 @@ function renderLevels() {
         } else {
           localStorage.setItem("savedLevel", String(n));
           window.location.href = "loading.html";
+        }
+      });
+    } else {
+      node.disabled = true;
+      node.setAttribute("aria-disabled", "true");
+    }
+
+    nodesContainer.appendChild(node);
+  });
+
+  // True branch nodes (see TRUE_BRANCH_LEVELS above) — its own SVG logo
+  // instead of a number/star/lock glyph, unlocked once its anchorLevel is
+  // completed (not by sequential numbering — there's no "level before
+  // it" for a branch), and its own separate completed-state source
+  // (getCompletedBranchLevels(), never mixed into the main `completed`
+  // array — see skinsData.js).
+  branchPositions.forEach((bp) => {
+    const { branch, x, y } = bp;
+    const isUnlocked = completed.includes(branch.anchorLevel);
+    const isCompleted = completedBranches.includes(branch.id);
+
+    const node = document.createElement("button");
+    node.className = "level-node true-branch";
+    node.dataset.branch = branch.id;
+    if (isCompleted) node.classList.add("completed");
+    if (!isUnlocked) node.classList.add("locked");
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+
+    const glyph = isUnlocked
+      ? branch.logo
+      : '<svg viewBox="0 0 24 24"><path d="M6 10V7a6 6 0 1112 0v3h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V7a4 4 0 00-8 0v3z" fill="#c9b8ff"/></svg>';
+    node.innerHTML = `
+      <span class="level-node-circle true-branch-circle"><span class="level-node-circle-glyph true-branch-glyph">${glyph}</span></span>
+      <span class="level-node-name">${branch.name}</span>
+    `;
+
+    if (isUnlocked) {
+      node.addEventListener("click", () => {
+        if (typeof window.startBranchLevelFromOverlay === "function") {
+          window.startBranchLevelFromOverlay(branch.id);
         }
       });
     } else {

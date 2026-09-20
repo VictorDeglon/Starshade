@@ -160,6 +160,63 @@ function tierForLevel(n) {
   return n <= 75 ? BLOCK_A : BLOCK_B;
 }
 
+// -------------------------------------------------------------------
+// LEVELS 30+ — new hazards/mechanics, introduced one per 5-level bracket
+// starting at 35, then increasingly combined through 100 (see
+// docs/gameplay.md's "New hazards and mechanics" for the writeup and
+// game.js for the actual physics/draw code each of these drives:
+// window.forceZones/lasers/fallers/switches + gated platforms).
+// `bracketIndex(30..34) = 0` (unchanged — the new-mechanic ramp starts
+// strictly AFTER level 30, at the first 35-39 bracket, so 30-34 generate
+// byte-identical to before this was added), `bracketIndex(35..39) = 1`,
+// ... up through `bracketIndex(96..100) = 13`.
+// -------------------------------------------------------------------
+function bracketIndex(n) {
+  return Math.max(0, Math.floor((n - 30) / 5));
+}
+function mechanicParams(n) {
+  const b = bracketIndex(n);
+  return {
+    // Force zones (wind gusts) — introduced at 35 (bracket 1).
+    forceZoneChance: b >= 1 ? Math.min(0.55, 0.16 + 0.03 * (b - 1)) : 0,
+    // Lasers — introduced at 40 (bracket 2).
+    laserChance: b >= 2 ? Math.min(0.6, 0.15 + 0.035 * (b - 2)) : 0,
+    // Fallers (telegraphed hanging hazards) — introduced at 45 (bracket 3).
+    fallerChance: b >= 3 ? Math.min(0.55, 0.14 + 0.03 * (b - 3)) : 0,
+    // Switch-gated optional shortcuts — introduced at 50 (bracket 4),
+    // deliberately rarer/sparser than the hazards above (a set-piece, not
+    // a per-gap roll).
+    gateChance: b >= 4 ? Math.min(0.3, 0.06 + 0.018 * (b - 4)) : 0,
+    // An extra bump to decoy/crisscross/movable-slot density on top of
+    // the tier's own t-driven ramp — this is what makes each successive
+    // 5-level bracket from 35 on feel busier/more crowded with moving
+    // parts, independent of (and on top of) the existing difficulty
+    // curve, rather than only the brand-new hazards themselves adding to
+    // it.
+    busyBonus: b >= 1 ? Math.min(0.32, 0.045 * b) : 0,
+  };
+}
+// One accent color per ~10-level stretch of the main 30-100 path (see
+// window.levelAccent/currentLevelAccent in game.js) — a light glow-only
+// tint layered on the existing default platform/deadly/spike palette, not
+// a full backdrop swap (see THEMES in game.js for the wholesale-reskin
+// version this borrows its hex values from, for visual continuity with
+// the ten true branch levels). Skipped entirely for a level that already
+// sets its own `theme` (currently just 50, The Neon Rift).
+const DECADE_ACCENTS = [
+  { upTo: 39, color: "#ff9838" }, // ember warmth
+  { upTo: 49, color: "#b98fff" }, // violet glass
+  { upTo: 59, color: "#50e6ff" }, // cyan, echoing the Neon Rift at 50
+  { upTo: 69, color: "#9dff4d" }, // toxic green
+  { upTo: 79, color: "#bfe6ff" }, // storm blue-white
+  { upTo: 89, color: "#ffd15c" }, // gilded gold — Block B's vertical climb begins
+  { upTo: 99, color: "#4de8d8" }, // abyssal teal
+  { upTo: 100, color: "#ffe27a" }, // solar finale
+];
+function decadeAccent(n) {
+  return (DECADE_ACCENTS.find((band) => n <= band.upTo) || DECADE_ACCENTS[DECADE_ACCENTS.length - 1]).color;
+}
+
 // Resolves every difficulty knob for level `n` up front — the tier's base
 // interpolation, then a bonus level's mechanic-focus overrides on top, if
 // any — so generateLevel() itself just reads `params.x` rather than
@@ -200,6 +257,24 @@ function resolveParams(n) {
     name: NEW_LEVEL_NAMES[n] || `Level ${n}`,
     isBonus: !!bonus,
   };
+
+  const mech = mechanicParams(n);
+  params.forceZoneChance = mech.forceZoneChance;
+  params.laserChance = mech.laserChance;
+  params.fallerChance = mech.fallerChance;
+  params.gateChance = mech.gateChance;
+  // The busy-bonus bump is deliberately applied AFTER each field's own cap
+  // above, with its own separate cap here, rather than folded into those
+  // formulas — this is what makes each successive 5-level bracket read as
+  // "busier" on top of the existing difficulty ramp, not just a
+  // reshuffling of the same overall density.
+  params.decoyChance = cap(params.decoyChance + mech.busyBonus, 0.93);
+  params.crisscrossChance = cap(params.crisscrossChance + mech.busyBonus * 0.8, 0.75);
+  params.movableChance = cap(params.movableChance + mech.busyBonus * 0.5, 0.96);
+  // Skipped for a level that already sets its own wholesale theme (just
+  // 50, The Neon Rift) — a full reskin doesn't also want a glow tint on
+  // top of itself.
+  params.accent = params.theme || n < 30 ? null : decadeAccent(n); // accent tinting is a 30+ thing (see DECADE_ACCENTS)
 
   if (bonus) {
     if (bonus.mechanicFocus === "conveyor") {
@@ -280,11 +355,19 @@ function generateLevel(n) {
   const mandatoryGhostGates = params.mandatoryGhostGates;
   const vertical = params.vertical;
   const harderCheckpoints = params.harderCheckpoints;
+  const forceZoneChance = params.forceZoneChance;
+  const laserChance = params.laserChance;
+  const fallerChance = params.fallerChance;
+  const gateChance = params.gateChance;
 
   const platforms = [];
   const deadlyPlatforms = [];
   const spikes = [];
   const checkpoints = [];
+  const forceZones = [];
+  const lasers = [];
+  const fallers = [];
+  const switches = [];
 
   let x = 50;
   let y = 380; // nominal, runtime centering handles the real viewport
@@ -294,9 +377,16 @@ function generateLevel(n) {
 
   let sinceBreather = 0;
   let ghostGatesPlaced = 0;
+  let switchGatesPlaced = 0;
+  // How many switch-gate encounters this level gets (0 below level 50 —
+  // see mechanicParams()'s gateChance) — a handful of deliberate
+  // set-pieces, not a per-gap roll, same "occasional, not everywhere"
+  // rarity the mandatory ghost gate already has.
+  const maxSwitchGates = params.gateChance <= 0 ? 0 : params.gateChance < 0.12 ? 1 : params.gateChance < 0.22 ? 2 : 3;
   let curX = x + startWidth;
   let curY = y;
   const candidateIndices = []; // indices into `platforms` eligible to become moving/ghost/melt
+  const breatherIndices = []; // indices into `platforms` that are wide, flat breather steps — safe ground for a force zone (see Pass 5 below)
 
   function placeStep(riseTarget, wide) {
     // Pick a dx that keeps this gap within single-jump range for the
@@ -422,6 +512,80 @@ function generateLevel(n) {
       continue;
     }
 
+    // Switch-gated optional shortcut (levels 50+ — see mechanicParams()'s
+    // gateChance) — the inverse of the mandatory ghost gate above: the
+    // DIRECT route (preGap -> postPlatform) is a real, comfortably
+    // double-jump-feasible stretch on its own (verified below, same as
+    // every other gap in the level), so the base path never depends on
+    // the gate. Throwing the switch instead turns that one double jump
+    // into two easy single-jump hops over a gate platform planted at the
+    // gap's midpoint — a faster/easier alternate route, never a required
+    // one, mirroring how a bounce pad or ghost platform is always
+    // optional (see docs/gameplay.md).
+    if (
+      switchGatesPlaced < maxSwitchGates &&
+      isBreather &&
+      rand() < 0.6 &&
+      i > 4 &&
+      i < numSteps - 4
+    ) {
+      const preGap = { x: curX, y: curY, width: 220 + Math.floor(rand() * 60), height: 20 };
+      platforms.push(preGap);
+      curX = preGap.x + preGap.width;
+      curY = preGap.y;
+
+      const postRise = 10 + Math.floor(rand() * 40);
+      // A comfortable double-jump distance (marginFactor well inside the
+      // feasible range, not right at its edge like an ordinary step) —
+      // this gap has to work with NO help from the gate.
+      const directMaxDx = maxDoubleDx(postRise);
+      const directDx = Math.max(220, Math.round(directMaxDx * 0.75));
+      const postX = curX + directDx;
+      const postY = curY - postRise;
+      const postPlatform = { x: postX, y: postY, width: 200 + Math.floor(rand() * 60), height: 20 };
+
+      const midX = curX + Math.round(directDx * (0.42 + rand() * 0.16));
+      const midY = curY - Math.round(postRise * 0.5) - (5 + Math.floor(rand() * 15));
+      const gateId = `g${n}_${switchGatesPlaced}`;
+      const gatePlatform = {
+        x: midX,
+        y: midY,
+        width: 90 + Math.floor(rand() * 30),
+        height: 16,
+        gated: true,
+        gateId,
+      };
+
+      // Sanity, mirroring the mandatory ghost gate's own checks: the
+      // direct route must genuinely be double-jump feasible (so the level
+      // is completable with the gate untouched), and each half-hop via
+      // the gate must be single-jump feasible (so opening it actually
+      // delivers on "easier route").
+      const directRise = preGap.y - postPlatform.y;
+      if (!canDouble(directDx, directRise)) {
+        throw new Error(`Level ${n}: switch gate's direct route isn't actually double-jump feasible (dx=${directDx} rise=${directRise})`);
+      }
+      const hop1Dx = gatePlatform.x - (preGap.x + preGap.width);
+      const hop1Rise = preGap.y - gatePlatform.y;
+      const hop2Dx = postPlatform.x - (gatePlatform.x + gatePlatform.width);
+      const hop2Rise = gatePlatform.y - postPlatform.y;
+      if (!canSingle(hop1Dx, hop1Rise) || !canSingle(hop2Dx, hop2Rise)) {
+        throw new Error(`Level ${n}: switch gate sub-hop not single-jump safe`);
+      }
+
+      platforms.push(gatePlatform);
+      platforms.push(postPlatform);
+      curX = postPlatform.x + postPlatform.width;
+      curY = postPlatform.y;
+
+      switches.push({ x: preGap.x + preGap.width - 22, y: preGap.y - 30, radius: 26, gateId });
+
+      switchGatesPlaced++;
+      checkpoints.push({ x: postPlatform.x + 60, y: postPlatform.y - 30, reached: false });
+      sinceBreather = 0;
+      continue;
+    }
+
     // Every step is generated as a plain solid platform first — whether it
     // becomes a moving/ghost/melt platform is decided in a second pass
     // below, once every position is finalized and neighbors are known.
@@ -433,6 +597,7 @@ function generateLevel(n) {
     platforms.push(step);
 
     if (!isBreather) candidateIndices.push(platforms.length - 1);
+    else breatherIndices.push(platforms.length - 1);
 
     if (isBreather) {
       checkpoints.push({ x: step.x + step.width / 2, y: step.y - 30, reached: false });
@@ -579,15 +744,79 @@ function generateLevel(n) {
     }
   });
 
+
+  // --- Pass 5: force zones (wind gusts) — levels 35+ only (see
+  // mechanicParams()), placed above a wide breather platform rather than
+  // in a gap's jump arc, so the push is a fair "windy plaza" moment
+  // rather than something a mandatory jump's feasibility has to account
+  // for (canSingle()/canDouble() above never model an in-flight force).
+  breatherIndices.forEach((index) => {
+    if (rand() >= forceZoneChance) return;
+    const step = platforms[index];
+    if (step.width < 140) return; // too narrow for a gust to read as fair/dodgeable
+    const dir = rand() < 0.5 ? -1 : 1;
+    forceZones.push({
+      x: step.x + 10,
+      y: step.y - 90,
+      width: step.width - 20,
+      height: 90,
+      axis: "x",
+      force: +(dir * (0.12 + rand() * 0.1)).toFixed(3),
+    });
+  });
+
+  // --- Pass 6: lasers + fallers — levels 40+/45+ respectively (see
+  // mechanicParams()). Both are freestanding hazards next to the path,
+  // exactly like the static deadly decoys Pass 4 places — never
+  // something a gap's base feasibility depends on — so they get the same
+  // checkpoint-distance safety guard Pass 3's crisscross decoys use
+  // rather than needing their own feasibility model.
+  candidateIndices.forEach((index) => {
+    const step = platforms[index];
+    const anchorX = step.x + step.width + 60 + Math.floor(rand() * 40);
+    const anchorY = step.y - 40 - Math.floor(rand() * 60);
+    const tooCloseToCheckpoint = checkpoints.some(
+      (c) => Math.hypot(c.x - anchorX, c.y - anchorY) < 120
+    );
+    if (tooCloseToCheckpoint) return;
+
+    if (rand() < laserChance) {
+      const sweeping = rand() < 0.55;
+      lasers.push({
+        x: anchorX,
+        y: anchorY,
+        length: 100 + Math.floor(rand() * (80 + 60 * t)),
+        width: 4,
+        baseAngle: +(rand() * Math.PI * 2).toFixed(2),
+        sweepAngle: sweeping ? +((0.6 + rand() * 0.9) * (Math.PI / 4)).toFixed(2) : 0,
+        period: Math.max(90, Math.round(220 - 60 * t)),
+        blinkPeriod: sweeping ? 0 : Math.max(70, Math.round(160 - 50 * t)),
+        onRatio: 0.5,
+      });
+    } else if (rand() < fallerChance) {
+      fallers.push({
+        x: anchorX,
+        y: anchorY - 40,
+        size: 22 + Math.floor(rand() * (14 + 14 * t)),
+        triggerX: anchorX - 130 - Math.floor(rand() * 80),
+      });
+    }
+  });
+
   return {
     n,
     name: params.name,
     isBonus: params.isBonus,
     theme: params.theme,
+    accent: params.accent,
     platforms,
     deadlyPlatforms,
     spikes,
     checkpoints,
+    forceZones,
+    lasers,
+    fallers,
+    switches,
   };
 }
 
@@ -626,6 +855,23 @@ function serializePlatform(p) {
     parts.push(`conveyor: true`);
     parts.push(`conveyorSpeed: ${p.conveyorSpeed}`);
   }
+  if (p.gated) {
+    parts.push(`gated: true`);
+    parts.push(`gateId: ${JSON.stringify(p.gateId)}`);
+  }
+  return `  { ${parts.join(", ")} },`;
+}
+
+// Serializes the simpler new entity types (window.forceZones/lasers/
+// fallers/switches) — none of these have a moving/timed-state variant to
+// account for, so a plain field-by-field dump (no missing-field guard like
+// serializePlatform()'s, since every field here is always set by whichever
+// Pass created the object) is enough.
+function serializeEntity(e, fields) {
+  const parts = fields.map((key) => {
+    const v = e[key];
+    return `${key}: ${typeof v === "string" ? JSON.stringify(v) : v}`;
+  });
   return `  { ${parts.join(", ")} },`;
 }
 
@@ -647,6 +893,9 @@ function writeLevel(level) {
   if (level.theme) {
     lines.push(`window.levelTheme = ${JSON.stringify(level.theme)};`);
   }
+  if (level.accent) {
+    lines.push(`window.levelAccent = ${JSON.stringify(level.accent)};`);
+  }
   lines.push(``);
   lines.push(`window.platforms = [`);
   level.platforms.forEach((p) => lines.push(serializePlatform(p)));
@@ -667,6 +916,40 @@ function writeLevel(level) {
   });
   lines.push(`];`);
   lines.push(``);
+
+  // New hazards/mechanics (levels 35+ — see mechanicParams()) — every
+  // array is always declared, even when empty, the same convention
+  // window.platforms/spikes/etc already follow, so game.js's loadLevel()
+  // reset (`window.forceZones = []` etc) is never left stale from a
+  // PREVIOUS level's script if this one simply has none of a given type.
+  if (level.forceZones.length) {
+    lines.push(`window.forceZones = [`);
+    level.forceZones.forEach((z) => lines.push(serializeEntity(z, ["x", "y", "width", "height", "axis", "force"])));
+    lines.push(`];`);
+    lines.push(``);
+  }
+  if (level.lasers.length) {
+    lines.push(`window.lasers = [`);
+    level.lasers.forEach((l) =>
+      lines.push(
+        serializeEntity(l, ["x", "y", "length", "width", "baseAngle", "sweepAngle", "period", "blinkPeriod", "onRatio"])
+      )
+    );
+    lines.push(`];`);
+    lines.push(``);
+  }
+  if (level.fallers.length) {
+    lines.push(`window.fallers = [`);
+    level.fallers.forEach((fl) => lines.push(serializeEntity(fl, ["x", "y", "size", "triggerX"])));
+    lines.push(`];`);
+    lines.push(``);
+  }
+  if (level.switches.length) {
+    lines.push(`window.switches = [`);
+    level.switches.forEach((s) => lines.push(serializeEntity(s, ["x", "y", "radius", "gateId"])));
+    lines.push(`];`);
+    lines.push(``);
+  }
 
   return lines.join("\n");
 }

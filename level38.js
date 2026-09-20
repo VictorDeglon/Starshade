@@ -5,6 +5,7 @@
 // ghost-gated gap is confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 38";
+window.levelAccent = "#ff9838";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
@@ -64,4 +65,8 @@ window.checkpoints = [
   { x: 9064, y: 375, reached: false },
   { x: 11334, y: 163, reached: false },
   { x: 13568, y: -42, reached: false }, // Final
+];
+
+window.forceZones = [
+  { x: 8973, y: 315, width: 182, height: 90, axis: "x", force: 0.16 },
 ];

@@ -5,6 +5,7 @@
 // ghost-gated gap is confirmed to genuinely require the ghost platform.
 
 window.levelText = "Skyline Interlude";
+window.levelAccent = "#ff9838";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
@@ -55,4 +56,9 @@ window.checkpoints = [
   { x: 9421, y: 443, reached: false },
   { x: 10833, y: 713, reached: false },
   { x: 11856, y: 774, reached: false }, // Final
+];
+
+window.forceZones = [
+  { x: 3119, y: 707, width: 247, height: 90, axis: "x", force: -0.212 },
+  { x: 9310, y: 383, width: 222, height: 90, axis: "x", force: 0.166 },
 ];

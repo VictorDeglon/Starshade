@@ -183,41 +183,157 @@ a star/cloud lands, not which cell it's in) for the same reason — there's
 no single, fixed world-space "top of the sky" to anchor to once the
 camera can scroll vertically without limit.
 
-## Neon-themed levels: a wholesale visual reskin
+## Level themes: wholesale visual reskins
 
 A level opts out of the nebula backdrop above entirely with
-`window.levelTheme = "neon"` (currently only level 50, "The Neon Rift" —
-see [Named branch levels](#the-100-levels--a-deliberate-difficulty-curve-across-three-chapters)).
-`resetLevelState()` reads it into `currentLevelTheme`, reset to `null` on
-every `loadLevel()` so a themed level can never leak its look into the
-next, ordinary one.
+`window.levelTheme = "<key>"`. This started as a single hand-special-cased
+`"neon"` check (level 50, "The Neon Rift") and is now a `THEMES` table in
+`game.js` keyed by theme name — `neon`'s entry reproduces its exact
+original colors unchanged, and ten more entries (`ember`, `glacier`,
+`toxic`, `storm`, `gilded`, `abyssal`, `crimson`, `aurora`, `obsidian`,
+`solar`) exist for the ten branch levels (see
+[Branch levels](#branch-levels-ten-stand-alone-detours) below).
+`resetLevelState()` reads `levelTheme` into `currentLevelTheme`, reset to
+`null` on every `loadLevel()` so a themed level can never leak its look
+into the next, ordinary one.
 
-- **`drawBackground()`** branches to `drawNeonBackground()` instead: a
-  flat near-black fill (no gradient, no planets/clouds) plus
-  `drawStarLayer()` called twice — once at full brightness, once again at
-  a smaller cell size and dimmer/smaller stars (`denseVariant`) — for a
-  deeper, more crowded "empty night sky" than the ordinary backdrop's
-  progress-gated star layer ever shows, entirely independent of
-  `sceneProgress`.
-- **Platforms, deadly platforms, and spikes** each check
-  `currentLevelTheme === "neon"` in their draw function and switch to a
-  near-black fill with a bright, saturated stroke *and* a real
-  `ctx.shadowBlur` glow (a new optional `glow` argument on
-  `drawInsetRect()`) — cyan for solid platforms, magenta-red for deadly
-  ones — instead of the violet-indigo/crimson-magenta palette and
-  plating/hazard-stripe texture patterns every other level uses. Against a
-  pure black backdrop, a shadow blur reads as "lit from within" in a way a
-  flat fill never could.
+- **`drawBackground()`** looks up `THEMES[currentLevelTheme]`; if found,
+  it calls `drawThemedBackground()` instead of the normal nebula gradient:
+  a flat fill in the theme's own `bg` color (no gradient, no
+  planets/clouds), `drawStarLayer()` (forced to full brightness — a
+  themed backdrop doesn't depend on `sceneProgress` — and, for `neon`
+  specifically, drawn a second time at a smaller cell size/dimmer stars
+  via its `starDense` flag, for a deeper "empty night sky" than any other
+  theme uses), and — for every theme but `neon` — one generic parallax
+  "weather" layer (`drawThemeAccentLayer()`) reusing the exact
+  deterministic-cell approach `drawStarLayer()`/`drawCloudLayer()` already
+  use (see `forEachVisibleCell()`/`hash01()` above), just with a
+  theme-specific `shape` (ember/snow/spore/bolt/coin/bubble/shard/flare —
+  mostly a soft glowing dot, `bolt`/`coin`/`shard` get their own tiny draw
+  path) and `motion` (rise/fall/drift/flicker). `aurora`'s sky is a special
+  case (`drawAuroraBands()`) — three slow, wavy, HSL-hue-drifting
+  screen-space bands instead of discrete motes, since a shifting polar sky
+  doesn't fit the per-cell-dot model the other nine themes share.
+- **Platforms, deadly platforms, bounce/conveyor platforms, and spikes**
+  each look up the same `THEMES[currentLevelTheme]` in their draw function
+  and switch to that theme's `platform`/`deadly`/`spikeTop`/`spikeBottom`/
+  `spikeGlow` colors plus a real `ctx.shadowBlur` glow (`drawInsetRect()`'s
+  `glow` argument) instead of the violet-indigo/crimson-magenta palette
+  and plating/hazard-stripe texture patterns every ordinary level uses.
+  Bounce/conveyor platforms only reskin their fill darkness + add a glow —
+  their actual stroke color (cyan-green/amber) never changes, by design
+  (see the next bullet). Against a dark flat backdrop, a shadow blur reads
+  as "lit from within" in a way a flat fill never could.
 - Ghost/melt/bounce/conveyor platforms and the player keep their normal
-  look — their colors (bright yellow, deepening orange, cyan-green, amber)
-  already read clearly against black without a reskin, and the player's
-  look comes from the equipped skin regardless of level.
+  look across **every** theme, not just neon — their colors (bright
+  yellow, deepening orange, cyan-green, amber) already read clearly
+  against any of these dark backdrops without a reskin, and the player's
+  look comes from the equipped skin regardless of level. Deadly
+  platforms/spikes are also kept in a warm red family across every theme
+  (even the already-red ones, which go near-white-hot instead of red-on-
+  red) for the same fairness reason: "this kills you" has to read the same
+  no matter which of eleven themes is active.
 
 This is a code-only reskin (canvas fills/strokes/gradients/shadows), not a
 new image asset — the same approach any other level's visuals use, just
 with a different palette and a different (simpler) backdrop.
 
-## Particles
+**A much lighter touch for the ordinary (non-themed) 30-100 path**:
+`window.levelAccent` (a hex string) nudges an otherwise-ordinary level's
+platform/deadly/spike glow toward one accent color, entirely independent
+of `THEMES` — the default nebula backdrop and default fill/stroke colors
+are completely untouched; only an optional glow is layered on top (the
+same `drawInsetRect()` `glow` argument the full reskin above uses).
+`.claude/gen-levels.js` assigns one accent per ~10-level stretch of 30-100
+(`DECADE_ACCENTS`, reusing hex values from the matching `THEMES` entry for
+visual continuity with the branch levels), skipped for any level that
+already sets its own full `theme` (currently just 50). This is what gives
+the whole 30+ stretch a progressively shifting identity without the
+backdrop-consistency risk a full reskin would carry across 70+ sequential
+levels — see docs/architecture.md's reasoning for why the nebula
+backdrop's own progression is deliberately left alone.
+
+## New hazards/mechanics (levels 35+)
+
+Five more mechanics beyond the original moving/ghost/melt/bounce/conveyor
+set, layered on top of the same difficulty ramp — introduced one per
+5-level bracket starting at 35 (`bracketIndex()`/`mechanicParams()` in
+`.claude/gen-levels.js`), then increasingly combined with each other and
+with the existing mechanics through 100, rather than each staying a flat
+share for the rest of the game. Every one of these follows the same
+safety rule the original set already established: a hazard (laser,
+faller) is always freestanding next to the path, never something a gap's
+base feasibility depends on, and an optional mechanic (force zone,
+switch/gate) always opens up a faster/alternate route rather than gating
+the guaranteed one — so none of these needed a new entry in
+`.claude/audit-gaps.js`'s feasibility model, the same reasoning that
+already excludes bounce/conveyor/decoys from it. (Gated platforms
+specifically *are* only sometimes solid, like a ghost platform, so both
+audit scripts exclude `platform.gated` from "guaranteed ground" the same
+way they already exclude `platform.ghost`.)
+
+- **Force zones** (`window.forceZones`, introduced at 35) — a
+  `{x,y,width,height,axis,force}` zone that applies a constant push to the
+  player's velocity every frame their bounding box overlaps it, mid-air or
+  grounded alike (unlike a conveyor, which only pushes while actually
+  standing on one — a force zone can bend a jump's whole arc). `axis: "x"`
+  reads as a wind gust, `axis: "y"` (negative force) as an updraft vent —
+  same entity, same code path (`applyForceZones()` in `updatePlayer()`),
+  just themed differently. The generator only ever places these above a
+  wide breather platform, never inside a mandatory gap's jump arc, so the
+  push is always a fair "windy plaza" moment rather than something a
+  jump's feasibility has to account for (the audit's `canSingle()`/
+  `canDouble()` never model an in-flight force). Drawn as a translucent,
+  scrolling chevron-stripe band (`drawForceZones()`) in the push
+  direction, the same visual language `drawConveyorPlatforms()` already
+  uses for its arrow stripes.
+- **Lasers** (`window.lasers`, introduced at 40) — a rotating/sweeping or
+  blinking beam hazard (`{x,y,length,width,baseAngle,sweepAngle,period,
+  blinkPeriod,onRatio}`), animated once per frame in `updateLasers()` (both
+  the kill check and `drawLasers()` read the same computed `_angle`/`_on`
+  so they can never disagree about where the beam currently is). A
+  blinking laser's `_warning` flag brightens its emitter in the last
+  ~25% of its off phase, telegraphing the flip back on. Kill check is a
+  point-to-segment distance test (`pointSegmentDistance()`) against the
+  beam's current line, same category of hazard as a spike or deadly
+  platform.
+- **Fallers** (`window.fallers`, introduced at 45) — a hanging hazard
+  (`{x,y,size,triggerX}`, drawn as a faceted shard in the level's spike
+  colors) that shakes in place once the player's x crosses `triggerX`
+  (`updateFallers()`), then drops straight down and retires once it's
+  fallen well past any plausible platform below it. Only lethal while
+  actually falling — the shake window is a fair telegraph, not a hitbox.
+  `resetPlayer()` resets every faller back to its hanging, untriggered
+  state on death, the same "a retry shouldn't permanently lose ground/
+  hazards it needs to see again" reasoning melt platforms already follow.
+- **Switches + gated platforms** (`window.switches` / `platform.gated`,
+  introduced at 50) — a switch (`{x,y,radius,gateId}`) is a plain
+  proximity check (like a slingshot pad's arm check, not real collision)
+  that permanently throws its matching gate the instant the player gets
+  close enough (`updateSwitches()`); a gated platform starts intangible
+  (mirrors a ghost platform's `_solid` flag, which `resolveAxis()` already
+  knows to skip) and becomes solid for the rest of the level once thrown
+  (`updateGatedPlatforms()`), with a small materialize particle burst the
+  frame it flips. Unlike a mandatory ghost gate, a switch-gate encounter is
+  *constructed* the same generous way (see `.claude/gen-levels.js`'s
+  main-loop switch-gate block, right next to its mandatory-ghost-gate
+  sibling) so the direct route between its two ends is always genuinely
+  double-jump feasible on its own — the gate only ever turns that one
+  tough jump into two easy single-jump hops, a faster/easier alternate
+  route, never a required one. A thrown switch is never reset on death —
+  it behaves exactly like a reached checkpoint, staying thrown for the
+  rest of the level.
+- **Portals** (`window.portals`, branch levels only — see below) — a
+  linked pair (`{id,x,y,width,height,linkId}`); stepping into one
+  teleports to its partner's center, preserving velocity, with a short
+  `portalCooldown` so the two ends of a pair can't immediately re-trigger
+  each other. Drawn as a spinning, layered ring (`drawPortals()`). Always
+  links two already-solid, already-reachable platforms further apart in
+  the sequence than an ordinary jump could cover, so landing at either end
+  is inherently safe — a shortcut, never load-bearing for base
+  completability (the ungated route between them still exists).
+
+## Bounce pads and conveyors
 
 `spawnParticles(x, y, count, options)` in `game.js` adds plain objects to
 a `particles` array (gravity, velocity, a life counter), updated in
@@ -781,9 +897,68 @@ its normal share, rather than being another numbered rung on the ladder:
 
 On the level map (`levels.js`), a branch level is drawn off to one side of
 the main winding path (a gold diamond node connected by a dashed spur —
-see `BONUS_BRANCH_OFFSET`/`.tree-path-bonus` in `levels.css`) and shows its
-real name instead of "Level N," including **in-game** — the one exception
-to the rule below that only the level map shows flavor names.
+see `BONUS_BRANCH_OFFSET`/`.tree-path-bonus`) and shows its real name
+instead of "Level N," including **in-game** — the one exception to the
+rule below that only the level map shows flavor names.
+
+**Not to be confused with the ten *true* branch levels below** — these
+five are still ordinary numbered rungs on the 1-100 ladder (35 plays
+between 34 and 36 exactly like any other level), just drawn off to one
+side and built around one turned-up mechanic; the ten true branch levels
+aren't on the ladder at all.
+
+## Branch levels: ten stand-alone detours
+
+Ten more levels (`levelB1.js`-`levelB10.js`, `TRUE_BRANCH_LEVELS` in
+`levels.js`, `BRANCHES` in `.claude/gen-branch-levels.js`) are not part of
+the sequential 1-100 path in any sense — unlike the five named branch
+levels above, they're never auto-advanced into or out of. Each is reached
+only by clicking its own dedicated node on the Level Map, unlocked once
+its `anchorLevel` (a specific main-path level) is completed, and drawn as
+a longer violet-glowing dash-dot spur (`.tree-path-branch`) further out
+than an ordinary bonus spur, with its own small inline SVG logo as the
+node's icon instead of a number.
+
+| id | Name | Theme | Anchor | Hero mechanic(s) |
+|---|---|---|---|---|
+| b1 | Ember Forge | `ember` | 32 | Fallers (molten shards) + lasers |
+| b2 | Glacier Spire | `glacier` | 39 | Force zones (wind) + ghost platforms |
+| b3 | Toxic Hollow | `toxic` | 46 | Switch-gates + melt platforms |
+| b4 | Storm Reach | `storm` | 53 | Lasers (lightning) + force zones + crisscross |
+| b5 | Gilded Vault | `gilded` | 60 | Switch-gates (vault doors) + **portals** |
+| b6 | Abyssal Trench | `abyssal` | 68 | Force zones (currents) + bounce pads |
+| b7 | Crimson Bastion | `crimson` | 75 | Lasers (turrets) + crisscross + switch-gates |
+| b8 | Aurora Veil | `aurora` | 83 | **Portals** (rifts) + force zones (polar wind) |
+| b9 | Obsidian Rift | `obsidian` | 90 | Fallers (glass shards) + lasers + ghost platforms |
+| b10 | Solar Crown | `solar` | 98 | Everything, at the highest combined density — the finale showpiece |
+
+Each is generated by `.claude/gen-branch-levels.js` — a sibling to
+`.claude/gen-levels.js` sharing the exact same jump-feasibility kernel
+(`simulate()`/`canSingle()`/`canDouble()`/`mulberry32()`) and per-step
+placement approach, but with its own fixed (not per-level-ramped) `t` and
+a `mech` table of mechanic shares tuned per branch, and deliberately
+longer (`numSteps` 40-48 vs. an ordinary level's 18-40) — "make all our
+branch levels longer and more detailed." Regenerate with
+`node .claude/gen-branch-levels.js`, then re-run both audit scripts
+exactly like after `gen-levels.js` — they detect `levelB*.js` files too
+(`BRANCH_IDS` in each audit script).
+
+**Entering/completing a branch level** never touches `currentLevel`/
+`savedLevel` at all (`game.js`'s `startBranchLevelFromOverlay()`) — so a
+manual refresh mid-branch-level, or simply finishing one, always resumes
+the main path exactly where it was. Reaching a branch level's final
+checkpoint runs `completeBranchLevel()` instead of the normal
+`advanceToNextLevel()` (routed by checking `window.levelBranchId` at the
+one call site that sets `fadeCallback` after the portal-suck animation) —
+it awards coins from its own, larger `BRANCH_LEVEL_COMPLETION_REWARD`
+(150 vs. an ordinary level's 75, reflecting the extra length/detail) via
+`StarshadeEconomy.markBranchLevelCompleted()`, which records completion on
+its own `starshadeCompletedBranchLevels` key, **never** mixed into the
+main `getCompletedLevels()` array — that array's numbers are assumed
+elsewhere (`isCustomizationUnlocked()`, `levels.js`'s
+`highestUnlockedLevel()`) to stay within the real 1-100 range, and a
+branch id mixed into it would corrupt that math — then simply reloads
+`currentLevel`, exactly where the player detoured from it.
 
 Level names for ordinary (non-branch) levels beyond 1 (in `levels.js`, for
 the level map) are just flavor text — `window.levelText` still reads
@@ -1387,6 +1562,15 @@ Two ways to add `level101.js` and beyond:
   `LEVEL_NAMES` in `levels.js` (used for the level map). A new branch/bonus
   level also needs an entry in both `BONUS_LEVELS` (gen-levels.js) and
   `BONUS_LEVEL_NUMBERS` (levels.js).
+- **A new true branch level** (see
+  [Branch levels](#branch-levels-ten-stand-alone-detours)) is a different
+  script entirely: add an entry to `BRANCHES` in
+  `.claude/gen-branch-levels.js` (id, name, theme, anchor level, `t`,
+  `numSteps`, mechanic shares), a matching `THEMES[theme]` entry in
+  `game.js` if it's a new theme, and a matching entry (with its own inline
+  SVG `logo`) in `TRUE_BRANCH_LEVELS` in `levels.js` — all three must stay
+  in sync on id/name/theme. Run `node .claude/gen-branch-levels.js` (writes
+  every `levelB*.js` at once, not a from/to range like `gen-levels.js`).
 
 Either way, then run both audit scripts from the project root — they're the actual
 mechanism used to design and verify every level above, not just a
@@ -1404,10 +1588,13 @@ node .claude/audit-checkpoints.js  # flags any checkpoint whose respawn
 Both simulate the real per-frame physics (`gravity`/`jumpStrength`/
 `horizontalSpeed`) and the real `resetPlayer()` respawn logic rather than
 eyeballing pixel distances — every gap and every checkpoint in the current
-100 levels passes both (any "IMPOSSIBLE" gaps `audit-gaps.js` reports are
-deliberate — each is bridged by a mandatory ghost platform, which is
-intentionally excluded from that check; see
+100 levels (plus all ten branch levels) passes both (any "IMPOSSIBLE" gaps
+`audit-gaps.js` reports are deliberate — each is bridged by a mandatory
+ghost platform, which is intentionally excluded from that check, the same
+way a not-yet-thrown gated platform is; see
 [Ghost and melt platforms](#ghost-and-melt-platforms) above). Both scripts
 detect the current level count by probing for `levelN.js` files rather
 than a hardcoded loop bound, so they never need editing just because more
-levels were added.
+levels were added — and both separately append the ten `levelB*.js`
+branch files (`BRANCH_IDS`) after that probe, since those aren't part of
+the numeric sequence it finds.
