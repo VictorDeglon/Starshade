@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Tileable "phase static" texture for ghost platforms (see
+       game.js's ghostTexturePattern) — broken dashed grid lines instead
+       of the solid plating grid ordinary platforms use, so an
+       intangible-when-flickering platform reads as unstable/glitching
+       even at a glance, before a player has learned to watch its
+       alpha flicker. Edges tile seamlessly when repeated. -->
+  <rect width="32" height="32" fill="none" />
+  <path d="M0 0.5 H9 M13 0.5 H23 M27 0.5 H32" stroke="rgba(255,236,140,0.4)" stroke-width="1" />
+  <path d="M0 16.5 H5 M9 16.5 H19 M23 16.5 H32" stroke="rgba(255,236,140,0.4)" stroke-width="1" />
+  <path d="M0.5 0 V7 M0.5 11 V21 M0.5 25 V32" stroke="rgba(255,236,140,0.3)" stroke-width="1" />
+  <path d="M16.5 0 V4 M16.5 8 V18 M16.5 22 V32" stroke="rgba(255,236,140,0.3)" stroke-width="1" />
+  <circle cx="8" cy="24" r="1.1" fill="rgba(255,244,190,0.45)" />
+  <circle cx="24" cy="8" r="1.1" fill="rgba(255,244,190,0.45)" />
+</svg>

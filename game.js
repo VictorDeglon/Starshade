@@ -2475,9 +2475,16 @@ function updatePlayer(dtScale) {
   // level-space depth — with the camera now following the player
   // vertically, this only trips if a fall outruns the camera's own easing
   // (see below), same "off the bottom of the screen" death every
-  // horizontal-only version of this check already had.
-  if (player.y - cameraOffsetY > viewportHeight) {
-    triggerDeath();
+  // horizontal-only version of this check already had. Unlike a hazard
+  // touch (see triggerDeath()), this isn't a single instant of contact —
+  // nothing stops the player from just continuing to fall, so the death
+  // itself is held off an extra VOID_FALL_MARGIN past the edge first (see
+  // triggerVoidDeath()), long enough to actually read as falling into the
+  // void and vanishing rather than an instant cut the moment they cross
+  // the bottom edge.
+  const VOID_FALL_MARGIN = viewportHeight * 0.4;
+  if (player.y - cameraOffsetY > viewportHeight + VOID_FALL_MARGIN) {
+    triggerVoidDeath();
   }
 
   // What the camera targets — normally just the player, but see the
@@ -2628,6 +2635,23 @@ function updateLevelText() {
       levelText = "";
     }
   }
+}
+
+// Falling into the void, not touching a hazard, so it deliberately skips
+// triggerDeath()'s whole shatter animation — freezing the player and
+// playing a canned effect somewhere already off the bottom of the screen
+// would just be invisible, and would also cut the fall short right where
+// it crossed the edge instead of letting it continue. Only fires once the
+// extended VOID_FALL_MARGIN check above trips, by which point the player
+// has already fallen well clear of the visible area on their own, under
+// completely normal physics — this just does the actual teleport at that
+// point, plus a haptic buzz (still felt even with nothing on screen to
+// look at) in place of the hazard path's screen shake, which would have
+// nothing visible to shake around by now anyway.
+function triggerVoidDeath() {
+  if (isDying || isFading || isPortalSucking) return;
+  vibrateHaptic([30, 40, 30]);
+  resetPlayer();
 }
 
 // Fires the instant a hazard actually kills the player — immediate

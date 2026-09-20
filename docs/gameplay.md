@@ -980,15 +980,14 @@ same as they already did for `isFading`.
 
 ### The death animation
 
-Touching a hazard doesn't teleport the player to their last checkpoint
-the same frame — `isDying`/`triggerDeath()`/`updateDeathAnimation()` play
-a short (~0.43s, `DEATH_ANIM_DURATION`) canned animation first, the
-death-side mirror of the portal-suck animation above: `triggerDeath()`
-fires immediately on contact (deadly platform, spike, or falling off the
-bottom of the screen — the three `resetPlayer()` call sites, now
-`triggerDeath()`) with the usual impact feedback (screen shake, haptics,
-a 24-particle shatter burst in the equipped skin's colors) and freezes
-the player in place (`player.dx`/`dy` zeroed, position captured into
+Touching a hazard (a deadly platform or a spike) doesn't teleport the
+player to their last checkpoint the same frame —
+`isDying`/`triggerDeath()`/`updateDeathAnimation()` play a short (~0.43s,
+`DEATH_ANIM_DURATION`) canned animation first, the death-side mirror of
+the portal-suck animation above: `triggerDeath()` fires immediately on
+contact with the usual impact feedback (screen shake, haptics, a
+24-particle shatter burst in the equipped skin's colors) and freezes the
+player in place (`player.dx`/`dy` zeroed, position captured into
 `deathAnimX`/`deathAnimY` rather than left on live `player.x`/`y`) instead
 of moving them anywhere yet. `drawPlayer()` swaps to `drawDeathAnimation()`
 for the duration — six small skin-colored shards spinning outward from
@@ -1006,13 +1005,31 @@ delayed to the end of the animation); `resetPlayer()` itself still just
 increments the death stats, restores melted platforms, and teleports to
 the last checkpoint (or the level start). This runs in `update()` in
 place of normal `updatePlayer()`, the same "no input has anything left to
-do" reasoning as the portal-suck animation — which also means none of the
-three hazard checks that call `triggerDeath()` can fire again mid-
-animation without even needing `triggerDeath()`'s own re-entrancy guard,
-since `updatePlayer()` (where those checks live) simply isn't called
-while `isDying` is true. `tryJump()`, `setPaused()`, and
-`onDirectionTap()` (the dash trigger) all bail out while it's playing,
-same as they already did for `isFading`/`isPortalSucking`.
+do" reasoning as the portal-suck animation — which also means neither
+hazard check that calls `triggerDeath()` can fire again mid-animation
+without even needing `triggerDeath()`'s own re-entrancy guard, since
+`updatePlayer()` (where those checks live) simply isn't called while
+`isDying` is true. `tryJump()`, `setPaused()`, and `onDirectionTap()` (the
+dash trigger) all bail out while it's playing, same as they already did
+for `isFading`/`isPortalSucking`.
+
+**Falling off the bottom of the screen is deliberately not routed through
+any of the above.** A hazard touch is a single instant of contact — there's
+a specific moment to freeze and react to. A void fall isn't; the player is
+already continuously falling under completely normal physics, and the
+right thing to do is let that keep happening, not freeze it mid-air the
+instant it crosses the bottom edge. So the off-bottom check
+(`updatePlayer()`) holds off calling anything until the player has fallen
+`VOID_FALL_MARGIN` (`viewportHeight * 0.4`) *past* the edge, not just to
+it — by which point normal camera lag (`cameraSmoothing`) has already
+carried them well clear of the visible area on its own. Only then does
+`triggerVoidDeath()` fire, and it's deliberately much lighter than
+`triggerDeath()`: a haptic buzz (still felt with nothing on screen to look
+at) and a direct call to `resetPlayer()` — no `isDying` state, no freeze,
+no shatter animation, since freezing and animating something already
+invisible below the frame would accomplish nothing a player could
+actually see, and would also cut the fall short right at the edge instead
+of letting it continue.
 
 ### Pause/game-complete menus on a short viewport
 
