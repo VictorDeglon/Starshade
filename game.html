@@ -23,6 +23,7 @@
     />
     <link rel="stylesheet" href="game.css" />
     <link rel="stylesheet" href="achievements.css" />
+    <link rel="stylesheet" href="profile.css" />
   </head>
   <body>
     <!-- Game Canvas -->
@@ -83,6 +84,7 @@
         <button id="pause-settings-button" class="menu-button">Settings</button>
         <button id="pause-levels-button" class="menu-button">Level Map</button>
         <button id="pause-achievements-button" class="menu-button">Achievements</button>
+        <button id="pause-profile-button" class="menu-button">Profile</button>
         <button id="pause-quit-button" class="menu-button">Quit to Menu</button>
       </div>
     </div>
@@ -214,6 +216,33 @@
       </div>
     </div>
 
+    <!-- Profile overlay — opened from the pause menu only (see
+         docs/design-standards.md #6: this doesn't need its own main-menu
+         entry or standalone page the way Settings/Level Map/Achievements
+         each have one — it's a read-only summary of state those three
+         already own, not a new surface with its own actions). Pulls
+         together identity (display name, equipped skin), the "journey"
+         progress bar, and the stat/achievement/skin counts that were
+         previously each only visible on a separate page, into one place —
+         see profile.js. -->
+    <div id="profileOverlay" class="menu hidden">
+      <div class="menu-panel">
+        <h1>Profile</h1>
+        <div class="profile-identity">
+          <div class="profile-skin-swatch" id="profile-skin-swatch"></div>
+          <div class="profile-name" id="profile-name">Explorer</div>
+        </div>
+        <div class="profile-journey">
+          <div class="profile-journey-label" id="profile-journey-label">Level 1 of 100</div>
+          <div class="profile-journey-bar">
+            <div class="profile-journey-fill" id="profile-journey-fill"></div>
+          </div>
+        </div>
+        <div class="profile-stat-grid" id="profile-stat-grid"></div>
+        <button class="menu-button" id="profile-back-button">Back</button>
+      </div>
+    </div>
+
     <script src="skinsData.js"></script>
     <script src="achievementsData.js"></script>
     <!--
@@ -242,5 +271,6 @@
     <script src="settings.js"></script>
     <script src="levels.js"></script>
     <script src="achievements.js"></script>
+    <script src="profile.js"></script>
   </body>
 </html>
