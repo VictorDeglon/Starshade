@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Shadow Stalker skin art (legendary, circle). A hooded silhouette
+       with two glowing violet eyes peering out of the dark — reads as
+       "stealth" at a glance even at the in-game 25x25px size. Fixed
+       violet-gray palette matching the skin's own established hue. -->
+  <defs>
+    <radialGradient id="ss-bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#3a3155" />
+      <stop offset="100%" stop-color="#100c1c" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#ss-bg)" />
+  <path d="M24 8 C14 8 9 18 10 32 C10 36 14 40 24 40 C34 40 38 36 38 32 C39 18 34 8 24 8 Z"
+        fill="#1c1730" stroke="#5a4d8a" stroke-width="1.2" />
+  <path d="M24 8 C18 12 16 20 16 28" fill="none" stroke="#4a3f6e" stroke-width="1" opacity="0.7" />
+  <g fill="#c9a8ff" opacity="0.5">
+    <ellipse cx="18.5" cy="24" rx="4" ry="5" />
+    <ellipse cx="29.5" cy="24" rx="4" ry="5" />
+  </g>
+  <g fill="#e8d9ff">
+    <ellipse cx="18.5" cy="24" rx="2.2" ry="2.8" />
+    <ellipse cx="29.5" cy="24" rx="2.2" ry="2.8" />
+  </g>
+</svg>

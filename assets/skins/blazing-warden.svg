@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Blazing Warden skin art (epic, triangle). A guardian shield emblem
+       with flame accents at the top — fixed purple palette matching the
+       skin's own established hue (hsl(266, ...)). -->
+  <defs>
+    <linearGradient id="bw-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="hsl(266, 85%, 85%)" />
+      <stop offset="55%" stop-color="hsl(266, 80%, 55%)" />
+      <stop offset="100%" stop-color="hsl(266, 70%, 16%)" />
+    </linearGradient>
+  </defs>
+  <polygon points="24,3 45,45 3,45" fill="url(#bw-bg)" />
+  <path d="M24 16 L33 20 V30 C33 36 29 40 24 42 C19 40 15 36 15 30 V20 Z"
+        fill="#f5ecff" stroke="#4a1f80" stroke-width="1.2" />
+  <path d="M24 22 C21 26 21 29 24 33 C27 29 27 26 24 22 Z" fill="hsl(266, 85%, 55%)" opacity="0.9" />
+  <path d="M20 12 C20 9 22 8 24 6 C22 10 24 11 24 13 C26 11 24 9 26 6 C28 8 28 10 26 13"
+        fill="#ffcf6a" opacity="0.9" />
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Rogue Seeker skin art (epic, circle). A scout's targeting reticle
+       around a sharp eye — fixed yellow palette matching the skin's own
+       established hue (hsl(58, ...)). -->
+  <defs>
+    <radialGradient id="rs-bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="hsl(58, 85%, 78%)" />
+      <stop offset="60%" stop-color="hsl(58, 80%, 45%)" />
+      <stop offset="100%" stop-color="hsl(58, 70%, 14%)" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#rs-bg)" />
+  <circle cx="24" cy="24" r="15" fill="none" stroke="#fffbe0" stroke-width="1.2" opacity="0.85" />
+  <path d="M24 6 V13 M24 35 V42 M6 24 H13 M35 24 H42" stroke="#fffbe0" stroke-width="1.4" opacity="0.85" />
+  <path d="M15 24 C15 18 19 15 24 15 C29 15 33 18 33 24 C33 30 29 33 24 33 C19 33 15 30 15 24 Z"
+        fill="#0c0900" opacity="0.85" />
+  <circle cx="24" cy="24" r="4" fill="#fff8d0" />
+</svg>

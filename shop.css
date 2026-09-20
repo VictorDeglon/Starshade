@@ -375,9 +375,13 @@
   50% { transform: translateY(-10px); }
 }
 
+/* A slow rigid rotation, not a color cycle — `animated` skins keep a single
+   fixed palette (baked into their own `art`/`preview`), the "alive" cue is
+   motion, not the artwork's hue drifting through the rainbow. Mirrored
+   in-game by game.js's drawSkinArt() at the same 5s period. */
 @keyframes skin-spin {
-  from { filter: hue-rotate(0deg); }
-  to { filter: hue-rotate(360deg); }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .skin-info {

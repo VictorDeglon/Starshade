@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Obsidian Wraith skin art (legendary, triangle). A cracked obsidian
+       shard with a ghostly wisp face peering through the fractures —
+       fixed purple palette matching the skin's own established hue. -->
+  <defs>
+    <linearGradient id="ow-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#2a1440" />
+      <stop offset="100%" stop-color="#0a0512" />
+    </linearGradient>
+  </defs>
+  <polygon points="24,3 45,45 3,45" fill="url(#ow-bg)" />
+  <g stroke="#6a2fa0" stroke-width="1.2" opacity="0.8" fill="none">
+    <path d="M24 3 L18 24 L26 34 L20 45" />
+    <path d="M24 3 L30 22 L24 30 L32 45" />
+  </g>
+  <path d="M24 20 C20 20 18 24 20 28 C21.5 30.5 26.5 30.5 28 28 C30 24 28 20 24 20 Z"
+        fill="#e6d4ff" opacity="0.85" />
+  <g fill="#1a0f2e">
+    <circle cx="21.5" cy="25" r="1.1" />
+    <circle cx="26.5" cy="25" r="1.1" />
+  </g>
+</svg>

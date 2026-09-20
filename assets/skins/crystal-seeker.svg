@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Crystal Seeker skin art (epic, square). A cluster of cut-gem
+       facets, like a rough crystal geode — fixed orange palette matching
+       the skin's own established hue (hsl(30, ...)). -->
+  <defs>
+    <radialGradient id="cs-bg" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="hsl(30, 85%, 85%)" />
+      <stop offset="55%" stop-color="hsl(30, 85%, 55%)" />
+      <stop offset="100%" stop-color="hsl(30, 70%, 18%)" />
+    </radialGradient>
+  </defs>
+  <rect width="48" height="48" fill="url(#cs-bg)" />
+  <polygon points="24,8 34,18 30,32 18,32 14,18" fill="#fff3dc" stroke="#c96f14" stroke-width="1.2" opacity="0.95" />
+  <path d="M24 8 L24 32 M14 18 L34 18 M18 32 L24 8 M30 32 L24 8"
+        stroke="#c96f14" stroke-width="0.8" opacity="0.6" />
+  <polygon points="34,26 40,30 37,38 30,36" fill="#ffe2b0" stroke="#c96f14" stroke-width="1" opacity="0.9" />
+</svg>

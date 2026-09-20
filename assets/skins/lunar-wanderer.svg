@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Lunar Wanderer skin art (epic, square). A crescent moon with a
+       scatter of small stars — fixed palette matching the skin's own
+       established hue (hsl(133, ...), a green moonlight rather than a
+       literal white one, kept as-is since that's the palette already
+       shipped). -->
+  <defs>
+    <radialGradient id="lw-bg" cx="50%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="hsl(133, 60%, 20%)" />
+      <stop offset="100%" stop-color="hsl(133, 70%, 6%)" />
+    </radialGradient>
+  </defs>
+  <rect width="48" height="48" fill="url(#lw-bg)" />
+  <path d="M30 10 A14 14 0 1 0 30 38 A11 11 0 1 1 30 10 Z" fill="hsl(133, 85%, 82%)" />
+  <g fill="hsl(133, 85%, 88%)">
+    <circle cx="12" cy="14" r="1.2" />
+    <circle cx="9" cy="30" r="1" />
+    <circle cx="18" cy="38" r="1.3" />
+  </g>
+</svg>
