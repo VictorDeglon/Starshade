@@ -606,13 +606,23 @@ function injectMechanicDiscoveryTips() {
 // happens in-page via advanceToNextLevel() and never touches this read.
 let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
 
-// How far through the game's levels the backdrop should look (see
-// drawBackground()) — 0 at level 1 (low-altitude sky) to 1 at the last
-// level (deep cosmos), recomputed once per level load in
-// resetLevelState(). Deliberately just currentLevel/(last level), not tied
-// to anything about a level's actual content, so it still degrades
-// sensibly if the level count ever changes.
-const SCENE_THEME_LEVEL_COUNT = 100;
+// How far through the sky's "low altitude to deep cosmos" progression the
+// backdrop should look (see drawBackground()) — 0 at level 1, 1 by
+// SKY_PROGRESS_LEVEL_COUNT, then held there for the rest of the game —
+// recomputed once per level load in resetLevelState(). Deliberately NOT
+// tied to the actual total level count: the star/cloud/planet fade-in
+// thresholds below (drawStarLayer()/drawCloudLayer()/drawPlanetLayer())
+// were hand-tuned as fractions of this to land on specific absolute level
+// numbers (stars starting around level 4, fully visible by level ~17,
+// same numbers docs/gameplay.md's background section describes). Using
+// the full 100-level count here instead — what this used to do, back
+// when the game only had 25 levels and "the whole game" and "this
+// progression" were the same span — stretched those same fractions out to
+// level ~13/~65 instead, leaving the sky looking flat and starless for
+// the entire early game. Finishing the transition a bit past a quarter of
+// the way through a much longer game reads better than barely completing
+// it by the very end.
+const SKY_PROGRESS_LEVEL_COUNT = 25;
 let sceneProgress = 0;
 
 // A level opts into a wholesale visual reskin with `window.levelTheme`
@@ -772,7 +782,7 @@ function loadLevel(levelNumber) {
 function resetLevelState() {
   sceneProgress = Math.max(
     0,
-    Math.min(1, (currentLevel - 1) / (SCENE_THEME_LEVEL_COUNT - 1))
+    Math.min(1, (currentLevel - 1) / (SKY_PROGRESS_LEVEL_COUNT - 1))
   );
   currentLevelTheme = typeof levelTheme !== "undefined" ? levelTheme : null;
 
@@ -1326,18 +1336,17 @@ function forEachVisibleCell(cellSize, parallax, fn) {
   }
 }
 
-// Farthest layer: a starfield that fades in as the backdrop climbs toward
-// deep cosmos — level 1 shows essentially none, matching a low-altitude
-// daylit-enough sky having no visible stars.
+// Farthest layer: a starfield that grows richer as the backdrop climbs
+// toward deep cosmos — a dim but real baseline is visible from level 1
+// onward (STAR_BASE_ALPHA) rather than a completely flat, empty sky at
+// the very start of the game; by level ~17 (see SKY_PROGRESS_LEVEL_COUNT)
+// it's ramped up to full brightness.
+const STAR_BASE_ALPHA = 0.3;
 function drawStarLayer(forceAlpha, denseVariant) {
-  // A visible floor (0.22) rather than fading all the way to zero at low
-  // sceneProgress — with SCENE_THEME_LEVEL_COUNT at 100, the old
-  // smoothstep(0.12, 0.65, ...) meant no stars at all until roughly level
-  // 12, and a sky that's just the cloud layer's soft color blobs reads as
-  // "smudged," not "cosmic." Still grows denser/brighter deeper in.
-  // Doesn't touch forceAlpha (the neon-background caller above always
-  // passes an explicit value and should keep working exactly as before).
-  const alpha = forceAlpha != null ? forceAlpha : Math.max(0.22, smoothstep(0.05, 0.7, sceneProgress));
+  const alpha =
+    forceAlpha != null
+      ? forceAlpha
+      : STAR_BASE_ALPHA + (1 - STAR_BASE_ALPHA) * smoothstep(0.12, 0.65, sceneProgress);
   if (alpha <= 0.01) return;
   ctx.save();
   ctx.fillStyle = "#ffffff";
@@ -1519,13 +1528,17 @@ function drawBackground() {
 // DRAWING
 // -------------------------------------------------------------
 // Draws the death animation in place of the normal player shape — see
-// triggerDeath()/updateDeathAnimation()'s comments. Rather than trying to
-// shrink/spin each skin's own shape in place (a square, a circle's roll,
-// a triangle's tumble, an image sprite all shrinking convincingly would
-// need real per-shape work), this shatters into a handful of small
-// skin-colored shards flying outward and fading — reads clearly as
-// "broke apart" regardless of the equipped skin's actual shape, using
-// that skin's own colors so it's still recognizably "you," the same
+// triggerDeath()/updateDeathAnimation()'s comments. Splits the player's
+// own 25x25 hitbox into four quadrant-sized chunks (rather than a ring of
+// many small uniform shards, which read as a confetti/firework burst
+// instead of the character itself coming apart) and flies each one off in
+// its own quadrant's diagonal direction, independently spinning — reads
+// as "you broke into pieces," not a decorative particle effect, and at
+// this scale (a quarter of the actual hitbox each) still reads
+// recognizably as fragments of a small square-ish body regardless of the
+// equipped skin's real shape (a circle's roll, a triangle's tumble, an
+// image sprite would all need real per-shape shatter work to do properly
+// in place). Colors come from the equipped skin's fill/stroke, same
 // "looks at least a little different per skin without a wholly separate
 // effect per one" reasoning the portal-suck animation already uses.
 function drawDeathAnimation() {
@@ -1538,29 +1551,34 @@ function drawDeathAnimation() {
   ctx.translate(deathAnimX - cameraOffsetX, deathAnimY - cameraOffsetY);
   ctx.globalAlpha = alpha;
 
-  const shardCount = 6;
-  const spread = 18 + t * 30;
-  const size = (1 - t * 0.6) * 10;
-  for (let i = 0; i < shardCount; i++) {
-    // A slight per-shard distance variety (not a perfect ring) so the
-    // burst reads as debris, not a spinning geometric decoration.
-    const angle = (i / shardCount) * Math.PI * 2 + deathSpinAngle;
-    const dist = spread * (0.65 + (i % 3) * 0.18);
+  const travel = 8 + t * 26;
+  const chunkSize = (player.width / 2) * (1 - t * 0.25); // shrinks only a little — stays chunky, not confetti-small
+  const QUADRANTS = [
+    { dx: -1, dy: -1, spin: 1 },
+    { dx: 1, dy: -1, spin: -1 },
+    { dx: -1, dy: 1, spin: -1 },
+    { dx: 1, dy: 1, spin: 1 },
+  ];
+  QUADRANTS.forEach((q, i) => {
     ctx.save();
-    ctx.translate(Math.cos(angle) * dist, Math.sin(angle) * dist);
-    ctx.rotate(angle + deathSpinAngle * 1.5);
+    // A little per-chunk gravity drift (t*t, so it accelerates like the
+    // player's own fall does) on top of the outward diagonal travel, and
+    // a slightly different spin rate per chunk so they don't all rotate
+    // in lockstep.
+    ctx.translate(q.dx * travel, q.dy * travel + t * t * 16);
+    ctx.rotate(q.spin * deathSpinAngle * (0.8 + i * 0.1));
     ctx.fillStyle = skin.fill || "rgba(160,66,211,0.85)";
     ctx.strokeStyle = skin.stroke || "rgba(220,200,255,0.9)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.rect(-size / 2, -size / 2, size, size);
+    ctx.rect(-chunkSize / 2, -chunkSize / 2, chunkSize, chunkSize);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
-  }
+  });
 
   // A quick red flash right at the moment of impact, fading much faster
-  // than the shards themselves — distinct "damage" beat at the very start
+  // than the chunks themselves — distinct "damage" beat at the very start
   // of the animation rather than lingering the whole way through it.
   const flashAlpha = Math.max(0, 1 - t * 3) * 0.5;
   if (flashAlpha > 0) {
@@ -2743,10 +2761,13 @@ function updatePlayer(dtScale) {
   // touch (see triggerDeath()), this isn't a single instant of contact —
   // nothing stops the player from just continuing to fall, so the death
   // itself is held off an extra VOID_FALL_MARGIN past the edge first (see
-  // triggerVoidDeath()), long enough to actually read as falling into the
-  // void and vanishing rather than an instant cut the moment they cross
-  // the bottom edge.
-  const VOID_FALL_MARGIN = viewportHeight * 0.4;
+  // triggerVoidDeath()), just enough to clear the visible area (accounting
+  // for camera lag) before teleporting rather than an instant cut the
+  // moment they cross the bottom edge — kept fairly small on purpose,
+  // since void falls are common enough (missing any gap does it) that a
+  // long wait here reads as sluggish, not weighty, the way a rarer hazard
+  // death can afford to.
+  const VOID_FALL_MARGIN = viewportHeight * 0.15;
   if (player.y - cameraOffsetY > viewportHeight + VOID_FALL_MARGIN) {
     triggerVoidDeath();
   }

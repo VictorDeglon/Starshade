@@ -26,7 +26,7 @@ body {
     font-size: 22px;
     padding: 12px 25px;
     border: 2px solid #4d3f91;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     color: #dcd4ff;
     border-radius: 12px;
     cursor: pointer;
@@ -81,7 +81,7 @@ body {
     width: 100%;
     padding: 10px;
     border: 2px solid #4d3f91;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     color: #dcd4ff;
     border-radius: 8px;
     font-family: 'Almendra Display', serif;
@@ -96,7 +96,7 @@ body {
   button.edit-button {
     padding: 8px 20px;
     border: 2px solid #4d3f91;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     color: #dcd4ff;
     border-radius: 10px;
     cursor: pointer;
@@ -167,7 +167,7 @@ body {
   .contact-form input, .contact-form textarea {
     width: 100%;
     padding: 12px;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     border: 2px solid #4d3f91;
     border-radius: 8px;
     color: #dcd4ff;
@@ -184,7 +184,7 @@ body {
     font-size: 18px;
     padding: 12px 25px;
     border: 2px solid #4d3f91;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     color: #dcd4ff;
     border-radius: 12px;
     cursor: pointer;
@@ -222,7 +222,7 @@ body {
     font-size: 22px;
     padding: 12px 25px;
     border: 2px solid #4d3f91;
-    background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+    background: #1e0f3f;
     color: #dcd4ff;
     border-radius: 12px;
     cursor: pointer;

@@ -25,7 +25,7 @@
   flex: 1 1 auto;
   padding: 10px 14px;
   border: 2px solid #4d3f91;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #b7a0ff;
   border-radius: 10px;
   cursor: pointer;
@@ -126,7 +126,7 @@
 }
 
 .shop-subtab.active {
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #dcd4ff;
 }
 
@@ -149,7 +149,7 @@
   height: 44px;
   border-radius: 50%;
   border: 2px solid #4d3f91;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #dcd4ff;
   font-size: 1.2rem;
   cursor: pointer;
@@ -284,7 +284,7 @@
   font-size: 0.95rem;
   padding: 9px 20px;
   border: 2px solid #4d3f91;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #dcd4ff;
   border-radius: 10px;
   cursor: pointer;
@@ -374,7 +374,7 @@
   height: 36px;
   border: 2px solid #4d3f91;
   border-radius: 8px;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   cursor: pointer;
 }
 
@@ -382,7 +382,7 @@
   padding: 8px 10px;
   border: 2px solid #4d3f91;
   border-radius: 8px;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #dcd4ff;
   font-family: "Cinzel", serif;
 }
@@ -396,7 +396,7 @@
   width: 36px;
   height: 36px;
   border: 2px solid #4d3f91;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   border-radius: 8px;
   cursor: pointer;
 }
@@ -422,7 +422,7 @@
   padding: 6px 12px;
   border: 2px solid #4d3f91;
   border-radius: 999px;
-  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
+  background: #1e0f3f;
   color: #dcd4ff;
   font-size: 0.78rem;
   cursor: pointer;
