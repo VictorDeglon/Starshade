@@ -313,7 +313,7 @@ const STARSHADE_ABILITIES = [
     unlockType: "coins",
     cost: 340,
     ability: "sureGrip",
-    description: "Wall Cling refreshes both air jumps instead of one (needs Wall Cling equipped too).",
+    description: "Jumping off a wall you're clinging to gives a real kick away from it (needs Wall Cling equipped too).",
     icon: "grip",
   },
   {
@@ -472,7 +472,7 @@ const STARSHADE_POWERUPS = [
     unlockType: "coins",
     cost: 420,
     effect: "speedBonus",
-    description: "Bonus coins for clearing a level in good time.",
+    description: "+15 coins for clearing a level without pausing once.",
     icon: "stopwatch",
   },
   {

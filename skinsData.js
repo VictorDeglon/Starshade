@@ -1025,11 +1025,26 @@ const StarshadeEconomy = (() => {
     return getUnlockedIds(storageKey).includes(item.id);
   }
 
+  // Big Spender (power-up, shopData.js) — a 1-in-10 chance any Shop
+  // purchase partially refunds itself. Shared by unlockItemWithCoins below
+  // and unlockWithCoins (skins) further down rather than duplicated in
+  // shop.js, so it applies uniformly no matter which tab the purchase
+  // happened in. References getEquippedPowerUp(), defined further down in
+  // this same IIFE — safe since this only runs inside a function body,
+  // called well after the whole file has parsed.
+  function applyBigSpenderRefund(cost) {
+    const powerUp = getEquippedPowerUp();
+    if (powerUp && powerUp.effect === "bigSpender" && Math.random() < 0.1) {
+      addCoins(Math.round(cost * 0.3));
+    }
+  }
+
   function unlockItemWithCoins(item, storageKey) {
     if (item.unlockType !== "coins") return false;
     if (isItemUnlocked(item, storageKey)) return true;
     if (getCoins() < item.cost) return false;
     addCoins(-item.cost);
+    applyBigSpenderRefund(item.cost);
     const unlocked = getUnlockedIds(storageKey);
     unlocked.push(item.id);
     localStorage.setItem(storageKey, JSON.stringify(unlocked));
@@ -1143,6 +1158,9 @@ const StarshadeEconomy = (() => {
       stroke: config.stroke,
       glow: config.glow,
       trail: !!config.trail,
+      outlineWidth: config.outlineWidth || 3,
+      glowPulse: !!config.glowPulse,
+      accessory: config.accessory || "accessory-none",
       custom: true,
     };
     const existingIndex = skins.findIndex((s) => s.id === id);
@@ -1191,6 +1209,7 @@ const StarshadeEconomy = (() => {
     if (isUnlocked(skin)) return true;
     if (getCoins() < skin.cost) return false;
     addCoins(-skin.cost);
+    applyBigSpenderRefund(skin.cost);
     const unlocked = getUnlockedSkinIds();
     unlocked.push(skin.id);
     localStorage.setItem(UNLOCKED_KEY, JSON.stringify(unlocked));

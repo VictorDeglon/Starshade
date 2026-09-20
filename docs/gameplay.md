@@ -238,7 +238,33 @@ a `particles` array (gravity, velocity, a life counter), updated in
 - **Skin trails** — skins that declare `trail: true` in `skinsData.js`
   (Comet, Void Walker, Eclipse, Obsidian Wraith, Starshade Prime) spawn a
   faint particle in their own fill color every frame the player is moving
-  or airborne, for a continuous motion trail.
+  or airborne, for a continuous motion trail — this is the fallback used
+  only when nothing's equipped from the Shop's Particles tab below.
+
+**Particles tab (Shop)**: `shopData.js`'s `STARSHADE_PARTICLES` — 12
+trails total, unlocked/equipped via `StarshadeEconomy.isParticleUnlocked()`/
+`unlockParticleWithCoins()`/`getEquippedParticleId()`/
+`setEquippedParticleId()`, taking priority over — and overriding — a
+skin's own `trail: true` the instant one's equipped. Each entry has a
+`behavior` field, not just different `colors` — a plain recolor of the
+same drifting puff isn't a distinct trail. `spawnTrailParticle(x, y,
+style)` (`game.js`) is the one call site that tags a particle with its
+style's behavior; `updateParticles()`/`drawParticles()` branch on it:
+
+- `drift` — the original behavior, no special-casing (Embers, Frost).
+- `spiral` — orbits its spawn point while drifting outward, via a
+  tangential velocity component each frame (Nebula Dust, Void Trail).
+- `zigzag` — oscillates perpendicular to its velocity on a sine (Verdant
+  Spark).
+- `sway` — a gentler, slower side-to-side drift (Blossom Drift, Aurora
+  Veil).
+- `pulse` — the particle's own size breathes in and out over its
+  lifetime, at draw time (Toxic Bloom).
+- `burst`/`streak`/`sparkle` — spawn-parameter and draw-shape variants
+  (faster/shorter for burst and streak; streak draws a trailing line back
+  along velocity instead of a dot; sparkle draws a twinkling 4-point star)
+  rather than a trajectory change (Solar Flare/Ember Storm; Comet Streak;
+  Starlight Sparkle).
 
 ## Moving platforms
 
@@ -400,23 +426,62 @@ a `StarshadeEconomy` object backed by `localStorage`:
   same skin" rather than an arbitrary clash. A fixed PRNG seed makes
   re-running it reproduce the same 50 skins rather than a fresh random
   set each time.
-- **Shop** (`skins.html`/`skins.js`): a carousel showing lock state
-  (a real SVG lock icon over a dimmed-but-still-visible preview — see
-  `LOCK_ICON_SVG` — not a hidden silhouette), a rarity badge, cost or
-  unlock text, and a Buy/Equip/Equipped/Locked button per skin, plus the
-  current coin balance. The dot-navigation strip wraps onto several rows
-  and caps its width now that there are 60+ skins — a plain unbroken flex
-  row that wide would silently overflow off both edges of any viewport.
+- **Shop** (`shop.js`/`shop.css`/`shopData.js`, opened as an overlay from
+  the pause menu or main hub — the whole app is a single-page overlay
+  shell, see docs/architecture.md): a grid rather than the old
+  one-at-a-time carousel, showing lock state (a real SVG lock icon over a
+  dimmed-but-still-visible preview — see `LOCK_ICON_SVG` — not a hidden
+  silhouette), a rarity badge, cost or unlock text, and a Buy/Equip/
+  Equipped/Locked button per skin, plus the current coin balance (also
+  mirrored in a persistent top-right coin HUD during gameplay — see
+  `updateCoinHud()` in `game.js`). Three more tabs sit alongside Skins —
+  Particles (above), Skills, and Power-Ups (both below) — each a
+  `shopData.js` catalog read through matching `StarshadeEconomy` accessors.
 
-## Abilities
+## Custom skin builder
+
+A second sub-tab under the Shop's Skins tab, alongside the premade
+gallery: pick a shape (square/circle/triangle), a center/border/glow
+color, an outline thickness, and an accessory (crown/halo/wings/visor/
+horns/aura ring — `shopData.js`'s `STARSHADE_ACCESSORIES`), with a live
+preview. `StarshadeEconomy.saveCustomSkin()` stores the result in its own
+`starshadeCustomSkins` localStorage list (always `unlockType: "free"` —
+nothing to unlock, you built it); `getEquippedSkin()` checks this list
+before falling back to `STARSHADE_SKINS`. Two things worth knowing if
+you're touching this:
+
+- **The triangle preview used to be invisible.** `.shape-triangle` in
+  `shop.css` forced `background-color: transparent !important` on top of
+  its own `clip-path` — the clip already constrains the visible area on
+  its own, so the override left every triangle skin (premade or custom)
+  rendering as nothing but a drop-shadow outline, no actual fill color
+  ever showing, in both the shop grid and the builder's single preview.
+  Fixed by removing the override; the clip-path was also widened (2%
+  inset instead of 4%) so a triangle reads closer to "as big as the
+  square" as its shape allows.
+- **`drawPlayer()` (`game.js`) needed zero changes** to render a custom
+  skin — it never validated that an equipped skin came from the built-in
+  catalog, only that it has `.shape`/`.fill`/`.stroke`/`.glow`. It *does*
+  read two more optional fields a custom skin can set that a premade one
+  never does: `outlineWidth` (replaces the flat `3` line width) and
+  `glowPulse` (a breathing `ctx.shadowBlur` around the whole shape).
+  Accessories draw in a separate, un-rotated pass right after
+  `drawPlayer()`'s own `ctx.restore()` (`drawSkinAccessory()`) — a
+  crown/halo staying upright regardless of whether the equipped shape is
+  mid-tumble is what makes it read as "worn on top of," not as another
+  spinning part of the player.
+
+## Skills (Shop tab) & the Abilities system
 
 A skin's `ability` field (`skinsData.js`) grants a gameplay perk on top
 of its cosmetic look — `game.js` checks
-`StarshadeEconomy.getEquippedSkin().ability` at the relevant point in the
-physics loop. Every default/cosmetic-only skin has no `ability` at all
-and plays identically to how the game always has; these only ever add
-capability, never take any away, so no existing level's completability
-assumptions change.
+`StarshadeEconomy.getEquippedAbility()` at the relevant point in the
+physics loop, which falls back to the equipped skin's own bundled
+`ability` when nothing's independently equipped from the Shop's Skills
+tab, so every skin's built-in ability keeps working unprompted. Every
+default/cosmetic-only skin has no `ability` at all and plays identically
+to how the game always has; these only ever add capability, never take
+any away, so no existing level's completability assumptions change.
 
 - **`dash`** — double-tap Left/Right (keyboard or the touch d-pad — see
   `onDirectionTap()`, called from both the keydown handler and
@@ -456,6 +521,127 @@ The four movement abilities (all but `bouncy`) are each on one legendary
 skin, and `bouncy` is on the one mythic skin — all five are
 `achievement`-unlocked rather than bought, meant to feel earned. See
 Achievements below.
+
+**20 more Skills**, all `coins`-unlocked in the Shop (`shopData.js`'s
+`STARSHADE_ABILITIES`), deliberately situational forgiveness/technique
+perks rather than another blanket capability upgrade like the old
+standalone `tripleJump` — none of them let a player skip past a gap or
+hazard sequence a level's design assumed was mandatory. Each is one small,
+real hook in `game.js`'s physics loop, following the exact pattern the
+original five set: `hasSkill(name)` (a `getEquippedAbility() === name`
+shorthand) gates it at the one specific point it applies.
+
+- **`coyoteTime`** — a jump still registers as the free grounded jump (not
+  an air jump) for a few frames after walking off a ledge
+  (`framesSinceGrounded`, checked in `tryJump()`).
+- **`fastFall`** — holding Down while airborne adds extra gravity, past
+  the apex zone — player-initiated, unlike `featherFall`'s automatic slow
+  fall (the two are opposites and can't usefully be equipped together).
+- **`ledgeSnap`** — landing within a few px of a platform's edge nudges
+  the player fully onto it instead of leaving them clipped half over the
+  side.
+- **`spikeCushion`** / **`checkpointReach`** — a few extra px of
+  forgiveness on spike hitboxes / checkpoint trigger radius, on top of the
+  existing difficulty/death-streak/touch leniency.
+- **`meltWard`** — melt platforms take ~40% longer to crumble.
+- **`ghostSense`** — ghost platforms' solid phase is 20% longer (only the
+  visible phase — the intangible one is untouched).
+- **`conveyorGrip`** — conveyor push force reduced ~35%.
+- **`bounceMaster`** — bounce pads launch ~15% higher.
+- **`sureGrip`** — jumping off a wall mid-cling gives a real horizontal
+  kick away from it (needs `sticky` equipped too — see
+  `isWallClinging`/`wallClingDirection` in `game.js`).
+- **`quietLanding`** — suppresses just the landing-specific camera punch
+  (below), not death's.
+- **`swiftRespawn`** — roughly halves the death-to-respawn animation delay.
+- **`extendedDash`** — Dash's burst lasts 50% longer (needs `dash`
+  equipped too).
+- **`highRoller`** — +1 coin every time a checkpoint is reached, not just
+  on level completion.
+- **`secondWind`** — the first death on a level doesn't count toward
+  hazard-slowdown leniency at all (`secondWindAvailable`, reset per level).
+- **`slingshot`** — see [Slingshot launch pads](#slingshot-launch-pads)
+  below.
+- **`precisionAir`** — 20% slower horizontal air speed in exchange for
+  tighter control while airborne.
+- **`warmStart`** — +15% speed for the first ~3 seconds of a level
+  (`levelFrameCount < 180`).
+- **`ironGrip`** — Wall Cling's slide is even slower, a near-static hang
+  (needs `sticky` equipped too).
+- **`adrenaline`** — a brief speed boost after landing from a genuinely
+  long fall (`incomingDy > ADRENALINE_LANDING_THRESHOLD` arms
+  `adrenalineTicks`, independent of which skill is actually equipped, so
+  switching to Adrenaline mid-session doesn't need a fresh qualifying fall).
+
+## Power-Ups (Shop tab)
+
+`shopData.js`'s `STARSHADE_POWERUPS` — 17 total, equipped one at a time
+via `StarshadeEconomy.getEquippedPowerUp()`/`hasPowerUp(name)`, same
+pattern as a Skill, but deliberately economy/comfort themed (coins,
+bonus payouts, softer failure) rather than movement technique, so the two
+tabs stay meaningfully different instead of overlapping:
+
+- **`extraAirJump`** / **`coinBoost`** — the original two: +1 air jump;
+  +50% coins per level completion.
+- **`deathlessBonus`** / **`noJumpBonus`** / **`speedBonus`** — a flat
+  +25/+25/+15 coin bonus on top of a level's normal payout for completing
+  it without dying / without an air jump / without pausing, checked in
+  `advanceToNextLevel()` against the same `leveldiedThisAttempt`/
+  `usedExtraJumpThisAttempt`/`pausedThisAttempt` flags the "weird"
+  achievements already track.
+- **`warmWelcome`** — doubles only the very first level to pay out coins
+  in a page session (`hasEarnedCoinsThisSession`), not every level after.
+- **`achievementBooster`** — +20% coins specifically from achievement
+  payouts (`achievementsData.js`'s `checkAll()`, not `advanceToNextLevel()`).
+- **`safetyLine`** — more checkpoint radius, stacking with the `skill`
+  equivalent since one's a Skill and one's a Power-Up.
+- **`comfortShake`** / **`momentumShield`** — cut all screen shake
+  intensity by 70%/50%, applied once at the point shake actually renders
+  in `draw()` rather than at every `shakeMagnitude` assignment site — a
+  softer middle ground than the Settings page's blunt on/off toggle.
+- **`dashRecharge`** — a more forgiving double-tap window for triggering
+  Dash.
+- **`featherBoost`** — Featherfall's slow-fall effect is stronger (needs
+  `featherFall` equipped too).
+- **`slingshotPower`** — +25% max power on every slingshot launch, pad or
+  Skill.
+- **`goldenTouch`** — +5 flat coins on every level-completion *and*
+  achievement payout.
+- **`luckyCharm`** — a 1-in-10 chance to double any single bonus payout
+  (stacks with `goldenTouch`).
+- **`bigSpender`** — a 1-in-10 chance any Shop purchase (skin, particle,
+  skill, or power-up) partially refunds itself —
+  `applyBigSpenderRefund()` in `skinsData.js`, shared by every
+  `unlock*WithCoins()` function so it applies uniformly regardless of
+  which tab the purchase happened in.
+- **`streakInsurance`** — deaths count for half toward hazard-slowdown
+  leniency instead of a full point.
+
+## Slingshot launch pads
+
+An Angry-Birds-style aim-and-launch mechanic — `window.slingshots`, a
+per-level entity array declared in `levelN.js` exactly like
+`spikes`/`checkpoints` (`{ x, y, width, height, maxPower }`). Standing on
+solid ground within a pad's footprint (a plain proximity check against
+the player's feet in `updatePlayer()`, not real collision) arms it.
+Dragging on the canvas while armed — mouse or touch, both wired to
+`startSlingshotAim()`/`moveSlingshotAim()`/`releaseSlingshotAim()` —
+previews a pull-back band plus a dashed forward-trajectory arc (a cheap
+step-by-step forward simulation using the same `gravity` constant the
+real physics loop uses), and releasing launches the player:
+`player.dx`/`player.dy` are set directly opposite the drag vector, scaled
+by drag distance up to the pad's `maxPower`. Modeled after the dash
+ability, not the portal-suck canned-animation pattern: a launch just sets
+velocity once and lets `resolveAxis()`'s normal gravity/collision keep
+running afterward.
+
+The **Slingshot skill** (Shop, Skills tab) generalizes the mechanic past
+real pads entirely: while equipped, standing anywhere on solid ground arms
+a synthetic pad recomputed at the player's exact position every frame
+(`{ virtual: true, ... }` in `updatePlayer()`'s `playerOnSlingshot`
+assignment) — a real level pad still takes priority when both are
+present. Level 3 has one real pad, purely as an optional shortcut over its
+first deadly platform.
 
 ## Achievements
 

@@ -87,6 +87,55 @@ function extraAirJumps() {
   return powerUp && powerUp.effect === "extraAirJump" ? base + 1 : base;
 }
 
+// Shorthand for the two most common checks the 20 new Skills/15 new
+// Power-Ups below make — every one of them is either "is this exact
+// ability equipped" or "is this exact power-up equipped", so this saves
+// re-spelling StarshadeEconomy.getEquippedAbility()/getEquippedPowerUp()
+// at each of the ~30 call sites.
+function hasSkill(name) {
+  return StarshadeEconomy.getEquippedAbility() === name;
+}
+function hasPowerUp(name) {
+  const p = StarshadeEconomy.getEquippedPowerUp();
+  return !!p && p.effect === name;
+}
+
+// How many frames since the player was last actually grounded — Coyote
+// Time (shopData.js) uses this to let a jump pressed just after walking
+// off a ledge still register as the normal grounded jump (not consuming
+// an air jump) rather than requiring frame-perfect timing. Reset to 0
+// every frame the player IS grounded, incremented every frame they
+// aren't — see updatePlayer()/tryJump().
+let framesSinceGrounded = 0;
+const COYOTE_TIME_FRAMES = 7;
+
+// Set every frame inside the sticky wall-cling check in updatePlayer() —
+// Sure Grip (skill) reads these in tryJump() to give a kick away from the
+// wall on jump, on top of whatever Wall Cling itself already does.
+let isWallClinging = false;
+let wallClingDirection = 0; // -1/1, the direction the player was pressing into the wall
+
+// Second Wind (shopData.js) — consumed on the first death per level
+// attempt, tracked separately from leveldiedThisAttempt (which persists
+// for achievement bookkeeping across the whole attempt) since this needs
+// to reset the instant it's used, not just at the next level load. Reset
+// in resetLevelState().
+let secondWindAvailable = true;
+
+// Adrenaline (shopData.js) — armed by a hard enough landing, grants a
+// brief speed boost while it counts down. Reset in resetLevelState().
+let adrenalineTicks = 0;
+const ADRENALINE_DURATION_TICKS = 90; // ~1.5s at 60fps
+const ADRENALINE_LANDING_THRESHOLD = 11; // incomingDy — a genuinely long fall, not just any hop
+
+// Quick Clear Bonus (power-up) — true the moment the pause menu opens
+// during this level attempt; reset in resetLevelState(). Warm Welcome
+// (power-up) — true once any level has paid out coins this page session,
+// so only the very first one gets doubled, not every level after a
+// browser refresh resets progress.
+let pausedThisAttempt = false;
+let hasEarnedCoinsThisSession = false;
+
 // Dash ability — a double-tap of Left/Right (keyboard or the touch d-pad,
 // see onDirectionTap() below) fires a short, fast burst in that direction
 // for any skin with `ability: "dash"`. A no-op for every other skin, and
@@ -103,11 +152,18 @@ function onDirectionTap(direction) {
   if (isPaused || isFading || isDying) return;
   if (StarshadeEconomy.getEquippedAbility() !== "dash") return;
   const now = Date.now();
+  // Dash Recharge (power-up) widens the double-tap window; Extended Dash
+  // (skill) lengthens the burst itself once triggered — two independent
+  // knobs on the same base mechanic, matching how a real "upgrade" pair
+  // usually splits into "easier to trigger" vs. "stronger once triggered."
+  const doubleTapWindow = DASH_DOUBLE_TAP_WINDOW_MS + (hasPowerUp("dashRecharge") ? 150 : 0);
   if (
     dashTimeRemaining <= 0 &&
-    now - lastDirectionTapAt[direction] < DASH_DOUBLE_TAP_WINDOW_MS
+    now - lastDirectionTapAt[direction] < doubleTapWindow
   ) {
-    dashTimeRemaining = DASH_DURATION_TICKS;
+    dashTimeRemaining = hasSkill("extendedDash")
+      ? Math.round(DASH_DURATION_TICKS * 1.5)
+      : DASH_DURATION_TICKS;
     dashDirection = direction === "right" ? 1 : -1;
     vibrateHaptic(20);
     spawnParticles(player.x, player.y, 10, {
@@ -386,10 +442,29 @@ function spawnConvergingParticles(targetX, targetY, count, colors) {
   }
 }
 
+// A trail particle's optional `behavior` (set by spawnTrailParticle()
+// below, never by the death/dust/checkpoint bursts above, which don't set
+// it and just fall through to the plain default motion/circle) drives a
+// little extra per-frame motion here, on top of the same gravity+velocity
+// integration every particle already gets — "spiral"/"zigzag"/"sway" are
+// real trajectory changes, not just a different color, which is the
+// whole point of the Shop's Particles tab having genuinely distinct
+// trails instead of 12 recolors of the same drifting puff.
 function updateParticles(dtScale) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.vy += p.gravity * dtScale;
+    if (p.behavior === "spiral") {
+      const tangentX = -Math.sin(p.seedAngle);
+      const tangentY = Math.cos(p.seedAngle);
+      p.vx += tangentX * 0.15 * dtScale;
+      p.vy += tangentY * 0.15 * dtScale;
+      p.seedAngle += 0.12 * dtScale;
+    } else if (p.behavior === "zigzag") {
+      p.x += Math.sin((p.maxLife - p.life) * 0.5) * 1.2 * dtScale;
+    } else if (p.behavior === "sway") {
+      p.x += Math.sin((p.maxLife - p.life) * 0.2 + p.seedAngle) * 0.6 * dtScale;
+    }
     p.x += p.vx * dtScale;
     p.y += p.vy * dtScale;
     p.life -= dtScale;
@@ -401,12 +476,64 @@ function drawParticles() {
   particles.forEach((p) => {
     ctx.save();
     ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x - cameraOffsetX, p.y - cameraOffsetY, p.size, 0, Math.PI * 2);
-    ctx.fill();
+    const sx = p.x - cameraOffsetX;
+    const sy = p.y - cameraOffsetY;
+    if (p.behavior === "streak") {
+      // A short trailing line back along the velocity vector instead of a
+      // dot — reads as a fast-moving comet streak rather than a puff.
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = p.size * 0.7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx - p.vx * 2.5, sy - p.vy * 2.5);
+      ctx.stroke();
+    } else if (p.behavior === "sparkle") {
+      // A 4-point star instead of a circle, twinkling in size.
+      const twinkle = 0.6 + 0.4 * Math.sin((p.maxLife - p.life) * 0.6 + p.seedAngle);
+      const r = p.size * twinkle;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - r);
+      ctx.lineTo(sx + r * 0.3, sy - r * 0.3);
+      ctx.lineTo(sx + r, sy);
+      ctx.lineTo(sx + r * 0.3, sy + r * 0.3);
+      ctx.lineTo(sx, sy + r);
+      ctx.lineTo(sx - r * 0.3, sy + r * 0.3);
+      ctx.lineTo(sx - r, sy);
+      ctx.lineTo(sx - r * 0.3, sy - r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      const pulseScale = p.behavior === "pulse" ? 0.7 + 0.3 * Math.sin((p.maxLife - p.life) * 0.4) : 1;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.size * pulseScale, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   });
+}
+
+// Spawns exactly one trail particle carrying an equipped particle style's
+// `behavior` (shopData.js's STARSHADE_PARTICLES) — spawnParticles() above
+// stays generic/behavior-agnostic (every other caller — dust, death,
+// checkpoint bursts — never sets one), this is the one call site that
+// tags the particle it just made so updateParticles()/drawParticles()
+// know which extra motion/shape to apply.
+function spawnTrailParticle(x, y, style) {
+  const behavior = style.behavior || "drift";
+  const spawnOptions = { colors: style.colors, life: 18, size: 4, gravity: 0, spread: Math.PI * 2, speed: 0.3 };
+  if (behavior === "burst") Object.assign(spawnOptions, { speed: 1.3, size: 3, life: 16 });
+  else if (behavior === "streak") Object.assign(spawnOptions, { speed: 1.8, size: 2.2, life: 14 });
+  else if (behavior === "sparkle") Object.assign(spawnOptions, { speed: 0.15, size: 3.5, life: 26 });
+  else if (behavior === "pulse") Object.assign(spawnOptions, { speed: 0.1, size: 5, life: 26 });
+  spawnParticles(x, y, 1, spawnOptions);
+  const p = particles[particles.length - 1];
+  if (p) {
+    p.behavior = behavior;
+    p.seedAngle = Math.random() * Math.PI * 2;
+  }
 }
 
 // Fade settings — direction 1 = fading to black, -1 = fading back in,
@@ -843,6 +970,12 @@ function resetLevelState() {
   playerOnSlingshot = null;
   slingshotAim = null;
   slingshotRecoveryTicks = 0;
+  framesSinceGrounded = 0;
+  isWallClinging = false;
+  wallClingDirection = 0;
+  secondWindAvailable = true;
+  adrenalineTicks = 0;
+  pausedThisAttempt = false;
   // The player starts standing on the level's opening platform, not
   // airborne — wasGrounded is what tryJump() actually checks for "can
   // take a fresh (non-double) jump," so this needs to be true from frame
@@ -984,11 +1117,43 @@ function advanceToNextLevel() {
   // "Coin Boost" power-up (see shopData.js's STARSHADE_POWERUPS) — a
   // persistent perk while equipped, not a one-time consumable, so it
   // applies to every level completion for as long as it stays equipped.
-  const equippedPowerUp = StarshadeEconomy.getEquippedPowerUp();
-  if (coinsEarned > 0 && equippedPowerUp && equippedPowerUp.effect === "coinBoost") {
+  if (coinsEarned > 0 && hasPowerUp("coinBoost")) {
     const bonus = Math.round(coinsEarned * 0.5);
     StarshadeEconomy.addCoins(bonus);
     coinsEarned += bonus;
+  }
+  // Warm Welcome — doubles only the very first level to pay out coins
+  // this page session (a fresh Play, not every level thereafter).
+  if (coinsEarned > 0 && hasPowerUp("warmWelcome") && !hasEarnedCoinsThisSession) {
+    StarshadeEconomy.addCoins(coinsEarned);
+    coinsEarned *= 2;
+  }
+  if (coinsEarned > 0) hasEarnedCoinsThisSession = true;
+  // Clean Run Bonus / Grounded Bonus / Quick Clear Bonus — each an
+  // independent power-up, so only one can ever apply per completion (the
+  // player picked which one to equip), but they share the same "small
+  // flat bonus for a specific kind of clean clear" shape.
+  if (coinsEarned > 0 && hasPowerUp("deathlessBonus") && !leveldiedThisAttempt) {
+    StarshadeEconomy.addCoins(25);
+    coinsEarned += 25;
+  }
+  if (coinsEarned > 0 && hasPowerUp("noJumpBonus") && !usedExtraJumpThisAttempt) {
+    StarshadeEconomy.addCoins(25);
+    coinsEarned += 25;
+  }
+  if (coinsEarned > 0 && hasPowerUp("speedBonus") && !pausedThisAttempt) {
+    StarshadeEconomy.addCoins(15);
+    coinsEarned += 15;
+  }
+  // Golden Touch — a flat top-up on top of whatever else already applied.
+  // Lucky Charm — a flat 10% chance to double the whole payout outright.
+  if (coinsEarned > 0 && hasPowerUp("goldenTouch")) {
+    StarshadeEconomy.addCoins(5);
+    coinsEarned += 5;
+  }
+  if (coinsEarned > 0 && hasPowerUp("luckyCharm") && Math.random() < 0.1) {
+    StarshadeEconomy.addCoins(coinsEarned);
+    coinsEarned *= 2;
   }
   if (coinsEarned > 0) showCoinToast(`+${coinsEarned} Coins`);
   // "Weird" achievement bookkeeping — read the CURRENT level's per-attempt
@@ -1244,7 +1409,33 @@ function showCoinToast(text) {
   toast.classList.add("show");
   clearTimeout(coinToastTimeout);
   coinToastTimeout = setTimeout(() => toast.classList.remove("show"), 2500);
+  updateCoinHud();
 }
+
+// -------------------------------------------------------------
+// COIN HUD (persistent, top-right — see index.html's #coinHud)
+// -------------------------------------------------------------
+// Re-reads the live balance rather than tracking a delta — cheap, and
+// means it's always correct regardless of which of the many coin-earning
+// paths (level completion, bonus power-ups, achievements, a Shop
+// purchase) triggered the update. Exposed on window so shop.js (a
+// separate classic script — see its own top comment) can call it too
+// after a purchase, alongside its own in-overlay balance display.
+function updateCoinHud() {
+  const el = document.getElementById("coin-hud-value");
+  if (!el) return;
+  const newValue = StarshadeEconomy.getCoins();
+  const changed = el.textContent !== String(newValue);
+  el.textContent = newValue;
+  if (changed) {
+    const hud = document.getElementById("coinHud");
+    hud.classList.remove("bump");
+    void hud.offsetWidth; // restart the CSS animation even if it's still mid-play
+    hud.classList.add("bump");
+  }
+}
+window.updateCoinHud = updateCoinHud;
+updateCoinHud();
 
 // -------------------------------------------------------------
 // SKIN RENDERING
@@ -1781,7 +1972,10 @@ function drawPlayer() {
   const skin = StarshadeEconomy.getEquippedSkin();
   const halfW = player.width / 2;
   const halfH = player.height / 2;
-  const lineWidth = 3;
+  // Custom skins (see skinsData.js's saveCustomSkin()) can set their own
+  // outline thickness; every premade STARSHADE_SKINS entry has no
+  // `outlineWidth` field at all and keeps the original flat 3.
+  const lineWidth = skin.outlineWidth || 3;
 
   ctx.save();
   ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
@@ -1796,6 +1990,15 @@ function drawPlayer() {
     drawImageSkin(skin, halfW, lineWidth);
     ctx.restore();
     return;
+  }
+
+  // Glow Pulse (custom skin builder option) — a soft, breathing shadow
+  // blur around the whole shape, the same shadowBlur technique neon-theme
+  // platforms already use elsewhere in this file, just oscillating rather
+  // than constant so it actually reads as "pulsing," not just "glowing."
+  if (skin.glowPulse) {
+    ctx.shadowColor = skin.glow || skin.fill || "#a042d3";
+    ctx.shadowBlur = 10 + Math.sin(Date.now() / 400) * 6;
   }
 
   ctx.fillStyle = skin.fill;
@@ -1886,6 +2089,101 @@ function drawPlayer() {
       player.width - lineWidth,
       player.height - lineWidth
     );
+  }
+
+  ctx.restore();
+
+  if (skin.accessory && skin.accessory !== "accessory-none") {
+    drawSkinAccessory(skin);
+  }
+}
+
+// Custom skin builder accessories (shopData.js's STARSHADE_ACCESSORIES,
+// picked in the Skins tab's Custom Builder sub-tab — see shop.js). Drawn
+// in a fresh, un-rotated context (after drawPlayer()'s own
+// ctx.restore()) rather than inside the shape-rotation transform above —
+// a crown/halo staying visually upright regardless of whether the
+// equipped shape happens to be mid-tumble reads as "worn on top of" the
+// player, not as another rotating part of it.
+function drawSkinAccessory(skin) {
+  const halfH = player.height / 2;
+  const glow = skin.glow || skin.fill || "#a042d3";
+  ctx.save();
+  ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
+  ctx.strokeStyle = skin.stroke || "#5d1a91";
+  ctx.fillStyle = glow;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (skin.accessory === "accessory-crown") {
+    const top = -halfH - 4;
+    ctx.beginPath();
+    ctx.moveTo(-8, top);
+    ctx.lineTo(-8, top - 7);
+    ctx.lineTo(-4, top - 2);
+    ctx.lineTo(0, top - 9);
+    ctx.lineTo(4, top - 2);
+    ctx.lineTo(8, top - 7);
+    ctx.lineTo(8, top);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (skin.accessory === "accessory-halo") {
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.ellipse(0, -halfH - 10, 8, 3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else if (skin.accessory === "accessory-wings") {
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(-halfH * 0.3, 0);
+    ctx.quadraticCurveTo(-halfH - 10, -6, -halfH - 6, 6);
+    ctx.quadraticCurveTo(-halfH - 2, 2, -halfH * 0.3, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(halfH * 0.3, 0);
+    ctx.quadraticCurveTo(halfH + 10, -6, halfH + 6, 6);
+    ctx.quadraticCurveTo(halfH + 2, 2, halfH * 0.3, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  } else if (skin.accessory === "accessory-visor") {
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-9, -3, 18, 5, 2) : ctx.rect(-9, -3, 18, 5);
+    ctx.fill();
+    ctx.stroke();
+  } else if (skin.accessory === "accessory-horns") {
+    const top = -halfH - 2;
+    ctx.beginPath();
+    ctx.moveTo(-7, top);
+    ctx.quadraticCurveTo(-10, top - 8, -5, top - 9);
+    ctx.quadraticCurveTo(-6, top - 3, -4, top);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(7, top);
+    ctx.quadraticCurveTo(10, top - 8, 5, top - 9);
+    ctx.quadraticCurveTo(6, top - 3, 4, top);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (skin.accessory === "accessory-aura") {
+    // A slow pulsing dashed ring — the one accessory that's animated
+    // rather than static, since "an aura" reads as inert otherwise.
+    const pulse = 1 + Math.sin(Date.now() / 500) * 0.08;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, (halfH + 8) * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   ctx.restore();
@@ -2221,7 +2519,7 @@ function drawSlingshots() {
   const dragDistance = Math.hypot(dx, dy);
   if (dragDistance <= 2) return;
 
-  const maxPower = playerOnSlingshot.maxPower || 22;
+  const maxPower = (playerOnSlingshot.maxPower || 22) * (hasPowerUp("slingshotPower") ? 1.25 : 1);
   const power = Math.min(maxPower, dragDistance * SLINGSHOT_POWER_SCALE);
   const originX = player.x - cameraOffsetX;
   const originY = player.y - cameraOffsetY;
@@ -2553,11 +2851,17 @@ function platformY(p) {
 // entirely while it's intangible, so standing on one the instant it flips
 // just means falling through — no special-casing needed there.
 function updateGhostPlatforms() {
+  // Ghost Sense (skill) — extends every ghost platform's solid phase by
+  // 20% of the cycle (not the intangible phase, which stays exactly as
+  // punishing) — real forgiveness for a mistimed jump without removing
+  // the platform's actual gating on the mandatory-gate levels (see
+  // docs/design-standards.md #3).
+  const ghostSenseBonus = hasSkill("ghostSense") ? 0.2 : 0;
   platforms.forEach((p) => {
     if (!p.ghost) return;
     const period = p.ghostPeriod || 180;
     const onFrames = Math.round(
-      period * (p.ghostOnRatio != null ? p.ghostOnRatio : 0.55)
+      period * ((p.ghostOnRatio != null ? p.ghostOnRatio : 0.55) + ghostSenseBonus)
     );
     const t = (levelFrameCount + (p.ghostPhase || 0)) % period;
     p._solid = t < onFrames;
@@ -2758,20 +3062,36 @@ function updatePlayer(dtScale) {
   // requires it; this only buys more time to react/course-correct on the
   // way down, deliberately weaker than the old tripleJump skill it
   // replaced (an unconditional extra jump could skip gaps outright).
-  const FEATHERFALL_GRAVITY_MULTIPLIER = 0.55;
-  if (
-    gravityMultiplier === 1 &&
-    player.dy > 0 &&
-    StarshadeEconomy.getEquippedAbility() === "featherFall"
-  ) {
+  const FEATHERFALL_GRAVITY_MULTIPLIER = hasPowerUp("featherBoost") ? 0.4 : 0.55;
+  if (gravityMultiplier === 1 && player.dy > 0 && hasSkill("featherFall")) {
     gravityMultiplier = FEATHERFALL_GRAVITY_MULTIPLIER;
+  }
+  // Fast Fall (skill) — an intentional, player-held descent boost (Down
+  // key), not automatic like Featherfall's is — the two are opposites by
+  // design and can't usefully be equipped together, but nothing stops a
+  // player from owning both and picking per level.
+  if (gravityMultiplier === 1 && player.dy > 0 && hasSkill("fastFall") && (keys["ArrowDown"] || keys["s"] || keys["S"])) {
+    gravityMultiplier = 1.4;
   }
   player.dy += gravity * gravityMultiplier * dtScale;
 
+  // Warm Start (skill) — a fading speed bonus for the first ~3 seconds of
+  // a level. Adrenaline (skill) — a flat bonus for a couple seconds after
+  // recovering from a long fall (armed on landing, see below). Precision
+  // Air (skill) — trades some top speed for tighter control while
+  // airborne, so it can't just stack additively with the other two the
+  // same way; it only ever applies alone, and only in the air.
+  let speedMultiplier = 1;
+  if (hasSkill("warmStart") && levelFrameCount < 180) speedMultiplier *= 1.15;
+  if (hasSkill("adrenaline") && adrenalineTicks > 0) speedMultiplier *= 1.15;
+  if (adrenalineTicks > 0) adrenalineTicks -= dtScale;
+  if (hasSkill("precisionAir") && wasGrounded === false) speedMultiplier *= 0.8;
+  const effectiveHorizontalSpeed = horizontalSpeed * speedMultiplier;
+
   const targetDx = anyPressed("right")
-    ? horizontalSpeed
+    ? effectiveHorizontalSpeed
     : anyPressed("left")
-    ? -horizontalSpeed
+    ? -effectiveHorizontalSpeed
     : 0;
 
   if (slingshotRecoveryTicks > 0) {
@@ -2812,15 +3132,29 @@ function updatePlayer(dtScale) {
   // design places the pad's marker on top of an ordinary platform the
   // player already stands on normally, so nothing about resolveAxis()
   // needs to know slingshots exist at all.
+  // The Slingshot skill (shopData.js) turns every patch of solid ground
+  // into a launch pad — a synthetic pad recomputed at the player's exact
+  // current position each frame they're grounded, rather than a fixed
+  // level entity, so it always "arms" wherever they happen to be standing
+  // instead of needing a real window.slingshots entry underfoot. A real
+  // pad still takes priority when both are present (checked first) so
+  // drawSlingshots()'s trajectory preview reads off whichever the player
+  // is actually using.
   playerOnSlingshot = grounded
     ? (window.slingshots || []).find(
         (s) =>
           player.x + player.width / 2 > s.x &&
           player.x - player.width / 2 < s.x + s.width &&
           Math.abs(player.y + player.height / 2 - s.y) < 20
-      ) || null
+      ) ||
+      (hasSkill("slingshot")
+        ? { x: player.x - 20, y: player.y + player.height / 2, width: 40, height: 1, maxPower: 22, virtual: true }
+        : null)
     : null;
   if (!playerOnSlingshot) slingshotAim = null;
+
+  if (!grounded) framesSinceGrounded += dtScale;
+  else framesSinceGrounded = 0;
 
   // A short window right after launch (mirrors dashTimeRemaining above)
   // where the player's own left/right input doesn't immediately fight the
@@ -2836,7 +3170,10 @@ function updatePlayer(dtScale) {
   // locking the player into one direction.
   const onConveyorNow = !!(grounded && groundedOn && groundedOn.conveyor);
   if (onConveyorNow) {
-    player.x += (groundedOn.conveyorSpeed || 0) * dtScale;
+    // Conveyor Grip (skill) — the push force is reduced, not removed;
+    // still a conveyor, just a much gentler one.
+    const conveyorMultiplier = hasSkill("conveyorGrip") ? 0.65 : 1;
+    player.x += (groundedOn.conveyorSpeed || 0) * conveyorMultiplier * dtScale;
     if (!wasOnConveyorLastFrame) StarshadeEconomy.recordConveyorRide();
   }
   wasOnConveyorLastFrame = onConveyorNow;
@@ -2848,9 +3185,15 @@ function updatePlayer(dtScale) {
   // instant they let go of the direction key (wallHit only fires while
   // actively trying to move into the wall — see resolveAxis()), so it
   // never turns into an accidental permanent stop mid-fall.
-  if (!grounded && wallHit && StarshadeEconomy.getEquippedAbility() === "sticky" && player.dy > 1.2) {
-    player.dy = 1.2;
+  isWallClinging = false;
+  if (!grounded && wallHit && hasSkill("sticky") && player.dy > 1.2) {
+    // Iron Grip (skill) slows the cling's own slide further — a genuinely
+    // static hang instead of a slow slide (needs Wall Cling equipped too,
+    // same "needs the base skill too" synergy Sure Grip/Extended Dash use).
+    player.dy = hasSkill("ironGrip") ? 0.4 : 1.2;
     airJumpsUsed = 0;
+    isWallClinging = true;
+    wallClingDirection = anyPressed("right") ? 1 : anyPressed("left") ? -1 : 0;
   }
 
   // An invisible ceiling pinned to the actual top of the screen — not
@@ -2877,7 +3220,10 @@ function updatePlayer(dtScale) {
     if (!p.melt || p._melted) return;
     if (groundedOn === p) {
       p._meltTimer = (p._meltTimer || 0) + dtScale;
-      if (p._meltTimer > (p.meltDelay || 28)) {
+      // Melt Ward (skill) — the platform still gives way eventually, just
+      // noticeably later, so lingering is still costly, just less punishing.
+      const effectiveMeltDelay = (p.meltDelay || 28) * (hasSkill("meltWard") ? 1.4 : 1);
+      if (p._meltTimer > effectiveMeltDelay) {
         p._melted = true;
         spawnParticles(
           platformX(p) + p.width / 2,
@@ -2939,16 +3285,40 @@ function updatePlayer(dtScale) {
       // the squash — the same shakeTime/shakeMagnitude death already uses
       // (see resetPlayer()), just much smaller, and still gated on the
       // existing Screen Shake setting via draw()'s screenShakeEnabled check.
-      if (landingForce > 0.5) {
+      // Quiet Landing (skill) suppresses just this landing-specific punch —
+      // comfort, not a buff — while death's own shake is untouched.
+      if (landingForce > 0.5 && !hasSkill("quietLanding")) {
         shakeTime = Math.max(shakeTime, 6);
         shakeMagnitude = Math.max(shakeMagnitude, 2 + landingForce * 2);
+      }
+      // Adrenaline (skill) arms on any genuinely long fall, whether or not
+      // Adrenaline itself is the equipped skill — cheap to always track,
+      // and means switching to Adrenaline mid-session doesn't need a fall
+      // that happened before it was equipped to "count" again.
+      if (incomingDy > ADRENALINE_LANDING_THRESHOLD) {
+        adrenalineTicks = ADRENALINE_DURATION_TICKS;
+      }
+      // Ledge Snap (skill) — landing close enough to a platform's edge
+      // nudges the player fully onto it instead of leaving them clipped
+      // half over the side, which usually just means falling right back
+      // off a frame later anyway.
+      if (hasSkill("ledgeSnap") && groundedOn) {
+        const LEDGE_SNAP_MARGIN = 6;
+        const platLeft = platformX(groundedOn);
+        const platRight = platLeft + groundedOn.width;
+        const halfW = player.width / 2;
+        if (player.x - halfW < platLeft && player.x - halfW > platLeft - LEDGE_SNAP_MARGIN) {
+          player.x = platLeft + halfW;
+        } else if (player.x + halfW > platRight && player.x + halfW < platRight + LEDGE_SNAP_MARGIN) {
+          player.x = platRight - halfW;
+        }
       }
       // Bouncy: rebounds a fraction of the incoming fall speed straight
       // back up instead of coming to rest, decaying with each successive
       // bounce until it's too small to trigger and the player finally
       // settles — a real, small bounce on landing, not just a visual
       // flourish.
-      if (StarshadeEconomy.getEquippedAbility() === "bouncy" && incomingDy > 3) {
+      if (hasSkill("bouncy") && incomingDy > 3) {
         player.dy = -incomingDy * 0.55;
       }
 
@@ -2956,9 +3326,11 @@ function updatePlayer(dtScale) {
       // player straight back up on contact, hard enough to clear a chunk of
       // extra height — a level's guaranteed path never depends on one (see
       // .claude/gen-levels.js), so this only ever opens up faster/higher
-      // optional routes, never gates progress.
+      // optional routes, never gates progress. Bounce Master (skill) adds
+      // a further 15% on top of whatever the pad itself already launches.
       if (groundedOn && groundedOn.bounce) {
-        player.dy = groundedOn.bounceStrength || BOUNCE_STRENGTH;
+        const bounceMultiplier = hasSkill("bounceMaster") ? 1.15 : 1;
+        player.dy = (groundedOn.bounceStrength || BOUNCE_STRENGTH) * bounceMultiplier;
         airJumpsUsed = 0;
         StarshadeEconomy.recordBouncePadUse();
         spawnParticles(player.x, player.y + player.height / 2, 12, {
@@ -2983,16 +3355,18 @@ function updatePlayer(dtScale) {
   // particle styles existed.
   const equippedParticleStyle = StarshadeEconomy.getEquippedParticleStyle();
   if ((equippedParticleStyle || equippedSkin.trail) && (player.dx !== 0 || player.dy !== 0)) {
-    spawnParticles(player.x, player.y, 1, {
-      colors: equippedParticleStyle
-        ? equippedParticleStyle.colors
-        : [equippedSkin.fill || "rgba(255,255,255,0.7)"],
-      speed: 0.3,
-      life: 18,
-      size: 4,
-      spread: Math.PI * 2,
-      gravity: 0,
-    });
+    if (equippedParticleStyle) {
+      spawnTrailParticle(player.x, player.y, equippedParticleStyle);
+    } else {
+      spawnParticles(player.x, player.y, 1, {
+        colors: [equippedSkin.fill || "rgba(255,255,255,0.7)"],
+        speed: 0.3,
+        life: 18,
+        size: 4,
+        spread: Math.PI * 2,
+        gravity: 0,
+      });
+    }
   }
 
   // Deadly — uses platformX()/platformY() rather than the raw x/y fields
@@ -3011,19 +3385,29 @@ function updatePlayer(dtScale) {
       triggerDeath();
     }
   });
-  // Checkpoints
+  // Checkpoints — Checkpoint Reach (skill) and Safety Line (power-up) each
+  // add a little more trigger radius on top of everything else (difficulty,
+  // death-streak leniency, touch bonus); both can be equipped at once
+  // (one's a Skill, one's a Power-Up) and simply add together.
+  const checkpointSkillBonus = hasSkill("checkpointReach") ? 8 : 0;
+  const checkpointPowerUpBonus = hasPowerUp("safetyLine") ? 6 : 0;
   checkpoints.forEach((checkpoint, index) => {
     if (
       Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) <
         difficultySettings.checkpointRadius +
           leniencyLevel() * 3 +
-          TOUCH_INPUT_BONUS.checkpointRadius &&
+          TOUCH_INPUT_BONUS.checkpointRadius +
+          checkpointSkillBonus +
+          checkpointPowerUpBonus &&
       !checkpoint.reached
     ) {
       checkpoint.reached = true;
       checkpoint.reachedAt = Date.now();
       saveCheckpointProgress(currentLevel, index);
       consecutiveDeaths = 0; // real progress — the rubber-banding resets
+      // High Roller (skill) — a small coin trickle for actually reaching
+      // checkpoints, not just finishing the level.
+      if (hasSkill("highRoller")) StarshadeEconomy.addCoins(1);
       // Two layered bursts instead of one — a wider ring of slower motes
       // (green/white, matching the reached tint) plus a tighter, faster
       // spray of small gold sparks (the beacon's own idle color, read as
@@ -3075,7 +3459,10 @@ function updatePlayer(dtScale) {
   // leniencyLevel() kicks in, same rubber-banding as the checkpoint radius
   // and landing forgiveness above, plus a flat bonus on touch (see
   // TOUCH_INPUT_BONUS).
-  const spikeForgiveness = leniencyLevel() * 1.5 + TOUCH_INPUT_BONUS.spikeForgiveness;
+  // Spike Cushion (skill) adds a further flat few px on top of the
+  // existing leniency/touch forgiveness.
+  const spikeForgiveness =
+    leniencyLevel() * 1.5 + TOUCH_INPUT_BONUS.spikeForgiveness + (hasSkill("spikeCushion") ? 6 : 0);
   spikes.forEach((spike) => {
     const spikeTipY = spike.y - spike.size + spikeForgiveness;
     if (
@@ -3348,7 +3735,9 @@ function triggerDeath() {
 // "canned animation, no input has anything left to do" reasoning as
 // updatePortalSuck().
 function updateDeathAnimation(dtScale) {
-  deathProgress = Math.min(1, deathProgress + dtScale / DEATH_ANIM_DURATION);
+  // Swift Respawn (skill) — roughly halves the death-to-respawn delay.
+  const effectiveDuration = hasSkill("swiftRespawn") ? DEATH_ANIM_DURATION * 0.5 : DEATH_ANIM_DURATION;
+  deathProgress = Math.min(1, deathProgress + dtScale / effectiveDuration);
   deathSpinAngle += 0.45 * dtScale;
   if (deathProgress >= 1) {
     isDying = false;
@@ -3363,7 +3752,15 @@ function updateDeathAnimation(dtScale) {
 // above now insert a short animated beat first (see their comments) —
 // this function's own job (stats + respawn) is otherwise unchanged.
 function resetPlayer() {
-  consecutiveDeaths++;
+  // Second Wind (skill) — the first death on a level doesn't count toward
+  // the hazard-slowdown streak at all; Streak Insurance (power-up) softens
+  // every death after that to count for half instead of removing it
+  // entirely. Both can apply on the very first death of a level.
+  if (secondWindAvailable && hasSkill("secondWind")) {
+    secondWindAvailable = false;
+  } else {
+    consecutiveDeaths += hasPowerUp("streakInsurance") ? 0.5 : 1;
+  }
   leveldiedThisAttempt = true;
   StarshadeEconomy.incrementTotalDeaths();
   StarshadeAchievements.checkAndNotify();
@@ -3474,6 +3871,7 @@ function setPaused(paused) {
   if (isFading || isPortalSucking || isDying) return;
   if (!document.getElementById("gameCompleteMenu").classList.contains("hidden")) return;
   isPaused = paused;
+  if (paused) pausedThisAttempt = true; // read by the Quick Clear Bonus power-up on level complete
   document.getElementById("pauseMenu").classList.toggle("hidden", !paused);
 }
 
@@ -3486,9 +3884,14 @@ function draw(dtScale) {
 
   ctx.save();
   if (shakeTime > 0 && screenShakeEnabled) {
+    // Comfort Shake/Momentum Shield (power-ups) — a softer middle ground
+    // than the Settings page's blunt on/off toggle, applied at the one
+    // point shake actually renders rather than at every shakeMagnitude
+    // assignment site (landing, death, etc.).
+    const comfortMultiplier = hasPowerUp("comfortShake") ? 0.3 : hasPowerUp("momentumShield") ? 0.5 : 1;
     ctx.translate(
-      (Math.random() - 0.5) * shakeMagnitude,
-      (Math.random() - 0.5) * shakeMagnitude
+      (Math.random() - 0.5) * shakeMagnitude * comfortMultiplier,
+      (Math.random() - 0.5) * shakeMagnitude * comfortMultiplier
     );
   }
 
@@ -3592,7 +3995,15 @@ function tryJump() {
   // a jump press timed into that exact frame granted a free ungrounded
   // "first jump" (not consuming an air jump) instead of correctly
   // requiring it already be used.
-  if (wasGrounded) {
+  // Coyote Time (skill) — a jump pressed within a few frames of walking
+  // off a ledge (framesSinceGrounded, see updatePlayer()) still counts as
+  // the free grounded jump, not an air jump, the same forgiveness a lot
+  // of platformers give by default; here it's something you actually
+  // equip. Only covers the "just left the ground" case, not an
+  // already-double-jumped player wanting a third for free.
+  const coyoteEligible =
+    !wasGrounded && airJumpsUsed === 0 && hasSkill("coyoteTime") && framesSinceGrounded <= COYOTE_TIME_FRAMES;
+  if (wasGrounded || coyoteEligible) {
     player.dy = jumpStrength;
   } else if (airJumpsUsed < extraAirJumps()) {
     player.dy = jumpStrength;
@@ -3600,6 +4011,11 @@ function tryJump() {
     usedExtraJumpThisAttempt = true;
   } else {
     return; // no air jumps left — this press does nothing
+  }
+  // Sure Grip (skill) — jumping off a wall mid-cling gives a real
+  // horizontal kick away from it, on top of the vertical jump itself.
+  if (isWallClinging && hasSkill("sureGrip") && wallClingDirection !== 0) {
+    player.dx = -wallClingDirection * horizontalSpeed * 1.3;
   }
   squashX = 0.7;
   squashY = 1.3;
@@ -3708,7 +4124,9 @@ function releaseSlingshotAim(e) {
   // real aim — don't launch on a near-zero pull, and leave the pad armed.
   if (!pad || dragDistance <= 6) return;
 
-  const maxPower = pad.maxPower || 22;
+  // Slingshot Power+ (power-up) — 25% more max power on every launch,
+  // whether from a real pad or the Slingshot skill's virtual one.
+  const maxPower = (pad.maxPower || 22) * (hasPowerUp("slingshotPower") ? 1.25 : 1);
   const power = Math.min(maxPower, dragDistance * SLINGSHOT_POWER_SCALE);
   // Launched opposite the drag direction — pull back, release forward —
   // same as a real slingshot.
