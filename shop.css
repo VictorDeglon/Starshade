@@ -291,7 +291,56 @@
   color: #F7F4FF;
 }
 
+.shop-subtab.locked {
+  cursor: not-allowed;
+  color: #5F5A82;
+  opacity: 0.75;
+}
+
+.shop-subtab-lock-icon {
+  display: none;
+  position: relative;
+  width: 8px;
+  height: 6px;
+  margin-left: 8px;
+  margin-top: 4px;
+  vertical-align: top;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.shop-subtab.locked .shop-subtab-lock-icon {
+  display: inline-block;
+}
+
+.shop-subtab-lock-icon::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  bottom: 100%;
+  width: 6px;
+  height: 5px;
+  border: 1.4px solid currentColor;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
 .shop-subtab-panel.hidden {
+  display: none;
+}
+
+.builder-locked-message {
+  text-align: center;
+  padding: 32px 20px;
+  color: #B9AEDD;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  border: 1.5px dashed rgba(197, 178, 255, 0.3);
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.builder-locked-message.hidden {
   display: none;
 }
 
@@ -535,11 +584,39 @@
 
 .builder-accessory-overlay {
   position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
   pointer-events: none;
   filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6));
+  transform: translate(-50%, -50%) scale(var(--accessory-size, 1));
+}
+
+.builder-accessory-overlay .icon-glyph {
+  stroke: var(--accessory-color, currentColor);
+}
+
+/* Rough approximations of where each accessory actually sits on the
+   in-game shape (see drawSkinAccessory() in game.js) — the overlay is a
+   flat icon, not a pixel match, but a wrong POSITION (everything used to
+   render top-center) was more misleading than a slightly-off icon shape. */
+.builder-accessory-overlay.pos-top {
+  top: 6%;
+  left: 50%;
+}
+
+.builder-accessory-overlay.pos-mid {
+  top: 50%;
+  left: 50%;
+}
+
+.builder-accessory-overlay.pos-side {
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(calc(var(--accessory-size, 1) * 1.4));
+}
+
+.builder-accessory-overlay.pos-ring {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(calc(var(--accessory-size, 1) * 2.1));
 }
 
 .skin-builder-controls {

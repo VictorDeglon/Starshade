@@ -396,6 +396,8 @@
     outlineWidth: 3,
     glowPulse: false,
     accessory: "accessory-none",
+    accessoryColor: "#a042d3",
+    accessorySize: 1,
   };
 
   // shopData.js's STARSHADE_ACCESSORIES id -> shopIcons.js glyph key,
@@ -411,6 +413,30 @@
     "accessory-visor": "visor",
     "accessory-horns": "horns",
     "accessory-aura": "auraRing",
+    "accessory-tail": "tail",
+    "accessory-mask": "mask",
+    "accessory-spikes": "spikes",
+    "accessory-scarf": "scarf",
+  };
+
+  // Where each accessory actually sits on the in-game shape (see
+  // drawSkinAccessory() in game.js) — crown/horns/spikes sit above it,
+  // wings/tail/scarf sit to the sides or below, visor/mask sit mid-body,
+  // aura rings the whole shape. The overlay was previously always
+  // top-center regardless of type, which misrepresented every accessory
+  // except crown/halo. A CSS class per position (shop.css) moves the
+  // overlay to roughly match.
+  const ACCESSORY_OVERLAY_POSITION = {
+    "accessory-crown": "pos-top",
+    "accessory-halo": "pos-top",
+    "accessory-horns": "pos-top",
+    "accessory-spikes": "pos-top",
+    "accessory-wings": "pos-side",
+    "accessory-tail": "pos-side",
+    "accessory-scarf": "pos-mid",
+    "accessory-visor": "pos-mid",
+    "accessory-mask": "pos-mid",
+    "accessory-aura": "pos-ring",
   };
 
   function refreshBuilderPreview() {
@@ -429,6 +455,10 @@
         builderState.accessory === "accessory-none"
           ? ""
           : buildShopIcon(ACCESSORY_ICON_MAP[builderState.accessory], { rarity: "custom", size: 44 });
+      overlay.className =
+        "builder-accessory-overlay " + (ACCESSORY_OVERLAY_POSITION[builderState.accessory] || "pos-top");
+      overlay.style.setProperty("--accessory-color", builderState.accessoryColor);
+      overlay.style.setProperty("--accessory-size", builderState.accessorySize);
     }
   }
 
@@ -468,12 +498,16 @@
   const trailInput = document.getElementById("builder-trail");
   const outlineWidthInput = document.getElementById("builder-outline-width");
   const glowPulseInput = document.getElementById("builder-glow-pulse");
+  const accessoryColorInput = document.getElementById("builder-accessory-color");
+  const accessorySizeInput = document.getElementById("builder-accessory-size");
   if (fillInput) fillInput.addEventListener("input", (e) => { builderState.fill = e.target.value; refreshBuilderPreview(); });
   if (strokeInput) strokeInput.addEventListener("input", (e) => { builderState.stroke = e.target.value; refreshBuilderPreview(); });
   if (glowInput) glowInput.addEventListener("input", (e) => { builderState.glow = e.target.value; refreshBuilderPreview(); });
   if (trailInput) trailInput.addEventListener("change", (e) => { builderState.trail = e.target.checked; });
   if (outlineWidthInput) outlineWidthInput.addEventListener("input", (e) => { builderState.outlineWidth = Number(e.target.value); refreshBuilderPreview(); });
   if (glowPulseInput) glowPulseInput.addEventListener("change", (e) => { builderState.glowPulse = e.target.checked; refreshBuilderPreview(); });
+  if (accessoryColorInput) accessoryColorInput.addEventListener("input", (e) => { builderState.accessoryColor = e.target.value; refreshBuilderPreview(); });
+  if (accessorySizeInput) accessorySizeInput.addEventListener("input", (e) => { builderState.accessorySize = Number(e.target.value); refreshBuilderPreview(); });
 
   function renderSavedCustomSkins() {
     const list = document.getElementById("builder-saved-list");
@@ -524,12 +558,89 @@
 
   document.querySelectorAll(".shop-subtab").forEach((tab) => {
     tab.addEventListener("click", () => {
+      if (tab.classList.contains("locked")) return;
       document.querySelectorAll(".shop-subtab").forEach((t) => t.classList.toggle("active", t === tab));
       document.querySelectorAll(".shop-subtab-panel").forEach((p) => {
         p.classList.toggle("hidden", p.dataset.subpanel !== tab.dataset.subtab);
       });
     });
   });
+
+  // Custom Builder unlocks once StarshadeEconomy.isCustomizationUnlocked()
+  // is true (see skinsData.js's CUSTOMIZATION_UNLOCK_LEVEL) — until then the
+  // subtab is shown but disabled with a lock message, and if it was
+  // somehow left open (e.g. re-render mid-session right as the gate
+  // closes, which can't actually happen since the gate only ever opens,
+  // but kept for safety) it's forced back to the Gallery subtab.
+  function refreshCustomBuilderLock() {
+    const tab = document.querySelector('.shop-subtab[data-subtab="custom"]');
+    const panel = document.querySelector('.shop-subtab-panel[data-subpanel="custom"]');
+    if (!tab || !panel) return;
+    const unlocked = StarshadeEconomy.isCustomizationUnlocked();
+    tab.classList.toggle("locked", !unlocked);
+    tab.setAttribute("aria-disabled", unlocked ? "false" : "true");
+    tab.title = unlocked ? "" : `Unlocks at Level ${StarshadeEconomy.CUSTOMIZATION_UNLOCK_LEVEL}`;
+    let lockMsg = panel.querySelector(".builder-locked-message");
+    if (!unlocked) {
+      if (tab.classList.contains("active")) {
+        tab.classList.remove("active");
+        panel.classList.add("hidden");
+        const galleryTab = document.querySelector('.shop-subtab[data-subtab="gallery"]');
+        const galleryPanel = document.querySelector('.shop-subtab-panel[data-subpanel="gallery"]');
+        if (galleryTab) galleryTab.classList.add("active");
+        if (galleryPanel) galleryPanel.classList.remove("hidden");
+      }
+      if (!lockMsg) {
+        lockMsg = document.createElement("div");
+        lockMsg.className = "builder-locked-message";
+        panel.prepend(lockMsg);
+      }
+      lockMsg.textContent = `Character Shop locked — reach Level ${StarshadeEconomy.CUSTOMIZATION_UNLOCK_LEVEL} to design your own skin.`;
+      lockMsg.classList.remove("hidden");
+      const builder = panel.querySelector("#skin-builder");
+      if (builder) builder.classList.add("hidden");
+    } else {
+      if (lockMsg) lockMsg.classList.add("hidden");
+      const builder = panel.querySelector("#skin-builder");
+      if (builder) builder.classList.remove("hidden");
+    }
+  }
+
+  // Fires the one-time "Character Shop unlocked" popup the moment the
+  // player crosses CUSTOMIZATION_UNLOCK_LEVEL — called from game.js's
+  // advanceToNextLevel() right after each level completes, the same spot
+  // achievement unlocks are checked.
+  function checkCustomizationUnlockNotify() {
+    if (!StarshadeEconomy.isCustomizationUnlocked()) return;
+    if (StarshadeEconomy.wasCustomizationUnlockNotified()) return;
+    StarshadeEconomy.markCustomizationUnlockNotified();
+    showCharacterShopUnlockedPopup();
+    refreshCustomBuilderLock();
+  }
+
+  function showCharacterShopUnlockedPopup() {
+    if (typeof getAchievementPopupContainer !== "function") return;
+    const container = getAchievementPopupContainer();
+    const card = document.createElement("div");
+    card.className = "achievement-popup";
+    card.innerHTML = `
+      <div class="achievement-popup-icon">${buildShopIcon("crown", { rarity: "legendary", size: 44 })}</div>
+      <div class="achievement-popup-text">
+        <div class="achievement-popup-label">New Shop Tab</div>
+        <div class="achievement-popup-name">Character Shop Unlocked</div>
+        <div class="achievement-popup-desc">Design your own skin in Skins &rarr; Custom Builder.</div>
+      </div>
+    `;
+    container.appendChild(card);
+    requestAnimationFrame(() => card.classList.add("show"));
+    const dismiss = () => {
+      card.classList.remove("show");
+      card.classList.add("hide");
+      setTimeout(() => card.remove(), 400);
+    };
+    setTimeout(dismiss, 4500);
+    card.addEventListener("click", dismiss);
+  }
 
   // Called by game.js's openShopOverlay() every time the overlay is shown
   // — coin balance/unlock state can have changed since the last render (or
@@ -542,9 +653,11 @@
     renderGenericGrid("powerup");
     refreshBuilderPreview();
     renderSavedCustomSkins();
+    refreshCustomBuilderLock();
     updateCoinBalance();
   }
   window.renderShopOverlay = renderShopOverlay;
+  window.StarshadeShop = { checkCustomizationUnlockNotify };
 
   renderShopOverlay();
 })();
