@@ -612,6 +612,22 @@ function startAudioOnInteraction() {
 document.addEventListener("click", startAudioOnInteraction);
 document.addEventListener("keydown", startAudioOnInteraction);
 
+// Pause the music the instant the tab/app isn't actually visible (another
+// tab, another app, the screen locked) and resume it — only if it was
+// genuinely playing, not just loaded — the moment it's visible again.
+// Without this, backgrounding the game left the music playing invisibly
+// (and audibly) forever, since nothing else in the page ever paused it.
+let audioWasPlayingBeforeHidden = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    audioWasPlayingBeforeHidden = !audio.paused;
+    audio.pause();
+  } else if (document.visibilityState === "visible" && audioWasPlayingBeforeHidden) {
+    audioWasPlayingBeforeHidden = false;
+    audio.play().catch(() => {});
+  }
+});
+
 // -------------------------------------------------------------
 // MOBILE: fullscreen + keep-awake
 // -------------------------------------------------------------
@@ -630,19 +646,48 @@ document.addEventListener("keydown", startAudioOnInteraction);
 // address bar doesn't eat into the play area for anyone who didn't
 // install it.
 function requestGameFullscreen() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    stopRequestingGameFullscreen();
+    return;
+  }
   const el = document.documentElement;
   const request = el.requestFullscreen || el.webkitRequestFullscreen;
   if (!request) return;
   try {
     const result = request.call(el);
-    if (result && result.catch) result.catch(() => {});
+    if (result && result.catch) {
+      // Rejected — most commonly a browser that only honors the request
+      // from specific gesture event types (some accept a tap's `click`
+      // but not its `touchstart`, or vice versa), or one that just
+      // doesn't grant it on this particular touch for a reason that
+      // isn't ours to diagnose. Left listening (see below) rather than a
+      // one-shot attempt, so the very next tap gets another try instead
+      // of the page being silently stuck without fullscreen for the rest
+      // of the session — this was the actual bug: `{ once: true }` meant
+      // one failed first touch, for whatever reason, meant never again.
+      result.catch(() => {});
+    } else {
+      // Some implementations resolve synchronously/don't return a
+      // promise at all — stop listening right away instead of waiting
+      // for a promise that isn't coming.
+      stopRequestingGameFullscreen();
+    }
   } catch (e) {
-    // Ignore — fullscreen is a nice-to-have, never worth failing over.
+    // Ignore this attempt and let the listener try again next tap.
   }
 }
 
-if (isTouchDevice) {
-  document.addEventListener("touchstart", requestGameFullscreen, { once: true });
+function stopRequestingGameFullscreen() {
+  document.removeEventListener("touchstart", requestGameFullscreen);
+  document.removeEventListener("click", requestGameFullscreen);
+}
+
+if (isTouchDevice && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
+  // Both event types (some browsers only honor the request from one or
+  // the other), and no `{ once: true }` — see requestGameFullscreen()'s
+  // comment on why a single-shot attempt was the actual bug.
+  document.addEventListener("touchstart", requestGameFullscreen);
+  document.addEventListener("click", requestGameFullscreen);
 }
 
 // Haptic feedback on jump/death/checkpoint — navigator.vibrate() only
@@ -1990,9 +2035,13 @@ function drawPlayer() {
   const halfW = player.width / 2;
   const halfH = player.height / 2;
   // Custom skins (see skinsData.js's saveCustomSkin()) can set their own
-  // outline thickness; every premade STARSHADE_SKINS entry has no
-  // `outlineWidth` field at all and keeps the original flat 3.
-  const lineWidth = skin.outlineWidth || 3;
+  // outline thickness. Thinned from the original flat 3 — on the actual
+  // 25x25 in-game hitbox that read as a thick painted ring competing with
+  // the skin's own art/color rather than a clean edge, especially once
+  // `art` skins added real illustrated detail for it to compete with.
+  // Separation from the level now comes mainly from the glow below, not a
+  // heavy stroke.
+  const lineWidth = skin.outlineWidth || 1.5;
 
   ctx.save();
   ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
@@ -2013,9 +2062,19 @@ function drawPlayer() {
   // blur around the whole shape, the same shadowBlur technique neon-theme
   // platforms already use elsewhere in this file, just oscillating rather
   // than constant so it actually reads as "pulsing," not just "glowing."
+  //
+  // Every other skin still gets a plain *static* version of the same
+  // glow — a small constant shadowBlur in the skin's own `glow` color —
+  // now that the outline stroke above is thin. This is what actually
+  // separates the player from a similarly-colored platform/background:
+  // a soft halo that reads as "this is the skin's own light," not a flat
+  // ring painted on top of it.
   if (skin.glowPulse) {
     ctx.shadowColor = skin.glow || skin.fill || "#a042d3";
     ctx.shadowBlur = 10 + Math.sin(Date.now() / 400) * 6;
+  } else {
+    ctx.shadowColor = skin.glow || "rgba(0, 0, 0, 0.5)";
+    ctx.shadowBlur = 5;
   }
 
   ctx.fillStyle = skin.fill;
@@ -2224,6 +2283,11 @@ function drawImageSkin(skin, halfW, lineWidth) {
   }
   ctx.restore();
 
+  // Same thin-stroke-plus-soft-glow treatment drawPlayer() uses for every
+  // other shape — the glow, not a heavy ring, is what separates an image
+  // skin from a similarly-colored platform/background.
+  ctx.shadowColor = skin.glow || "rgba(160, 66, 211, 0.85)";
+  ctx.shadowBlur = 5;
   ctx.strokeStyle = skin.glow || "rgba(160, 66, 211, 0.85)";
   ctx.lineWidth = lineWidth;
   ctx.beginPath();
