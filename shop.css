@@ -159,6 +159,16 @@
   100% { opacity: 0; transform: scale(1.6); }
 }
 
+/* Wraps a skins-grid swatch + its (optional) lock badge. inline-block so
+   it shrinks to exactly the swatch's own box regardless of shape/size,
+   and is never itself animated — see the comment in shop.js's
+   renderSkinsGrid() for why the badge lives here instead of inside the
+   swatch. */
+.shop-swatch-wrap {
+  position: relative;
+  display: inline-block;
+}
+
 .shop-item-swatch {
   position: relative;
   width: 64px;
