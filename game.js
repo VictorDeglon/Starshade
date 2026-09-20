@@ -377,6 +377,28 @@ let portalTargetX = 0;
 let portalTargetY = 0;
 let portalSpinAngle = 0;
 
+// "Dying" — a short canned animation that plays the instant a hazard
+// (deadly platform, spike, falling off the bottom) actually kills the
+// player, before the checkpoint respawn happens — see triggerDeath()/
+// updateDeathAnimation() below. Mirrors the portal-suck animation's
+// shape (a frozen, animation-only interlude instead of normal
+// updatePlayer() — see update()) but plays in the opposite emotional
+// direction: spinning apart and shrinking to nothing at the death
+// location, flashing toward red, instead of gracefully sliding into a
+// checkpoint. The player stays frozen exactly where they died for the
+// animation's duration — teleporting to the respawn point only happens
+// once it finishes (see finishDeath()) — so the moment of death actually
+// reads as a moment, not an instant cut.
+let isDying = false;
+let deathProgress = 0; // 0..1
+const DEATH_ANIM_DURATION = 26; // ticks, ~0.43s at 60fps — snappier than
+// the portal-suck's 34 (PORTAL_SUCK_DURATION above); dying is frequent
+// enough (especially on a hard section) that it can't afford to feel
+// sluggish the way a once-per-level finish animation can.
+let deathSpinAngle = 0;
+let deathAnimX = 0;
+let deathAnimY = 0;
+
 // Audio
 const audio = new Audio("./assets/music/starshade.mp3");
 audio.loop = true;
@@ -530,6 +552,11 @@ function mechanicKeyForPlatform(p) {
 // happens when its tip actually fires (updateTutorialTips(), below), not
 // here — so quitting before reaching it doesn't burn the one-time tip.
 function injectMechanicDiscoveryTips() {
+  // Idempotent: strips any synthetic tips a previous call already added
+  // (identified by `mechanicKey`, which no level-authored tip sets) before
+  // recomputing, so calling this more than once for the same level load —
+  // resetLevelState() running twice, say — can't duplicate entries.
+  window.tutorialTips = (window.tutorialTips || []).filter((t) => !t.mechanicKey);
   const seen = loadSeenMechanicTips();
   const firstXByMechanic = {};
   (platforms || []).forEach((p) => {
@@ -931,7 +958,7 @@ document
 // recreates it, silently cutting the music. Only Quit to Menu still
 // navigates for real, since leaving the game entirely is the one case
 // where stopping the music is actually correct.
-const SUB_OVERLAY_IDS = ["settingsOverlay", "levelMapOverlay", "achievementsOverlay"];
+const SUB_OVERLAY_IDS = ["settingsOverlay", "levelMapOverlay", "achievementsOverlay", "profileOverlay"];
 
 function closeSubOverlays() {
   let closedAny = false;
@@ -981,6 +1008,19 @@ function closeAchievementsOverlay() {
 }
 window.closeAchievementsOverlay = closeAchievementsOverlay;
 
+function openProfileOverlay() {
+  document.getElementById("pauseMenu").classList.add("hidden");
+  document.getElementById("profileOverlay").classList.remove("hidden");
+  // Same "don't trust a stale first render" reasoning as the level map
+  // and achievements overlays — coins/completions/unlocks can all have
+  // changed since this was last opened.
+  if (typeof window.renderProfileOverlay === "function") window.renderProfileOverlay();
+}
+function closeProfileOverlay() {
+  closeSubOverlays();
+}
+window.closeProfileOverlay = closeProfileOverlay;
+
 // Picking a level from the map overlay starts it immediately in-page — a
 // fade + loadLevel(), the exact mechanism advancing to the next level
 // already uses — instead of navigating through loading.html's fake
@@ -1015,6 +1055,7 @@ document.getElementById("resume-button").addEventListener("click", () => {
 document.getElementById("pause-settings-button").addEventListener("click", openSettingsOverlay);
 document.getElementById("pause-levels-button").addEventListener("click", openLevelMapOverlay);
 document.getElementById("pause-achievements-button").addEventListener("click", openAchievementsOverlay);
+document.getElementById("pause-profile-button").addEventListener("click", openProfileOverlay);
 // index.html's pause menu renamed this button to "pause-main-menu-button"
 // (game.html still uses "pause-quit-button") — game.js is a shared classic
 // script loaded by both pages, so fall back rather than crashing on
@@ -2266,7 +2307,7 @@ function updatePlayer(dtScale) {
       player.y + player.height / 2 > dpy &&
       player.y - player.height / 2 < dpy + platform.height
     ) {
-      resetPlayer();
+      triggerDeath();
     }
   });
   // Checkpoints
@@ -2337,7 +2378,7 @@ function updatePlayer(dtScale) {
         distanceFromCenter * spikeSlope + player.y + player.height / 2 >
         spikeTipY
       ) {
-        resetPlayer();
+        triggerDeath();
       }
     }
   });
@@ -2348,7 +2389,7 @@ function updatePlayer(dtScale) {
   // (see below), same "off the bottom of the screen" death every
   // horizontal-only version of this check already had.
   if (player.y - cameraOffsetY > viewportHeight) {
-    resetPlayer();
+    triggerDeath();
   }
 
   // What the camera targets — normally just the player, but see the
@@ -2501,14 +2542,70 @@ function updateLevelText() {
   }
 }
 
-function resetPlayer() {
+// Fires the instant a hazard actually kills the player — immediate
+// feedback (shake, haptics, a shatter burst) plus freezing them in place
+// to start the death animation (see updateDeathAnimation() below), rather
+// than teleporting to the respawn point the same frame. Guarded the same
+// way starting the fade/portal-suck transitions are: never stack this on
+// top of another transition already in progress (an edge case — e.g.
+// overlapping a spike the exact frame the final checkpoint is reached —
+// rather than something that happens often, but a dying player mid-
+// portal-suck or mid-fade would be a visibly broken frame otherwise).
+function triggerDeath() {
+  if (isDying || isFading || isPortalSucking) return;
+  isDying = true;
+  deathProgress = 0;
+  deathSpinAngle = 0;
+  // Frozen at the exact death location for the animation's duration —
+  // captured separately from player.x/y (rather than just reading
+  // player.x/y again in drawPlayer()) so nothing else that happens to
+  // touch player.x/y before finishDeath() runs (there isn't anything
+  // right now, but the freeze below already stops normal physics from
+  // moving it anyway) could shift where the animation plays.
+  deathAnimX = player.x;
+  deathAnimY = player.y;
+  player.dx = 0;
+  player.dy = 0;
+
   shakeTime = 15;
   shakeMagnitude = 6;
+  vibrateHaptic([30, 40, 30]);
+
+  const skin = StarshadeEconomy.getEquippedSkin();
+  spawnParticles(deathAnimX, deathAnimY, 24, {
+    colors: [skin.fill || "rgba(160,66,211,0.85)", "#fff", "rgba(255,80,80,0.9)"],
+    speed: 6,
+    life: 34,
+    size: 4,
+    gravity: 0.15,
+  });
+}
+
+// Advances the death animation each frame it's active (see update()) and
+// hands off to the actual respawn (resetPlayer()) once it completes.
+// Nothing else runs against player state while this is active — same
+// "canned animation, no input has anything left to do" reasoning as
+// updatePortalSuck().
+function updateDeathAnimation(dtScale) {
+  deathProgress = Math.min(1, deathProgress + dtScale / DEATH_ANIM_DURATION);
+  deathSpinAngle += 0.45 * dtScale;
+  if (deathProgress >= 1) {
+    isDying = false;
+    resetPlayer();
+  }
+}
+
+// Runs once the death animation finishes — increments the lifetime death
+// stats, restores any melted platforms, and teleports the player to their
+// last checkpoint (or the level start). Previously ran synchronously the
+// instant a hazard was touched; triggerDeath()/updateDeathAnimation()
+// above now insert a short animated beat first (see their comments) —
+// this function's own job (stats + respawn) is otherwise unchanged.
+function resetPlayer() {
   consecutiveDeaths++;
   leveldiedThisAttempt = true;
   StarshadeEconomy.incrementTotalDeaths();
   StarshadeAchievements.checkAndNotify();
-  vibrateHaptic([30, 40, 30]);
 
   // Give every melt platform back — dying and retrying a section shouldn't
   // permanently lose a platform a later attempt still needs to cross.
@@ -2517,15 +2614,6 @@ function resetPlayer() {
       p._melted = false;
       p._meltTimer = 0;
     }
-  });
-
-  const skin = StarshadeEconomy.getEquippedSkin();
-  spawnParticles(player.x, player.y, 20, {
-    colors: [skin.fill || "rgba(160,66,211,0.85)", "#fff", "rgba(255,80,80,0.8)"],
-    speed: 5,
-    life: 32,
-    size: 3.5,
-    gravity: 0.2,
   });
 
   const lastCheckpoint = [...checkpoints].reverse().find((c) => c.reached);

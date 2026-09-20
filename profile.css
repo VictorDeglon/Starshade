@@ -1,0 +1,117 @@
+/* -------------------------------------------------------------
+   PROFILE OVERLAY (game.html's pause menu only — see profile.js and
+   docs/design-standards.md #6 on why this doesn't get its own main-menu
+   entry or standalone page). Matches the purple/violet neon palette and
+   panel treatment achievements.css/game.css already use for the other
+   pause-menu overlays, so this doesn't read as a bolted-on new UI.
+   ------------------------------------------------------------- */
+
+#profileOverlay .menu-panel {
+  width: 480px;
+  max-width: 92vw;
+}
+
+#profileOverlay h1 {
+  font-size: 2rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: "Almendra Display", serif;
+  margin: 0 0 20px;
+}
+
+.profile-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.profile-skin-swatch {
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 0 18px rgba(138, 92, 255, 0.55);
+  background-size: cover;
+  background-position: center;
+}
+
+.profile-skin-swatch.shape-circle {
+  border-radius: 50%;
+}
+
+.profile-skin-swatch.shape-square {
+  border-radius: 10px;
+}
+
+.profile-skin-swatch.shape-triangle {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.profile-name {
+  font-family: "Staatliches", sans-serif;
+  font-size: 1.4rem;
+  color: #fff;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.profile-journey {
+  margin-bottom: 24px;
+}
+
+.profile-journey-label {
+  font-family: "Staatliches", sans-serif;
+  font-size: 1rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  margin-bottom: 8px;
+}
+
+.profile-journey-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(10, 6, 30, 0.6);
+  border: 1.5px solid #4d3f91;
+  overflow: hidden;
+}
+
+.profile-journey-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6a5acd, #8a5cff, #ffcf4d);
+  box-shadow: 0 0 10px rgba(138, 92, 255, 0.7);
+  transition: width 0.4s ease;
+}
+
+.profile-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.profile-stat-card {
+  padding: 12px 10px;
+  background: rgba(25, 0, 51, 0.75);
+  border: 2px solid #4d3f91;
+  border-radius: 14px;
+  box-shadow: 0 0 16px rgba(77, 63, 145, 0.3);
+}
+
+.profile-stat-value {
+  font-family: "Staatliches", sans-serif;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+.profile-stat-label {
+  font-size: 0.75rem;
+  color: #b7a0ff;
+  margin-top: 2px;
+}
+
+@media screen and (max-width: 500px) {
+  .profile-stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
