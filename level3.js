@@ -43,6 +43,15 @@ window.spikes = [
   { x: 6485, y: 376, size: 21 },
 ];
 
+// A slingshot launch pad (see docs/gameplay.md's Slingshot section) — a
+// purely optional shortcut on the level's very first platform, not a
+// required crossing, so this can't affect the gap-size audits
+// (.claude/audit-gaps.js) that already verified every jump in this level
+// without one. Drag back from the pad and release to launch up and
+// forward, clearing straight over the first deadly platform instead of
+// walking the normal route beneath it.
+window.slingshots = [{ x: 220, y: 380, width: 40, height: 20, maxPower: 24 }];
+
 window.checkpoints = [
   { x: 150, y: 350, reached: false },
   { x: 1553, y: 374, reached: false },

@@ -19,8 +19,16 @@ of `x`.
 - The player is a 25×25 square, drawn with a purple gradient fill, positioned
   by its **center** (`player.x`, `player.y`) — collision math throughout
   uses `± width/2` / `± height/2` from that center.
-- `gravity = 0.5` is added to `player.dy` every frame; horizontal speed is a
-  fixed `horizontalSpeed = 5` px/frame (no acceleration/friction).
+- `gravity = 0.5` is added to `player.dy` every frame, except for a brief
+  `APEX_GRAVITY_MULTIPLIER` (1.6×) boost while `|player.dy|` is under
+  `APEX_GRAVITY_ZONE` (2) — a few frames of extra pull right at the very
+  top of a jump's arc, which is what a flat gravity value reads as
+  "hanging in the air" rather than a snappy peak. Deliberately narrow
+  enough to leave both the climb (max height) and the fall (every gap-size
+  audit in `.claude/audit-gaps.js`, which simulates the full arc) at
+  exactly their original values — only the near-motionless apex itself
+  changes. Horizontal speed is a fixed `horizontalSpeed = 5` px/frame (no
+  acceleration/friction).
 - Jump: `Space`/`W`/`ArrowUp` sets `player.dy = jumpStrength` (`-12`) when
   grounded (`dy === 0`). Pressing again mid-air performs one double jump
   (`doubleJumpUsed` resets to `false` the instant the player lands on any
@@ -36,7 +44,13 @@ of `x`.
 - The camera (`cameraOffsetX`/`cameraOffsetY`) eases toward centering the
   player on both axes rather than snapping instantly
   (`cameraSmoothing = 0.12`), and squashes/stretches briefly on jump and
-  landing for a bit of weight.
+  landing for a bit of weight. Landing squash/dust scale with how hard the
+  landing actually was (`incomingDy`, captured before `resolveAxis()` can
+  zero it out) via a `landingForce` fraction — a light hop barely squashes,
+  a long fall reads as a real impact — and a landing with `landingForce`
+  over 0.5 also gets a brief, subtle camera punch (the same
+  `shakeTime`/`shakeMagnitude` a death uses, just much smaller, and still
+  gated on the Screen Shake setting).
 
 ## Collision — solid platforms
 
@@ -123,21 +137,35 @@ while the foreground shakes on death. Every frame it draws, back to front:
    `game.js`) so it reads as a nebula glowing against mostly-black space
    rather than an evenly-lit sky. Darkest and most saturated at level 1,
    fading toward near-black cosmos by level 25.
-2. **Planets** (`drawPlanetLayer()`) — sparse, huge, glowing circles, only
-   appearing in the back half of the game.
+2. **Planets** (`drawPlanetLayer()`) — sparse, huge, glowing circles.
+   Both this layer's `smoothstep()` window and the star layer's below were
+   originally tuned for a 25-level game (planets from the back half,
+   stars fading in by level ~17); with `SCENE_THEME_LEVEL_COUNT` now 100,
+   those same fractions pushed the first planet to roughly level 36 and
+   left the early game with no stars at all — moved both earlier so the
+   sky has real depth from level 1 on, rather than reading as just the
+   cloud layer's soft color blobs ("smudged colors").
 3. **Stars** (`drawStarLayer()`) — small white dots with a gentle sine
-   twinkle, fading in from level ~4 to fully visible by level ~17, biased
-   toward the top of each grid cell (see below) so the sky overall reads
-   as "stars up top."
+   twinkle, biased toward the top of each grid cell (see below) so the sky
+   overall reads as "stars up top." Has a visible alpha floor (0.22) now
+   rather than fading all the way to zero early on, for the same reason as
+   the planet layer above; only the *neon* variant's `forceAlpha` (a
+   different caller — see "Neon-themed levels" below) is unaffected by
+   this floor.
 4. **Clouds/nebula** (`drawCloudLayer()`) — soft, radial-gradient blobs (a
    mix of near-circles and flatter ovals, randomized per cloud), biased
    toward the *bottom* of each cell — the mirror image of the star bias,
-   so clouds read as "low in the sky." HSL rather than a two-color RGB
-   lerp, so hue drifts across a genuinely nebula-like band (blue, violet,
-   magenta, pink) with real per-cloud variation from level 1 onward,
-   gradually warming from cooler blue-violets toward magenta/pink as the
-   game progresses — the same shapes doing double duty rather than
-   swapping to a different asset partway through.
+   so clouds read as "low in the sky." Each blob's gradient now has a
+   brighter, smaller core stop in addition to the original two (a flat
+   two-stop fade-to-transparent has no visible internal shape — it just
+   reads as a uniform color patch, i.e. "smudged" — the bright center
+   gives each one an actual nucleus to read as a distinct cloud). HSL
+   rather than a two-color RGB lerp, so hue drifts across a genuinely
+   nebula-like band (blue, violet, magenta, pink) with real per-cloud
+   variation from level 1 onward, gradually warming from cooler
+   blue-violets toward magenta/pink as the game progresses — the same
+   shapes doing double duty rather than swapping to a different asset
+   partway through.
 
 **Progress, not physics**: `sceneProgress` (0 at level 1, 1 at level 25)
 is computed once per level load in `resetLevelState()`, purely from
@@ -383,23 +411,59 @@ a `StarshadeEconomy` object backed by `localStorage`:
   same skin" rather than an arbitrary clash. A fixed PRNG seed makes
   re-running it reproduce the same 50 skins rather than a fresh random
   set each time.
-- **Shop** (`skins.html`/`skins.js`): a carousel showing lock state
-  (a real SVG lock icon over a dimmed-but-still-visible preview — see
+- **Shop** (`shop.js`/`shop.css`, opened as an overlay from the pause menu
+  or main menu — see docs/architecture.md): the Skins tab is the same
+  carousel this used to be on its own `skins.html` page — lock state (a
+  real SVG lock icon over a dimmed-but-still-visible preview — see
   `LOCK_ICON_SVG` — not a hidden silhouette), a rarity badge, cost or
   unlock text, and a Buy/Equip/Equipped/Locked button per skin, plus the
   current coin balance. The dot-navigation strip wraps onto several rows
-  and caps its width now that there are 60+ skins — a plain unbroken flex
-  row that wide would silently overflow off both edges of any viewport.
+  and caps its width now that there are 60+ skins. Three more tabs sit
+  alongside it — Particles, Skills, and Power-Ups — see their own
+  sections below.
 
-## Abilities
+## Custom skin builder
 
-A skin's `ability` field (`skinsData.js`) grants a gameplay perk on top
-of its cosmetic look — `game.js` checks
-`StarshadeEconomy.getEquippedSkin().ability` at the relevant point in the
-physics loop. Every default/cosmetic-only skin has no `ability` at all
-and plays identically to how the game always has; these only ever add
-capability, never take any away, so no existing level's completability
-assumptions change.
+A second sub-tab under the Shop's Skins tab, alongside the premade
+gallery: pick a shape (square/circle/triangle — the same three
+`drawPlayer()` already renders), a center (fill) color, a border (stroke)
+color, and a glow color via plain `<input type="color">` pickers, with a
+live CSS preview. `StarshadeEconomy.saveCustomSkin()` (`skinsData.js`)
+stores the result as a plain skin-like object in its own
+`starshadeCustomSkins` localStorage list — always `unlockType: "free"`
+(nothing to unlock, you built it), equipped exactly like any other skin.
+`getEquippedSkin()` checks this list before falling back to
+`STARSHADE_SKINS`, and `drawPlayer()` needed zero changes to render one:
+it never validated that an equipped skin came from the built-in catalog
+in the first place, only that it has `.shape`/`.fill`/`.stroke`/`.glow`.
+
+## Particles (Shop tab)
+
+`shopData.js`'s `STARSHADE_PARTICLES` catalog — same
+`unlockType`/`cost`/`rarity` shape as a skin, unlocked/equipped via
+`StarshadeEconomy.isParticleUnlocked()`/`unlockParticleWithCoins()`/
+`getEquippedParticleId()`/`setEquippedParticleId()`. An equipped particle
+style's `colors` array feeds the continuous motion-trail `spawnParticles()`
+call in `updatePlayer()` directly, taking priority over — and, unlike — a
+skin's own `trail: true` field, which still works unchanged if nothing's
+equipped here.
+
+## Skills (Shop tab) & the Abilities system
+
+A skin's `ability` field (`skinsData.js`) has always granted a gameplay
+perk on top of its cosmetic look; the Shop's Skills tab
+(`shopData.js`'s `STARSHADE_ABILITIES`) now lets the same five effects be
+bought and equipped independently of any skin, via
+`StarshadeEconomy.getEquippedAbility()` — every one of the physics loop's
+five ability checks reads this instead of
+`StarshadeEconomy.getEquippedSkin().ability` directly now. It falls back
+to the equipped skin's own bundled `ability` when nothing's independently
+equipped, so every already-existing skin's built-in ability still works
+exactly as it always did without the player having to visit the Shop at
+all. Every default/cosmetic-only skin has no `ability` at all and plays
+identically to how the game always has; these only ever add capability,
+never take any away, so no existing level's completability assumptions
+change.
 
 - **`dash`** — double-tap Left/Right (keyboard or the touch d-pad — see
   `onDirectionTap()`, called from both the keydown handler and
@@ -429,6 +493,54 @@ The four movement abilities (all but `bouncy`) are each on one legendary
 skin, and `bouncy` is on the one mythic skin — all five are
 `achievement`-unlocked rather than bought, meant to feel earned. See
 Achievements below.
+
+## Power-Ups (Shop tab)
+
+`shopData.js`'s `STARSHADE_POWERUPS` — equipped one at a time via
+`StarshadeEconomy.getEquippedPowerUp()`, same pattern as an ability,
+rather than a per-use consumable inventory (simpler to reason about, and
+to build a shop UI for, than tracking per-level consumption). Each has an
+`effect` string read at the one specific point it actually applies:
+
+- **`extraAirJump`** ("Air Jump Boost") — adds 1 to whatever
+  `extraAirJumps()` would otherwise return, stacking additively with the
+  `tripleJump` skill/ability rather than replacing it.
+- **`coinBoost`** ("Coin Boost") — `advanceToNextLevel()` adds 50% more
+  coins on top of whatever a level's completion reward already was, for
+  every level completed while it stays equipped.
+
+## Slingshot launch pads
+
+An Angry-Birds-style aim-and-launch mechanic — `window.slingshots`, a
+per-level entity array declared in `levelN.js` exactly like
+`spikes`/`checkpoints` (`{ x, y, width, height, maxPower }`). Standing on
+solid ground within a pad's footprint (a plain proximity check against the
+player's feet in `updatePlayer()`, not real collision — a pad's marker
+sits on top of an ordinary platform the player already stands on
+normally) arms it. Dragging on the canvas while armed — mouse
+down/move/up or touch start/move/end, both wired to the same
+`startSlingshotAim()`/`moveSlingshotAim()`/`releaseSlingshotAim()`
+functions — previews a pull-back band plus a dashed forward-trajectory
+arc (a cheap step-by-step forward simulation using the same `gravity`
+constant the real physics loop uses), and releasing launches the player:
+`player.dx`/`player.dy` are set directly opposite the drag vector, scaled
+by drag distance up to the pad's `maxPower`.
+
+Modeled after the existing dash ability rather than the portal-suck
+canned-animation pattern: a launch just sets velocity once and lets
+`resolveAxis()`'s normal gravity/collision keep running afterward, rather
+than a separate update-loop branch. `slingshotRecoveryTicks` (mirrors
+`dashTimeRemaining`) briefly ignores the player's own left/right input
+right after a launch, so holding a direction key while aiming can't
+instantly cancel the shot the next frame. A trivial drag (≤6px — a tap
+that happened to land on the pad) doesn't launch and leaves the pad armed,
+which also means an armed pad suppresses the ordinary tap/click-to-jump
+convenience while standing on it — you're expected to drag, not tap.
+
+Level 3 has one, purely as an optional shortcut over its first deadly
+platform — not a required crossing, so it can't affect the existing
+per-level gap-size audits (`.claude/audit-gaps.js`), which never knew
+slingshots exist and don't need to.
 
 ## Achievements
 
@@ -849,9 +961,22 @@ doesn't converge faster just because it's taking more, smaller steps.
 
 ## Mobile
 
-`game.html` includes an on-screen d-pad (bottom-left) and jump button
+**The main menu is skipped entirely on a touch device.** The boot
+sequence (see docs/architecture.md) branches on the same `isTouchDevice`
+test everything else here uses: desktop/tablet gets the loading screen
+then the main menu overlay, waiting for Play; a touch device gets the
+loading screen then calls `startGame()` immediately, no tap needed. The
+existing rotate-prompt (below) is what actually gates *visibility* until
+the phone is in landscape — the game is already running underneath the
+instant loading finishes, so flipping the phone is the only remaining
+step. The main menu is still reachable afterward from either device via
+the pause menu's "Main Menu" button; it just never shows automatically on
+a phone.
+
+`index.html` includes an on-screen d-pad (bottom-left) and jump button
 (bottom-right) — `.touch-controls` in `game.css`, shown only under
-`(pointer: coarse)` so a resized desktop browser window never grows them.
+`(pointer: coarse) and (hover: none)` so neither a resized desktop browser
+window nor a touchscreen laptop with a mouse/trackpad attached grows them.
 The buttons feed a `touchState` object that `anyPressed()` in `game.js`
 OR's in alongside the rebindable keyboard bindings (touch isn't "a key,"
 so it can't be one of the user's rebindable ones); the jump button calls
