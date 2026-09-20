@@ -71,6 +71,21 @@ solid collision, so the tunneling concern doesn't apply the same way.
 
 ## Visuals
 
+- Platform/hazard colors are violet-indigo (safe) and crimson-magenta
+  (deadly/spikes) — the same purple/blue/pink family as every menu, glow,
+  and the nebula background itself, rather than the old plain teal-blue/
+  red, which read as an unrelated color family against everything else on
+  screen. Solid platforms and deadly platforms also get a tileable SVG
+  texture on top of their flat fill (`assets/textures/platform-texture.svg`
+  — a faint paneled-plating grid with corner rivets; `hazard-texture.svg`
+  — 45° warning stripes), turned into a `ctx.createPattern()` once each
+  image loads (`platformTexturePattern`/`hazardTexturePattern` in
+  `game.js`) and drawn at reduced opacity over the base color in
+  `drawInsetRect()`'s optional `pattern` argument — the flat fill still
+  establishes the actual surface color; the pattern only adds detail on
+  top of it. Spikes use a canvas gradient instead of an image texture
+  (cheap, and always crisp regardless of a spike's actual size, which
+  varies per level, unlike a tiled raster pattern).
 - Platforms and the player are drawn with `drawInsetRect()` /
   `drawPlayer()`, which draw the stroke **inset** by half its line width
   instead of centered on the shape's edge. A centered 3px stroke draws
@@ -492,6 +507,16 @@ stale across a resize or the camera scrolling, and it's invisible on
 purpose: nothing is drawn for it, it's a boundary, not a platform. This is
 what stops a double jump from being chained to soar above the intended
 platforms and skip past hazards below.
+
+Both of the below (`cameraZoom` and `cameraVerticalAnchor`) are gated on
+`airborneFramingActive` (`isTouchDevice && !grounded`) — touch-only. They
+were built to fix "hard to see where I'm landing" on a small phone
+screen, but on an already-large laptop/desktop viewport the extra zoom
+and framing shift just made an ordinary jump feel different from how it
+always has, without solving a problem that's mostly phone-specific in the
+first place. Desktop keeps the plain, always-centered, unzoomed camera
+jumping has had from the start (both values just stay at their grounded
+defaults the whole time); touch devices get both.
 
 `cameraZoom` (also in `updatePlayer()`) eases the whole world view out to
 88% while airborne (`grounded` false) and back to 100% the instant the

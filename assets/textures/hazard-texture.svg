@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+  <!-- Tileable diagonal warning-stripe texture for deadly platforms (see
+       game.js's hazardTexturePattern) — classic 45-degree hazard
+       striping, drawn at low opacity over the platform's base
+       crimson-magenta fill so "don't touch this" reads instantly even
+       before a player has learned the color language. -->
+  <rect width="28" height="28" fill="none" />
+  <g stroke="rgba(255,120,170,0.4)" stroke-width="6">
+    <line x1="-7" y1="35" x2="35" y2="-7" />
+    <line x1="7" y1="35" x2="35" y2="7" />
+    <line x1="-7" y1="21" x2="21" y2="-7" />
+  </g>
+</svg>
