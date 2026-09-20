@@ -108,11 +108,18 @@ while the foreground shakes on death. Every frame it draws, back to front:
 2. **Planets** (`drawPlanetLayer()`) — sparse, huge, glowing circles, only
    appearing in the back half of the game.
 3. **Stars** (`drawStarLayer()`) — small white dots with a gentle sine
-   twinkle, fading in from level ~4 to fully visible by level ~17.
-4. **Clouds/nebula** (`drawCloudLayer()`) — soft radial-gradient blobs,
-   present from level 1 and gradually recolored from white cloud to
-   purple/pink nebula as the game progresses — the same shapes doing
-   double duty rather than swapping to a different asset partway through.
+   twinkle, fading in from level ~4 to fully visible by level ~17, biased
+   toward the top of each grid cell (see below) so the sky overall reads
+   as "stars up top."
+4. **Clouds/nebula** (`drawCloudLayer()`) — soft, low-opacity radial-
+   gradient blobs (a mix of near-circles and flatter ovals, randomized per
+   cloud), biased toward the *bottom* of each cell — the mirror image of
+   the star bias, so clouds read as "low in the sky." Present from level 1
+   in muted slate-blue/violet "night cloud" tones (this is always a night
+   sky — a pure-white cloud read as oddly bright against it) and gradually
+   recolored toward purple/pink nebula as the game progresses — the same
+   shapes doing double duty rather than swapping to a different asset
+   partway through.
 
 **Progress, not physics**: `sceneProgress` (0 at level 1, 1 at level 25)
 is computed once per level load in `resetLevelState()`, purely from
@@ -135,7 +142,11 @@ the current viewport at that layer's parallax fraction, deterministically
 derives that cell's stars from a seeded hash of its coordinates
 (`hash01()`). The same cell always produces the same stars, so scrolling
 away and back never makes them jump or re-roll, and memory cost is zero
-regardless of how far the camera has traveled.
+regardless of how far the camera has traveled. The top/bottom bias
+mentioned above is applied *within* each cell (skewing where in the cell
+a star/cloud lands, not which cell it's in) for the same reason — there's
+no single, fixed world-space "top of the sky" to anchor to once the
+camera can scroll vertically without limit.
 
 ## Particles
 
@@ -383,6 +394,34 @@ purpose: nothing is drawn for it, it's a boundary, not a platform. This is
 what stops a double jump from being chained to soar above the intended
 platforms and skip past hazards below.
 
+`cameraZoom` (also in `updatePlayer()`) eases the whole world view out to
+88% while airborne (`grounded` false) and back to 100% the instant the
+player lands, applied as a scale around the screen's center in `draw()` —
+seeing a bit more of the level around you while you're in the air, where
+you most need to spot the platform you're aiming for, without needing a
+hard cap on jump height. Applied only to the world layer (platforms,
+hazards, checkpoints, particles, the player); the level-name text and
+tutorial tips stay screen-space so they don't shrink or drift on every
+jump. Both `resetLevelState()` and `resetPlayer()` snap it straight back
+to 1 rather than letting it ease from wherever it was — same reasoning as
+snapping `cameraOffsetX`/`cameraOffsetY` on a teleport (see above): dying
+mid-air shouldn't leave the very next respawn's view zoomed out.
+
+## Resuming exactly where you left off
+
+`savedLevel` in `localStorage` only ever remembered *which level* to
+resume into. `CHECKPOINT_PROGRESS_KEY` (`game.js`) goes a level further:
+every time a checkpoint is reached, the furthest checkpoint *index*
+reached in that level is written to `localStorage` under that level's
+number (not full checkpoint objects — those are re-created fresh from the
+level's own script every load, see `loadLevel()` — just which one to
+fast-forward past). `resetLevelState()` reads it back after loading a
+level's checkpoints and, if one exists, marks every checkpoint up to it as
+already reached and spawns the player there — the exact same "respawn at
+the last checkpoint" position math `resetPlayer()` already uses for a
+mid-level death. A level never played before simply has no saved index and
+starts from its actual first platform as always.
+
 ## Frame-rate independence
 
 Every per-frame physics/animation increment (`gravity`, `horizontalSpeed`,
@@ -415,6 +454,31 @@ Jump setting (that setting is about clicking anywhere, not this dedicated
 button). Portrait on a touch device shows a "rotate to landscape" prompt
 instead of rendering a sideways platformer (`(pointer: coarse) and
 (orientation: portrait)` — pure CSS, no JS needed).
+
+Tap anywhere on the open play area (not just the jump button) to jump: the
+canvas has its own `touchstart` listener, separate from the `click`
+listener used for a mouse — a `click` on mobile only fires after a
+synthesized delay following `touchend`, and is silently cancelled by many
+browsers if the finger drifts even a couple of px between touchstart and
+touchend (easy to trigger by accident mid-jump). Both respect the same
+Click/Tap to Jump setting; `touchstart`'s `preventDefault()` stops the
+browser's own synthetic `click` from ever firing afterward, so a tap can't
+double-trigger a jump. Every touch point dispatches its own independent
+event, so this coexists with the d-pad/jump buttons fine — holding "right"
+while tapping elsewhere to jump works exactly like it should.
+
+Touch input can't be as precise as a mouse (a finger has no pixel-perfect
+point, and it physically covers whatever it's touching), so
+`TOUCH_INPUT_BONUS` in `game.js` adds a flat bit of extra checkpoint-radius
+and spike-hitbox forgiveness on top of the difficulty setting and the
+death-streak leniency, only on an actual touchscreen.
+
+The d-pad/jump buttons themselves (`.touch-button` in `game.css`) are
+deliberately understated — SVG chevrons instead of unicode glyphs (crisp
+at any size), a faded low-opacity fill, and a `padding` + `background-clip:
+content-box` combo that makes the real tappable area noticeably bigger
+than what's actually painted, the same "more forgiving than it looks"
+reasoning as the hitbox bonus above.
 
 The d-pad, jump button, pause button, and coin toast are all positioned
 with `env(safe-area-inset-*)` (see `game.css`), so they stay clear of a
@@ -468,6 +532,15 @@ normal screen-timeout while lining up a jump or reading level text dims
 and locks mid-run. Missing `navigator.wakeLock` (older/unsupported
 browsers) or a denied request (e.g. low-power mode) both fail silently —
 there's no fallback, it just doesn't hold the lock.
+
+### Haptics
+
+`vibrateHaptic()` wraps `navigator.vibrate()` — jump, death, and reaching
+a checkpoint each fire a short, distinct pattern (jump: a single quick
+pulse; death: three short pulses; checkpoint: a single slightly longer
+one). Only on an actual touchscreen with the API present — iOS Safari has
+never implemented `navigator.vibrate()` at all, so this silently does
+nothing there rather than throwing.
 
 ### Pause/game-complete menus on a short viewport
 

@@ -329,40 +329,55 @@ canvas {
      and the home-indicator bar, both of which land on the game's edges in
      forced landscape play (see game.html's rotate-prompt) — falls back to
      the plain 24px on a device/browser with no notch to account for. */
-  left: calc(24px + env(safe-area-inset-left, 0px));
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: calc(28px + env(safe-area-inset-left, 0px));
+  bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   display: flex;
-  gap: 16px;
+  /* Wider gap between left/right than the old 16px — sitting right next
+     to each other made it easy to clip the wrong one with a thumb,
+     especially combined with the bigger hit-padding below. */
+  gap: 26px;
   z-index: 900;
 }
 
 .touch-button {
   width: 64px;
   height: 64px;
+  /* Grows the actual tappable area a good bit past the visible circle
+     (background-clip keeps the *painted* button the original size) —
+     the fingertip covering a button is exactly why touch input needs
+     more forgiveness than a mouse pointer ever did (see
+     TOUCH_INPUT_BONUS in game.js for the same reasoning applied to
+     gameplay hitboxes).
+     Faded on purpose, and SVG strokes instead of unicode glyphs (crisp at
+     any size, no font-rendering quirks) — this only needs to be
+     findable, not a bold UI element competing with the game itself. */
+  padding: 14px;
   border-radius: 50%;
-  border: 2px solid rgba(77, 63, 145, 0.9);
-  background: rgba(20, 10, 40, 0.55);
-  color: #dcd4ff;
-  font-size: 1.4rem;
+  background-clip: content-box;
+  border: 1.5px solid rgba(120, 105, 180, 0.4);
+  background: rgba(20, 10, 40, 0.28);
+  color: rgba(220, 212, 255, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: content-box;
   touch-action: none; /* stop the browser turning a hold into a scroll/zoom gesture */
   -webkit-user-select: none;
   user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .touch-button:active {
-  background: rgba(77, 63, 145, 0.75);
+  background: rgba(77, 63, 145, 0.55);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .touch-jump {
   position: fixed;
-  right: calc(28px + env(safe-area-inset-right, 0px));
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
-  width: 80px;
-  height: 80px;
-  font-size: 1.8rem;
+  right: calc(32px + env(safe-area-inset-right, 0px));
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  width: 76px;
+  height: 76px;
   z-index: 900;
 }
 
