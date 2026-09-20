@@ -211,8 +211,11 @@ a `particles` array (gravity, velocity, a life counter), updated in
 - **Landing impact** — a slightly bigger burst the frame the player
   actually lands (transitions from airborne to grounded), not on every
   frame spent standing still.
-- **Death shatter** — a 20-particle burst in the equipped skin's color
-  plus white/red, in `resetPlayer()`.
+- **Death shatter** — a 24-particle burst in the equipped skin's color
+  plus white/red, fired the instant a hazard kills the player, in
+  `triggerDeath()` (see [The death animation](#the-death-animation)
+  below) — separate from `drawDeathAnimation()`'s own shard-burst
+  animation, which is a canned draw effect, not particles.
 - **Checkpoint sparkle** — a green/white burst the moment any checkpoint
   is reached.
 - **Skin trails** — skins that declare `trail: true` in `skinsData.js`
@@ -974,6 +977,42 @@ exactly the fade-to-black/`advanceToNextLevel()` sequence that used to
 start immediately on touching the checkpoint. `tryJump()`, `setPaused()`,
 and the touch-anywhere-to-jump handler all bail out while it's playing,
 same as they already did for `isFading`.
+
+### The death animation
+
+Touching a hazard doesn't teleport the player to their last checkpoint
+the same frame — `isDying`/`triggerDeath()`/`updateDeathAnimation()` play
+a short (~0.43s, `DEATH_ANIM_DURATION`) canned animation first, the
+death-side mirror of the portal-suck animation above: `triggerDeath()`
+fires immediately on contact (deadly platform, spike, or falling off the
+bottom of the screen — the three `resetPlayer()` call sites, now
+`triggerDeath()`) with the usual impact feedback (screen shake, haptics,
+a 24-particle shatter burst in the equipped skin's colors) and freezes
+the player in place (`player.dx`/`dy` zeroed, position captured into
+`deathAnimX`/`deathAnimY` rather than left on live `player.x`/`y`) instead
+of moving them anywhere yet. `drawPlayer()` swaps to `drawDeathAnimation()`
+for the duration — six small skin-colored shards spinning outward from
+the death point and fading, plus a fast red flash right at the start —
+rather than trying to shrink/spin each skin's actual shape (a circle's
+roll, a triangle's tumble, an image sprite) convincingly in place; shatter
+debris reads as "broke apart" regardless of the equipped skin's real
+shape, while still using that skin's own colors.
+
+Once `deathProgress` reaches 1, `updateDeathAnimation()` hands off to
+`resetPlayer()` — unchanged from before except that the stats/particle-
+burst/shake/haptics lines that used to open it now live in
+`triggerDeath()` instead (so they fire at the moment of impact, not
+delayed to the end of the animation); `resetPlayer()` itself still just
+increments the death stats, restores melted platforms, and teleports to
+the last checkpoint (or the level start). This runs in `update()` in
+place of normal `updatePlayer()`, the same "no input has anything left to
+do" reasoning as the portal-suck animation — which also means none of the
+three hazard checks that call `triggerDeath()` can fire again mid-
+animation without even needing `triggerDeath()`'s own re-entrancy guard,
+since `updatePlayer()` (where those checks live) simply isn't called
+while `isDying` is true. `tryJump()`, `setPaused()`, and
+`onDirectionTap()` (the dash trigger) all bail out while it's playing,
+same as they already did for `isFading`/`isPortalSucking`.
 
 ### Pause/game-complete menus on a short viewport
 

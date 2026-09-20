@@ -91,7 +91,7 @@ const DASH_DOUBLE_TAP_WINDOW_MS = 300;
 const lastDirectionTapAt = { left: 0, right: 0 };
 
 function onDirectionTap(direction) {
-  if (isPaused || isFading) return;
+  if (isPaused || isFading || isDying) return;
   if (StarshadeEconomy.getEquippedSkin().ability !== "dash") return;
   const now = Date.now();
   if (
@@ -787,6 +787,8 @@ function resetLevelState() {
   dashTimeRemaining = 0;
   isPortalSucking = false;
   portalSuckProgress = 0;
+  isDying = false;
+  deathProgress = 0;
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
@@ -1093,7 +1095,7 @@ function getSkinImage(src) {
 }
 
 // -------------------------------------------------------------
-// SURFACE TEXTURES (platforms, hazards)
+// SURFACE TEXTURES (platforms, hazards, ghost/melt platforms, checkpoints)
 // -------------------------------------------------------------
 // Real SVG images (assets/textures/) turned into tileable canvas
 // patterns, rather than a plain flat fillStyle — a `ctx.createPattern()`
@@ -1103,6 +1105,9 @@ function getSkinImage(src) {
 // only ever noticeable on the very first level load).
 let platformTexturePattern = null;
 let hazardTexturePattern = null;
+let ghostTexturePattern = null;
+let meltTexturePattern = null;
+let checkpointTexturePattern = null;
 
 function loadTexturePattern(src, onReady) {
   const img = new Image();
@@ -1114,6 +1119,15 @@ loadTexturePattern("assets/textures/platform-texture.svg", (pattern) => {
 });
 loadTexturePattern("assets/textures/hazard-texture.svg", (pattern) => {
   hazardTexturePattern = pattern;
+});
+loadTexturePattern("assets/textures/ghost-texture.svg", (pattern) => {
+  ghostTexturePattern = pattern;
+});
+loadTexturePattern("assets/textures/melt-texture.svg", (pattern) => {
+  meltTexturePattern = pattern;
+});
+loadTexturePattern("assets/textures/checkpoint-texture.svg", (pattern) => {
+  checkpointTexturePattern = pattern;
 });
 
 // -------------------------------------------------------------
@@ -1362,7 +1376,66 @@ function drawBackground() {
 // -------------------------------------------------------------
 // DRAWING
 // -------------------------------------------------------------
+// Draws the death animation in place of the normal player shape — see
+// triggerDeath()/updateDeathAnimation()'s comments. Rather than trying to
+// shrink/spin each skin's own shape in place (a square, a circle's roll,
+// a triangle's tumble, an image sprite all shrinking convincingly would
+// need real per-shape work), this shatters into a handful of small
+// skin-colored shards flying outward and fading — reads clearly as
+// "broke apart" regardless of the equipped skin's actual shape, using
+// that skin's own colors so it's still recognizably "you," the same
+// "looks at least a little different per skin without a wholly separate
+// effect per one" reasoning the portal-suck animation already uses.
+function drawDeathAnimation() {
+  const skin = StarshadeEconomy.getEquippedSkin();
+  const t = deathProgress;
+  const alpha = 1 - t;
+  if (alpha <= 0) return;
+
+  ctx.save();
+  ctx.translate(deathAnimX - cameraOffsetX, deathAnimY - cameraOffsetY);
+  ctx.globalAlpha = alpha;
+
+  const shardCount = 6;
+  const spread = 18 + t * 30;
+  const size = (1 - t * 0.6) * 10;
+  for (let i = 0; i < shardCount; i++) {
+    // A slight per-shard distance variety (not a perfect ring) so the
+    // burst reads as debris, not a spinning geometric decoration.
+    const angle = (i / shardCount) * Math.PI * 2 + deathSpinAngle;
+    const dist = spread * (0.65 + (i % 3) * 0.18);
+    ctx.save();
+    ctx.translate(Math.cos(angle) * dist, Math.sin(angle) * dist);
+    ctx.rotate(angle + deathSpinAngle * 1.5);
+    ctx.fillStyle = skin.fill || "rgba(160,66,211,0.85)";
+    ctx.strokeStyle = skin.stroke || "rgba(220,200,255,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(-size / 2, -size / 2, size, size);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // A quick red flash right at the moment of impact, fading much faster
+  // than the shards themselves — distinct "damage" beat at the very start
+  // of the animation rather than lingering the whole way through it.
+  const flashAlpha = Math.max(0, 1 - t * 3) * 0.5;
+  if (flashAlpha > 0) {
+    ctx.globalAlpha = flashAlpha;
+    ctx.fillStyle = "rgba(255,60,60,0.9)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawPlayer() {
+  if (isDying) {
+    drawDeathAnimation();
+    return;
+  }
   const skin = StarshadeEconomy.getEquippedSkin();
   const halfW = player.width / 2;
   const halfH = player.height / 2;
@@ -1633,7 +1706,8 @@ function drawGhostPlatforms() {
       platform.width,
       platform.height,
       "rgba(255, 209, 46, 0.8)",
-      "rgba(255, 236, 140, 0.95)"
+      "rgba(255, 236, 140, 0.95)",
+      ghostTexturePattern
     );
     ctx.restore();
   });
@@ -1663,7 +1737,8 @@ function drawMeltPlatforms() {
       platform.width,
       platform.height,
       `rgba(255, ${Math.round(190 - urgency * 110)}, 30, 0.8)`,
-      "rgba(255, 150, 40, 0.9)"
+      "rgba(255, 150, 40, 0.9)",
+      meltTexturePattern
     );
     ctx.restore();
   });
@@ -1810,12 +1885,25 @@ function drawCheckpoints() {
         ctx.fill();
       }
     } else {
+      const r = 15 + pulse + pop;
       ctx.fillStyle = checkpoint.reached ? "rgba(50, 255, 50, 0.8)" : "#fff";
       ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "#ccc";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(0, 0, 15 + pulse + pop, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
+      // Faceted-glass beacon texture layered on top of the flat fill, same
+      // "overlay, don't replace" treatment as the platform/hazard textures
+      // — clipped to the checkpoint's own circle since the source pattern
+      // tiles as a rectangle.
+      if (checkpointTexturePattern) {
+        ctx.save();
+        ctx.clip();
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = checkpointTexturePattern;
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.restore();
+      }
       ctx.stroke();
     }
     ctx.restore();
@@ -2663,7 +2751,11 @@ function update(dtScale) {
     draw(dtScale);
     return;
   }
-  if (isPortalSucking) {
+  if (isDying) {
+    // Frozen at the death location for a short beat before the actual
+    // respawn — see triggerDeath()/updateDeathAnimation()'s comments.
+    updateDeathAnimation(dtScale);
+  } else if (isPortalSucking) {
     // The level's already complete at this point — no input has anything
     // left to do, so this plays out as a canned animation instead of
     // normal updatePlayer(), with the camera left exactly where it was
@@ -2685,9 +2777,9 @@ function update(dtScale) {
 
 function setPaused(paused) {
   // Disallowed mid-transition (the level data may momentarily be empty),
-  // during the portal-suck animation, or once the game-complete screen is
-  // already up.
-  if (isFading || isPortalSucking) return;
+  // during the portal-suck or death animation, or once the game-complete
+  // screen is already up.
+  if (isFading || isPortalSucking || isDying) return;
   if (!document.getElementById("gameCompleteMenu").classList.contains("hidden")) return;
   isPaused = paused;
   document.getElementById("pauseMenu").classList.toggle("hidden", !paused);
@@ -2795,10 +2887,10 @@ document.addEventListener("keydown", (e) => {
 // settings.js's "Click/Tap to Jump" toggle) so both trigger the exact same
 // jump-or-extra-jump logic.
 function tryJump() {
-  // Nothing to do once the level's finished (fading out) or mid-portal-
-  // suck — checked once here instead of at every call site (keyboard,
-  // click, touch) so none of them can forget it.
-  if (isFading || isPortalSucking) return;
+  // Nothing to do once the level's finished (fading out), mid-portal-
+  // suck, or mid-death-animation — checked once here instead of at every
+  // call site (keyboard, click, touch) so none of them can forget it.
+  if (isFading || isPortalSucking || isDying) return;
 
   // wasGrounded (not player.dy === 0) is the correct "on solid ground"
   // signal — dy also lands on exactly 0 for one frame when the player
