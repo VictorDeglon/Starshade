@@ -2077,12 +2077,20 @@ function drawSlingshots() {
 // ever loaded once no matter how many levels draw it.
 const finishLogoImage = getSkinImage("starshade.png");
 
+// How long the "claim" burst (flash + shockwave rings + an extra
+// activation spin, see the non-finish branch of drawCheckpoints() below)
+// plays for after a checkpoint is first reached — also now how long the
+// shared pop scale-up lasts, so the beacon's own punch and the burst
+// effects settle together instead of the pop finishing early and leaving
+// the rings animating on a beacon that's already back to rest size.
+const CLAIM_BURST_MS = 550;
+
 function drawCheckpoints() {
   const now = Date.now();
   checkpoints.forEach((checkpoint, index) => {
     const isFinish = index === checkpoints.length - 1;
 
-    // Idle glow pulse on unreached checkpoints, a brief "pop" the moment
+    // Idle glow pulse on unreached checkpoints, a bigger "pop" the moment
     // a checkpoint is reached.
     const pulse = checkpoint.reached
       ? 0
@@ -2091,8 +2099,8 @@ function drawCheckpoints() {
       ? now - (checkpoint.reachedAt || now)
       : 0;
     const pop =
-      checkpoint.reached && timeSinceReached < 300
-        ? (1 - timeSinceReached / 300) * 8
+      checkpoint.reached && timeSinceReached < CLAIM_BURST_MS
+        ? (1 - timeSinceReached / CLAIM_BURST_MS) * 14
         : 0;
 
     ctx.save();
@@ -2154,7 +2162,18 @@ function drawCheckpoints() {
       // as the level-finish Starshade logo above, just smaller and slower,
       // so ordinary checkpoints read as real objects rather than dots.
       const r = 15 + pulse + pop;
-      const rotation = now / 5000 + checkpoint.x; // offset by x so checkpoints don't all spin in lockstep
+      // Claim progress, 0 (just reached) -> 1 (settled) — drives the extra
+      // activation spin below and the flash/shockwave burst further down.
+      // Pinned at 1 for an unreached checkpoint so neither ever fires.
+      const claimT = checkpoint.reached
+        ? Math.min(1, timeSinceReached / CLAIM_BURST_MS)
+        : 1;
+      // A fast decaying flourish spin layered on top of the normal slow
+      // ambient rotation right at the instant of claim — eases out to
+      // exactly 0 extra by the time claimT reaches 1, so it hands off to
+      // the ambient spin without a visible seam.
+      const activationSpin = (1 - claimT) * (1 - claimT) * Math.PI * 2.4;
+      const rotation = now / 5000 + checkpoint.x + activationSpin; // offset by x so checkpoints don't all spin in lockstep
       const glowColor = checkpoint.reached ? "rgba(80,255,120,0.85)" : "rgba(255,205,90,0.8)";
 
       ctx.save();
@@ -2194,6 +2213,45 @@ function drawCheckpoints() {
       ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "rgba(255, 225, 160, 0.7)";
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // The "claim" burst — plays once, right when a checkpoint is first
+      // reached (see updatePlayer()'s checkpoint-collision block, which
+      // sets reachedAt), instead of the beacon just snapping straight to
+      // its green tint: an additive white flash at the instant of claim,
+      // then two staggered shockwave rings racing outward and fading, on
+      // top of the bigger pop and the activation spin above — reads as a
+      // real release of energy, not a color change.
+      if (claimT < 1) {
+        const flashT = Math.min(1, timeSinceReached / 120);
+        if (flashT < 1) {
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = 1 - flashT;
+          const flash = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.4);
+          flash.addColorStop(0, "rgba(255,255,255,0.95)");
+          flash.addColorStop(0.6, "rgba(210,255,220,0.5)");
+          flash.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = flash;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        [0, 0.18].forEach((delay) => {
+          const ringT = (claimT - delay) / (1 - delay);
+          if (ringT <= 0 || ringT >= 1) return;
+          const eased = 1 - Math.pow(1 - ringT, 2); // fast start, gentle finish
+          ctx.save();
+          ctx.globalAlpha = (1 - ringT) * 0.85;
+          ctx.strokeStyle = "rgba(150,255,170,0.9)";
+          ctx.lineWidth = 3 * (1 - ringT) + 0.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, r + eased * r * 3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
     }
     ctx.restore();
   });
@@ -2777,12 +2835,25 @@ function updatePlayer(dtScale) {
       checkpoint.reachedAt = Date.now();
       saveCheckpointProgress(currentLevel, index);
       consecutiveDeaths = 0; // real progress — the rubber-banding resets
-      spawnParticles(checkpoint.x, checkpoint.y, 14, {
+      // Two layered bursts instead of one — a wider ring of slower motes
+      // (green/white, matching the reached tint) plus a tighter, faster
+      // spray of small gold sparks (the beacon's own idle color, read as
+      // "the old charge being thrown off") — feels like a real activation
+      // rather than a single puff, to match the flash/shockwave-ring burst
+      // drawCheckpoints() now plays on the beacon itself.
+      spawnParticles(checkpoint.x, checkpoint.y, 16, {
         colors: ["rgba(50,255,50,0.9)", "rgba(180,255,180,0.9)", "#fff"],
         speed: 3.5,
-        life: 35,
-        size: 3,
+        life: 38,
+        size: 3.2,
         gravity: 0.05,
+      });
+      spawnParticles(checkpoint.x, checkpoint.y, 10, {
+        colors: ["rgba(255,225,140,0.95)", "rgba(255,205,90,0.9)"],
+        speed: 6,
+        life: 18,
+        size: 2,
+        gravity: 0.02,
       });
 
       const isFinalCheckpoint = index === checkpoints.length - 1;
