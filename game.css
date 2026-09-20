@@ -211,6 +211,45 @@ canvas {
   }
 }
 
+/* Real landscape phones commonly land in the 375-430px-tall range (this
+   is the only orientation mobile play ever shows the hub screens in —
+   see the rotate-prompt gate) — wider than 420px's trigger above, so the
+   hub screens get their own, slightly less aggressive breakpoint rather
+   than relying on vh-based clamp() alone to shrink enough. */
+@media screen and (max-height: 500px) {
+  .hub-screen {
+    gap: 10px;
+  }
+
+  .hub-hero .logo {
+    display: none;
+  }
+
+  .hub-hero h1 {
+    font-size: 1.6rem;
+  }
+
+  .hub-button-primary {
+    padding: 12px 10px;
+    font-size: 1rem;
+  }
+
+  .hub-button-primary .hub-button-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .hub-button {
+    padding: 10px 8px;
+    font-size: 0.82rem;
+  }
+
+  .hub-button-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 .menu-button:hover {
   background: rgba(139, 92, 246, 0.26);
   box-shadow: 0 0 22px rgba(139, 92, 246, 0.45);
@@ -269,6 +308,19 @@ canvas {
   gap: 0;
 }
 
+/* Play/Resume sits in its own full-width row, entirely separate from the
+   grid of secondary actions below — a clear "this is the one obvious
+   next step, everything else is secondary" hierarchy instead of the
+   primary button just being one bigger tile competing for space inside
+   the same grid as the others (which also, with only 4-5 secondary
+   items left after Settings moved to the corner gear, made the grid
+   itself lopsided — one wide item plus a leftover column). */
+.hub-primary-row {
+  width: min(100%, 560px);
+  max-width: 94vw;
+  padding: 0 4px;
+}
+
 .hub-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -319,7 +371,7 @@ canvas {
    brighter border, so it reads as *the* action, not one of a set of six
    equal choices. */
 .hub-button-primary {
-  grid-column: span 2;
+  width: 100%;
   padding: clamp(20px, 3.4vh, 30px) 10px;
   background: linear-gradient(160deg, rgba(139, 92, 246, 0.32), rgba(139, 92, 246, 0.18));
   border-color: rgba(197, 178, 255, 0.75);
@@ -985,10 +1037,15 @@ canvas {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  /* Transparent — .galaxy-bg (see index.html) shows through instead of a
-     separate flat gradient, so the very first thing a player sees is the
-     same art the menus and levels use, not a different backdrop. */
-  background: rgba(6, 4, 20, 0.35);
+  /* Fully opaque, and deliberately NOT letting .galaxy-bg/the live canvas
+     show through here: the game is already running underneath from the
+     moment this page loads (see the boot sequence comment on
+     #gameCanvas in index.html), so a translucent loading screen means a
+     player sees the actual level moving around before they've pressed
+     Play — this hides all of that behind its own themed backdrop instead,
+     in the same palette as .galaxy-bg so it still feels like the same
+     place, just a curtain in front of it rather than a window into it. */
+  background: radial-gradient(circle at 50% 15%, #241353, #140A30 55%, #08061A 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
