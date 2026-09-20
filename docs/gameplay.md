@@ -425,7 +425,17 @@ assumptions change.
   duration so releasing the key mid-dash can't cut it short.
 - **`tripleJump`** — `extraAirJumps()` returns 2 instead of the usual 1,
   generalized from a plain "double jump used" boolean to an `airJumpsUsed`
-  counter checked against it.
+  counter checked against it. Still a valid ability string (the "Skyward
+  Herald" legendary skin bundles it), but no longer independently
+  purchasable in the Shop's Skills tab — replaced there by `featherFall`
+  below, since an unconditional extra jump could skip past gaps/hazard
+  sequences a level's design assumed were mandatory.
+- **`featherFall`** — gravity is cut to 55% only once the player is
+  already past a jump's apex and actually falling (`player.dy > 0`, outside
+  the apex-gravity zone below) — the rise and max height/reach are
+  untouched, so this only extends hang time on the way down (more time to
+  react, dodge, or line up a landing), never lets the player reach
+  somewhere a normal jump couldn't.
 - **`sticky`** — clinging to a wall: `resolveAxis()` now also returns
   `wallHit` (isX only), and while airborne and pressed into a wall
   (`wallHit` true — which only fires while actively trying to move into

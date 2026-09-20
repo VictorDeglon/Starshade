@@ -68,11 +68,20 @@ const STARSHADE_PARTICLES = [
 ];
 
 // `ability` is the exact string game.js's physics loop already checks
-// (dash/tripleJump/sticky/slippery/bouncy — see docs/gameplay.md's
-// Abilities section and StarshadeEconomy.getEquippedAbility()). These are
-// the same five effects skins have always been able to bundle — promoted
-// here into their own independently-purchasable/equippable catalog so a
-// player isn't forced to also change their cosmetic look to get one.
+// (dash/featherFall/sticky/slippery/bouncy — see docs/gameplay.md's
+// Abilities section and StarshadeEconomy.getEquippedAbility()). Four of
+// these (all but featherFall) are also effects a legendary/mythic skin can
+// bundle directly — promoted here into their own independently-
+// purchasable/equippable catalog so a player isn't forced to also change
+// their cosmetic look to get one. `featherFall` replaces the old
+// standalone `tripleJump` skill — an extra full mid-air jump let a player
+// skip past gaps and hazard sequences the level design assumed were
+// mandatory; a slower fall after a jump's peak (same rise, same max
+// height/reach, just more hang time coming down) is a real perk without
+// that same "skip the level design" ceiling. `tripleJump` itself is still
+// a valid ability string — the "Skyward Herald" legendary skin
+// (skinsData.js) still bundles it — it's just no longer independently
+// purchasable here.
 const STARSHADE_ABILITIES = [
   {
     id: "skill-dash",
@@ -84,13 +93,13 @@ const STARSHADE_ABILITIES = [
     description: "Double-tap Left/Right for a short fast burst.",
   },
   {
-    id: "skill-triple-jump",
-    name: "Triple Jump",
+    id: "skill-featherfall",
+    name: "Featherfall",
     rarity: "rare",
     unlockType: "coins",
     cost: 300,
-    ability: "tripleJump",
-    description: "An extra mid-air jump (2 total instead of the usual 1).",
+    ability: "featherFall",
+    description: "Fall noticeably slower after a jump's peak — more time to react, not more reach.",
   },
   {
     id: "skill-sticky",

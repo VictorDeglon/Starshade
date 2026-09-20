@@ -2457,7 +2457,22 @@ function updatePlayer(dtScale) {
   // Only the few frames spent essentially motionless at the peak change.
   const APEX_GRAVITY_ZONE = 2;
   const APEX_GRAVITY_MULTIPLIER = 1.6;
-  const gravityMultiplier = Math.abs(player.dy) < APEX_GRAVITY_ZONE ? APEX_GRAVITY_MULTIPLIER : 1;
+  let gravityMultiplier = Math.abs(player.dy) < APEX_GRAVITY_ZONE ? APEX_GRAVITY_MULTIPLIER : 1;
+  // Featherfall ability (see shopData.js's Skills catalog) — only softens
+  // the actual descent (dy already past the apex zone, i.e. properly
+  // falling), never the rise, so the jump's max height/reach is exactly
+  // what it always was and every gap a level's design requires still
+  // requires it; this only buys more time to react/course-correct on the
+  // way down, deliberately weaker than the old tripleJump skill it
+  // replaced (an unconditional extra jump could skip gaps outright).
+  const FEATHERFALL_GRAVITY_MULTIPLIER = 0.55;
+  if (
+    gravityMultiplier === 1 &&
+    player.dy > 0 &&
+    StarshadeEconomy.getEquippedAbility() === "featherFall"
+  ) {
+    gravityMultiplier = FEATHERFALL_GRAVITY_MULTIPLIER;
+  }
   player.dy += gravity * gravityMultiplier * dtScale;
 
   const targetDx = anyPressed("right")

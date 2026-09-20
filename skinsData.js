@@ -1060,7 +1060,7 @@ const StarshadeEconomy = (() => {
     localStorage.setItem(EQUIPPED_ABILITY_KEY, id);
   }
   // The actual ability *string* game.js's physics loop checks
-  // (dash/tripleJump/sticky/slippery/bouncy) — falls back to the equipped
+  // (dash/tripleJump/featherFall/sticky/slippery/bouncy) — falls back to the equipped
   // skin's own bundled `ability` field (unchanged from before this
   // existed) if nothing's been independently equipped from the Shop's
   // Skills tab, so every already-existing skin's built-in ability keeps
