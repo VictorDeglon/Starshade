@@ -14,10 +14,10 @@
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&family=Orbitron:wght@700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="game.css" />
-    <link rel="stylesheet" href="achievements.css" />
-    <link rel="stylesheet" href="profile.css" />
-    <link rel="stylesheet" href="shop.css" />
+    <link rel="stylesheet" href="game.css?v=20260920c" />
+    <link rel="stylesheet" href="achievements.css?v=20260920c" />
+    <link rel="stylesheet" href="profile.css?v=20260920c" />
+    <link rel="stylesheet" href="shop.css?v=20260920c" />
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
@@ -537,17 +537,17 @@
       </div>
     </div>
 
-    <script src="skinsData.js"></script>
-    <script src="achievementsData.js"></script>
-    <script src="shopData.js"></script>
-    <script src="shopIcons.js"></script>
+    <script src="skinsData.js?v=20260920c"></script>
+    <script src="achievementsData.js?v=20260920c"></script>
+    <script src="shopData.js?v=20260920c"></script>
+    <script src="shopIcons.js?v=20260920c"></script>
     <!--
       Level scripts are NOT included here directly — see loadLevel() in
       game.js and docs/architecture.md's "Level loading" section for why
       (`window.foo = ...` assignment, not `const`/`let`, specifically so a
       level script can be swapped in-page any number of times).
     -->
-    <script src="game.js"></script>
+    <script src="game.js?v=20260920c"></script>
     <!--
       Loaded after game.js — each of these is wrapped in its own IIFE (see
       each file's top comment) specifically so its top-level names can't
@@ -557,11 +557,11 @@
       window.closeAchievementsOverlay, window.closeShopOverlay) rather than
       navigating — see docs/architecture.md.
     -->
-    <script src="settings.js"></script>
-    <script src="levels.js"></script>
-    <script src="achievements.js"></script>
-    <script src="shop.js"></script>
-    <script src="profile.js"></script>
-    <script src="overlay-nav.js"></script>
+    <script src="settings.js?v=20260920c"></script>
+    <script src="levels.js?v=20260920c"></script>
+    <script src="achievements.js?v=20260920c"></script>
+    <script src="shop.js?v=20260920c"></script>
+    <script src="profile.js?v=20260920c"></script>
+    <script src="overlay-nav.js?v=20260920c"></script>
   </body>
 </html>
