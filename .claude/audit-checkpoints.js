@@ -90,8 +90,13 @@ function simulateFall(startX, startY, platforms, maxFrames) {
   return { landed: false, frame: maxFrames, y };
 }
 
+// Scales automatically as more levels are added — no hardcoded "25" to
+// remember to bump every time the level count grows.
+let maxLevel = 1;
+while (fs.existsSync(path.join(__dirname, "..", `level${maxLevel + 1}.js`))) maxLevel++;
+
 const issues = [];
-for (let n = 1; n <= 25; n++) {
+for (let n = 1; n <= maxLevel; n++) {
   const level = loadLevel(n);
   level.checkpoints.forEach((cp, index) => {
     const spawnX = cp.x;
@@ -143,7 +148,7 @@ for (let n = 1; n <= 25; n++) {
 }
 
 if (issues.length === 0) {
-  console.log("No checkpoint safety issues found across all 25 levels.");
+  console.log(`No checkpoint safety issues found across all ${maxLevel} levels.`);
 } else {
   console.log(`Found ${issues.length} issue(s):\n`);
   issues.forEach((i) => {

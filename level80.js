@@ -1,0 +1,108 @@
+// Level 80 Data — "The Wraith Stair"
+// Generated to fit the established difficulty tiers (see this
+// script's header and docs/gameplay.md) — every gap here is verified
+// against the same physics .claude/audit-gaps.js checks, and any
+// ghost-gated gap is confirmed to genuinely require the ghost platform.
+
+window.levelText = "Level 80";
+
+window.platforms = [
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 527, y: 391, width: 232, height: 27, melt: true, meltDelay: 20 },
+  { x: 1209, y: 388, width: 88, height: 14 },
+  { x: 1524, y: 390, width: 113, height: 25, moveAxis: "x", moveRange: 130, moveSpeed: 0.064, movePhase: 5.83 },
+  { x: 1864, y: 390, width: 172, height: 26 },
+  { x: 2259, y: 380, width: 55, height: 18, moveAxis: "y", moveRange: 138, moveSpeed: 0.045, movePhase: 3.03 },
+  { x: 2478, y: 380, width: 230, height: 22 },
+  { x: 3139, y: 329, width: 89, height: 30, melt: true, meltDelay: 20 },
+  { x: 3649, y: 262, width: 154, height: 27, bounce: true, bounceStrength: -17 },
+  { x: 3991, y: 187, width: 56, height: 18, conveyor: true, conveyorSpeed: -1.94 },
+  { x: 4458, y: 92, width: 140, height: 22 },
+  { x: 4767, y: -13, width: 134, height: 20, moveAxis: "x", moveRange: 80, moveSpeed: 0.047, movePhase: 4.04 },
+  { x: 5065, y: -13, width: 380, height: 23 },
+  { x: 5623, y: -99, width: 155, height: 26 },
+  { x: 6189, y: -190, width: 104, height: 16 },
+  { x: 6487, y: -254, width: 80, height: 28 },
+  { x: 7004, y: -295, width: 48, height: 30, melt: true, meltDelay: 20 },
+  { x: 7492, y: -321, width: 101, height: 19, conveyor: true, conveyorSpeed: 2.1 },
+  { x: 8039, y: -335, width: 184, height: 30 },
+  { x: 8223, y: -335, width: 298, height: 20 },
+  { x: 8717, y: -363, width: 94, height: 20, ghost: true, ghostPeriod: 120, ghostOnRatio: 0.35 },
+  { x: 8999, y: -379, width: 249, height: 20 },
+  { x: 9475, y: -379, width: 73, height: 26, moveAxis: "x", moveRange: 102, moveSpeed: 0.059, movePhase: 5.79 },
+  { x: 9775, y: -378, width: 84, height: 22, conveyor: true, conveyorSpeed: -0.9 },
+  { x: 10086, y: -376, width: 73, height: 17, ghost: true, ghostPeriod: 120, ghostOnRatio: 0.4 },
+  { x: 10392, y: -364, width: 220, height: 27, conveyor: true, conveyorSpeed: 1.18 },
+  { x: 11058, y: -386, width: 115, height: 14, moveAxis: "y", moveRange: 88, moveSpeed: 0.068, movePhase: 4.51 },
+  { x: 11613, y: -414, width: 151, height: 24, melt: true, meltDelay: 20 },
+  { x: 12195, y: -460, width: 106, height: 17, moveAxis: "y", moveRange: 124, moveSpeed: 0.053, movePhase: 5.82 },
+  { x: 12465, y: -460, width: 221, height: 26 },
+  { x: 13113, y: -521, width: 115, height: 28, melt: true, meltDelay: 20 },
+  { x: 13416, y: -599, width: 206, height: 14, melt: true, meltDelay: 20 },
+  { x: 13797, y: -697, width: 50, height: 20, moveAxis: "x", moveRange: 94, moveSpeed: 0.062, movePhase: 5.08 },
+  { x: 14249, y: -803, width: 220, height: 14 },
+  { x: 14871, y: -910, width: 213, height: 20 },
+  { x: 15495, y: -1002, width: 115, height: 25, conveyor: true, conveyorSpeed: -1.75 },
+  { x: 15774, y: -1002, width: 384, height: 18 },
+  { x: 16346, y: -1078, width: 148, height: 24, melt: true, meltDelay: 20 },
+  { x: 16931, y: -1118, width: 47, height: 16 },
+  { x: 17409, y: -1169, width: 204, height: 29 },
+  { x: 18063, y: -1179, width: 89, height: 29, melt: true, meltDelay: 20 },
+  { x: 18379, y: -1175, width: 200, height: 24, melt: true, meltDelay: 20 },
+  { x: 19029, y: -1183, width: 219, height: 14 },
+  { x: 19414, y: -1177, width: 429, height: 20 },
+];
+
+window.deadlyPlatforms = [
+  { x: 1568, y: 346, width: 91, height: 14, moveAxis: "y", moveRange: 156, moveSpeed: 0.07, movePhase: 0.83 },
+  { x: 2196, y: 354, width: 50, height: 18, moveAxis: "x", moveRange: 126, moveSpeed: 0.053, movePhase: 3.49 },
+  { x: 4852, y: 32, width: 93, height: 23, moveAxis: "y", moveRange: 84, moveSpeed: 0.042, movePhase: 5.97 },
+  { x: 11141, y: -443, width: 98, height: 19, moveAxis: "x", moveRange: 110, moveSpeed: 0.074, movePhase: 4.17 },
+  { x: 13710, y: -668, width: 50, height: 18, moveAxis: "y", moveRange: 101, moveSpeed: 0.061, movePhase: 4.2 },
+  { x: 1323, y: 393, width: 63, height: 20 },
+  { x: 2073, y: 399, width: 153, height: 20 },
+  { x: 4628, y: 100, width: 125, height: 20 },
+  { x: 6327, y: -196, width: 82, height: 20 },
+  { x: 6605, y: -244, width: 60, height: 20 },
+  { x: 8258, y: -343, width: 131, height: 20 },
+  { x: 14495, y: -811, width: 136, height: 20 },
+  { x: 15120, y: -920, width: 150, height: 20 },
+  { x: 17013, y: -1113, width: 60, height: 20 },
+  { x: 17651, y: -1174, width: 137, height: 20 },
+  { x: 19273, y: -1176, width: 183, height: 20 },
+];
+
+window.spikes = [
+  { x: 1241, y: 388, size: 13 },
+  { x: 1254, y: 388, size: 29 },
+  { x: 1902, y: 390, size: 45 },
+  { x: 1947, y: 390, size: 52 },
+  { x: 4489, y: 92, size: 19 },
+  { x: 4508, y: 92, size: 36 },
+  { x: 4544, y: 92, size: 48 },
+  { x: 5659, y: -99, size: 42 },
+  { x: 6202, y: -190, size: 63 },
+  { x: 8101, y: -335, size: 31 },
+  { x: 14319, y: -803, size: 41 },
+  { x: 14360, y: -803, size: 44 },
+  { x: 14404, y: -803, size: 32 },
+  { x: 14436, y: -803, size: 15 },
+  { x: 14928, y: -910, size: 62 },
+  { x: 14990, y: -910, size: 15 },
+  { x: 15005, y: -910, size: 54 },
+  { x: 17469, y: -1169, size: 55 },
+  { x: 17524, y: -1169, size: 45 },
+  { x: 19100, y: -1183, size: 35 },
+  { x: 19135, y: -1183, size: 12 },
+  { x: 19147, y: -1183, size: 50 },
+];
+
+window.checkpoints = [
+  { x: 150, y: 350, reached: false },
+  { x: 2593, y: 350, reached: false },
+  { x: 5255, y: -43, reached: false },
+  { x: 9059, y: -409, reached: false },
+  { x: 12576, y: -490, reached: false },
+  { x: 15966, y: -1032, reached: false },
+  { x: 19629, y: -1207, reached: false }, // Final
+];

@@ -39,17 +39,31 @@ window.addEventListener("resize", resizeCanvas);
 // True on an actual touchscreen (phones/tablets), false for a mouse-driven
 // desktop browser even if the window is resized narrow — same test
 // game.css uses to decide whether to show the on-screen touch controls at
-// all. Declared this early because DIFFICULTY_SETTINGS below needs it:
-// touch input is inherently less precise than a mouse/keyboard (no
-// pixel-perfect pointer, fingers occlude what they're touching), so touch
-// play gets a bit more forgiveness baked in rather than expecting phone
-// players to match desktop precision.
-const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+// all. `(pointer: coarse)` alone isn't enough: a touchscreen laptop/2-in-1
+// with a trackpad or mouse also attached reports coarse (the hardware
+// exists), even though its actual primary input is that mouse/trackpad —
+// which showed up as on-screen touch controls, extra touch forgiveness,
+// and the mobile-only camera framing all incorrectly kicking in on a
+// regular desktop setup. `(hover: none)` is what's actually specific to
+// "the primary pointer can't hover" (true for a phone/tablet's finger,
+// false whenever a mouse/trackpad is the primary pointer, touchscreen
+// hardware or not) — requiring both is the standard fix for this class of
+// false positive. Declared this early because DIFFICULTY_SETTINGS below
+// needs it: touch input is inherently less precise than a mouse/keyboard
+// (no pixel-perfect pointer, fingers occlude what they're touching), so
+// touch play gets a bit more forgiveness baked in rather than expecting
+// phone players to match desktop precision.
+const isTouchDevice = window.matchMedia("(pointer: coarse) and (hover: none)").matches;
 
 // Game settings
 const gravity = 0.5;
 const jumpStrength = -12;
 const horizontalSpeed = 5;
+// Bounce pads (see the landing check in updatePlayer()) launch harder than
+// a normal jump — enough to clear noticeably more height than jumping
+// unaided, so a chain of them reads as genuinely different traversal, not
+// just "jump but yellow."
+const BOUNCE_STRENGTH = -18;
 // How many mid-air jumps have been used since the last time the player
 // was grounded — generalized from a plain "has the double jump been used"
 // boolean so a skin can grant more than one (see extraAirJumps() below;
@@ -456,14 +470,21 @@ let tutorialTipShownAt = 0;
 // happens in-page via advanceToNextLevel() and never touches this read.
 let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
 
-// How far through the game's 25 levels the backdrop should look (see
-// drawBackground()) — 0 at level 1 (low-altitude sky) to 1 at level 25
-// (deep cosmos), recomputed once per level load in resetLevelState().
-// Deliberately just currentLevel/(last level), not tied to anything about
-// a level's actual content, so it still degrades sensibly if the level
-// count ever changes.
-const SCENE_THEME_LEVEL_COUNT = 25;
+// How far through the game's levels the backdrop should look (see
+// drawBackground()) — 0 at level 1 (low-altitude sky) to 1 at the last
+// level (deep cosmos), recomputed once per level load in
+// resetLevelState(). Deliberately just currentLevel/(last level), not tied
+// to anything about a level's actual content, so it still degrades
+// sensibly if the level count ever changes.
+const SCENE_THEME_LEVEL_COUNT = 100;
 let sceneProgress = 0;
+
+// A level opts into a wholesale visual reskin with `window.levelTheme`
+// (currently only `"neon"` — see drawBackground()/drawInsetRect() callers)
+// instead of the normal progress-based nebula backdrop and violet/crimson
+// palette. Reset to null on every load (see loadLevel()) so a themed
+// level can't leak its look into the next, ordinary one.
+let currentLevelTheme = null;
 
 // The level's actual spawn point, captured once per level load (see
 // resetLevelState()) *after* applyLevelVerticalLayout() has shifted the
@@ -587,6 +608,7 @@ function loadLevel(levelNumber) {
     window.checkpoints = [];
     window.levelText = "";
     window.tutorialTips = [];
+    window.levelTheme = null;
 
     const script = document.createElement("script");
     // Cache-busted: level files just changed from `const`/`let` to
@@ -615,6 +637,7 @@ function resetLevelState() {
     0,
     Math.min(1, (currentLevel - 1) / (SCENE_THEME_LEVEL_COUNT - 1))
   );
+  currentLevelTheme = typeof levelTheme !== "undefined" ? levelTheme : null;
 
   // Re-check the canvas size here too, not just on an actual window
   // resize — if the very first frame happened to run before the viewport
@@ -889,7 +912,14 @@ document.getElementById("resume-button").addEventListener("click", () => {
 document.getElementById("pause-settings-button").addEventListener("click", openSettingsOverlay);
 document.getElementById("pause-levels-button").addEventListener("click", openLevelMapOverlay);
 document.getElementById("pause-achievements-button").addEventListener("click", openAchievementsOverlay);
-document.getElementById("pause-quit-button").addEventListener("click", () => {
+// index.html's pause menu renamed this button to "pause-main-menu-button"
+// (game.html still uses "pause-quit-button") — game.js is a shared classic
+// script loaded by both pages, so fall back rather than crashing on
+// getElementById(...) === null on whichever page doesn't have this id.
+const pauseQuitButton =
+  document.getElementById("pause-quit-button") ||
+  document.getElementById("pause-main-menu-button");
+pauseQuitButton.addEventListener("click", () => {
   window.location.href = "index.html";
 });
 
@@ -1015,27 +1045,32 @@ function forEachVisibleCell(cellSize, parallax, fn) {
 // Farthest layer: a starfield that fades in as the backdrop climbs toward
 // deep cosmos — level 1 shows essentially none, matching a low-altitude
 // daylit-enough sky having no visible stars.
-function drawStarLayer() {
-  const alpha = smoothstep(0.12, 0.65, sceneProgress);
+function drawStarLayer(forceAlpha, denseVariant) {
+  const alpha = forceAlpha != null ? forceAlpha : smoothstep(0.12, 0.65, sceneProgress);
   if (alpha <= 0.01) return;
   ctx.save();
   ctx.fillStyle = "#ffffff";
   const now = Date.now();
-  forEachVisibleCell(STAR_CELL, STAR_PARALLAX, (cx, cy, camX, camY) => {
+  // The second neon-only pass uses a different cell size/hash salt (not
+  // just redrawing the same cells) so it reads as a genuinely deeper field
+  // of smaller, dimmer background stars rather than the same dots twice.
+  const cellSize = denseVariant ? STAR_CELL * 0.6 : STAR_CELL;
+  const salt = denseVariant ? 200 : 0;
+  forEachVisibleCell(cellSize, STAR_PARALLAX, (cx, cy, camX, camY) => {
     for (let i = 0; i < STARS_PER_CELL; i++) {
-      const rx = hash01(cx, cy, i * 4 + 1);
+      const rx = hash01(cx, cy, salt + i * 4 + 1);
       // Raised to a power > 1 skews the result toward 0 — stars cluster
       // toward the top of each cell rather than spreading evenly, so the
       // sky overall reads as "stars up top" instead of uniformly speckled
       // (there's no single, camera-independent "top of the level" once
       // the view can scroll vertically — see drawCloudLayer()'s matching
       // bottom-bias for the same reasoning from the other direction).
-      const ry = Math.pow(hash01(cx, cy, i * 4 + 2), 1.8);
-      const rsize = hash01(cx, cy, i * 4 + 3);
-      const rphase = hash01(cx, cy, i * 4 + 4);
-      const screenX = cx * STAR_CELL + rx * STAR_CELL - camX;
-      const screenY = cy * STAR_CELL + ry * STAR_CELL - camY;
-      const size = 0.6 + rsize * 1.6;
+      const ry = Math.pow(hash01(cx, cy, salt + i * 4 + 2), 1.8);
+      const rsize = hash01(cx, cy, salt + i * 4 + 3);
+      const rphase = hash01(cx, cy, salt + i * 4 + 4);
+      const screenX = cx * cellSize + rx * cellSize - camX;
+      const screenY = cy * cellSize + ry * cellSize - camY;
+      const size = (denseVariant ? 0.4 : 0.6) + rsize * (denseVariant ? 1 : 1.6);
       const twinkle = 0.55 + 0.45 * Math.sin(now / 550 + rphase * Math.PI * 2);
       ctx.globalAlpha = alpha * twinkle;
       ctx.beginPath();
@@ -1146,7 +1181,25 @@ const SKY_BOTTOM_HIGH = [5, 2, 12];
 // three parallax layers above, back-to-front. Fully opaque, so this
 // doubles as the frame clear that used to be a plain ctx.clearRect() —
 // see draw().
+// Neon levels (`window.levelTheme = "neon"`) skip the nebula/planet/cloud
+// backdrop entirely — pure black, "empty night sky" territory — so the
+// only color anywhere on screen comes from the level's own glowing
+// platforms. drawStarLayer() is reused rather than duplicated, forced to
+// full brightness (its normal alpha ramps in with sceneProgress, which a
+// neon level shouldn't depend on) and drawn twice at two densities for a
+// deeper, more crowded sky than the ordinary backdrop ever shows.
+function drawNeonBackground() {
+  ctx.fillStyle = "#020103";
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+  drawStarLayer(1);
+  drawStarLayer(0.55, true);
+}
+
 function drawBackground() {
+  if (currentLevelTheme === "neon") {
+    drawNeonBackground();
+    return;
+  }
   const top = lerpColor(SKY_TOP_LOW, SKY_TOP_HIGH, sceneProgress);
   const mid = lerpColor(SKY_MID_LOW, SKY_MID_HIGH, sceneProgress);
   const bottom = lerpColor(SKY_BOTTOM_LOW, SKY_BOTTOM_HIGH, sceneProgress);
@@ -1165,6 +1218,11 @@ function drawBackground() {
 // -------------------------------------------------------------
 // DRAWING
 // -------------------------------------------------------------
+// Drawn slightly larger than the hitbox so skins read as chunkier without
+// touching player.width/height or any collision math (same reasoning as the
+// per-shape flourishes above) — purely a render-time scale applied below.
+const PLAYER_VISUAL_SCALE = 1.2;
+
 function drawPlayer() {
   const skin = StarshadeEconomy.getEquippedSkin();
   const halfW = player.width / 2;
@@ -1178,7 +1236,7 @@ function drawPlayer() {
   // compounds with whichever one the equipped skin already does, rather
   // than needing a separate spin effect written per shape.
   if (isPortalSucking) ctx.rotate(portalSpinAngle);
-  ctx.scale(squashX, squashY);
+  ctx.scale(squashX * PLAYER_VISUAL_SCALE, squashY * PLAYER_VISUAL_SCALE);
 
   if (skin.shape === "image" && skin.image) {
     drawImageSkin(skin, halfW, lineWidth);
@@ -1264,9 +1322,16 @@ function drawImageSkin(skin, halfW, lineWidth) {
   ctx.stroke();
 }
 
-function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern) {
+function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern, glow) {
   ctx.save();
   ctx.translate(x - cameraOffsetX, y - cameraOffsetY);
+  // Neon-themed levels (see drawBackground()) pass a glow color here
+  // instead of a texture pattern — a real shadowBlur reads as "lit from
+  // within" against a pure-black backdrop in a way a flat fill never could.
+  if (glow) {
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 16;
+  }
   ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   ctx.lineWidth = 3;
@@ -1297,17 +1362,106 @@ function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern) {
 // a completely different, unrelated color family from everything else on
 // screen (including the nebula background behind them).
 function drawPlatforms() {
+  const neon = currentLevelTheme === "neon";
   platforms.forEach((platform) => {
-    if (platform.ghost || platform.melt) return; // drawn separately, see below
+    if (platform.ghost || platform.melt || platform.bounce || platform.conveyor) return; // drawn separately, see below
+    if (neon) {
+      drawInsetRect(
+        platformX(platform),
+        platformY(platform),
+        platform.width,
+        platform.height,
+        "rgba(10, 12, 30, 0.85)",
+        "rgba(80, 230, 255, 0.95)",
+        null,
+        "rgba(80, 230, 255, 0.9)"
+      );
+    } else {
+      drawInsetRect(
+        platformX(platform),
+        platformY(platform),
+        platform.width,
+        platform.height,
+        "rgba(74, 58, 150, 0.7)",
+        "rgba(138, 92, 255, 0.85)",
+        platformTexturePattern
+      );
+    }
+  });
+}
+
+// Bounce pads (`bounce: true`) — a bright cyan-green so they read as
+// distinctly "springy" rather than another ordinary platform, with a
+// chevron pointing up (the direction they launch you) rather than the
+// plating texture ordinary platforms use.
+function drawBouncePlatforms() {
+  const neon = currentLevelTheme === "neon";
+  platforms.forEach((platform) => {
+    if (!platform.bounce) return;
+    const px = platformX(platform);
+    const py = platformY(platform);
     drawInsetRect(
-      platformX(platform),
-      platformY(platform),
+      px,
+      py,
       platform.width,
       platform.height,
-      "rgba(74, 58, 150, 0.7)",
-      "rgba(138, 92, 255, 0.85)",
-      platformTexturePattern
+      neon ? "rgba(10, 30, 26, 0.85)" : "rgba(30, 130, 110, 0.75)",
+      neon ? "rgba(80, 255, 210, 0.95)" : "rgba(90, 255, 200, 0.9)",
+      null,
+      neon ? "rgba(80, 255, 210, 0.9)" : undefined
     );
+    ctx.save();
+    ctx.translate(px - cameraOffsetX, py - cameraOffsetY);
+    ctx.strokeStyle = "rgba(220, 255, 245, 0.9)";
+    ctx.lineWidth = 2.5;
+    const cx = platform.width / 2;
+    const chevronW = Math.min(18, platform.width * 0.3);
+    ctx.beginPath();
+    ctx.moveTo(cx - chevronW, platform.height * 0.7);
+    ctx.lineTo(cx, platform.height * 0.3);
+    ctx.lineTo(cx + chevronW, platform.height * 0.7);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+// Conveyor platforms (`conveyor: true`, `conveyorSpeed`) — amber with a
+// scrolling arrow-stripe pattern in the direction they push, so which way
+// a conveyor moves you is readable at a glance rather than something you
+// discover by standing on it.
+function drawConveyorPlatforms() {
+  const neon = currentLevelTheme === "neon";
+  const now = Date.now();
+  platforms.forEach((platform) => {
+    if (!platform.conveyor) return;
+    const px = platformX(platform);
+    const py = platformY(platform);
+    drawInsetRect(
+      px,
+      py,
+      platform.width,
+      platform.height,
+      neon ? "rgba(30, 22, 8, 0.85)" : "rgba(150, 100, 20, 0.75)",
+      neon ? "rgba(255, 200, 60, 0.95)" : "rgba(255, 190, 60, 0.9)",
+      null,
+      neon ? "rgba(255, 200, 60, 0.9)" : undefined
+    );
+    ctx.save();
+    ctx.translate(px - cameraOffsetX, py - cameraOffsetY);
+    ctx.beginPath();
+    ctx.rect(0, 0, platform.width, platform.height);
+    ctx.clip();
+    const dir = platform.conveyorSpeed >= 0 ? 1 : -1;
+    const scroll = ((now / 12) * dir) % 24;
+    ctx.strokeStyle = "rgba(255, 235, 200, 0.75)";
+    ctx.lineWidth = 3;
+    for (let sx = -24 + (scroll % 24); sx < platform.width + 24; sx += 24) {
+      ctx.beginPath();
+      ctx.moveTo(sx, platform.height);
+      ctx.lineTo(sx + platform.height * dir, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
   });
 }
 
@@ -1372,16 +1526,30 @@ function drawMeltPlatforms() {
 // anyway), but sits in the same warm-toward-violet family as the nebula
 // background instead of clashing as a completely unrelated hue.
 function drawDeadlyPlatforms() {
+  const neon = currentLevelTheme === "neon";
   deadlyPlatforms.forEach((platform) => {
-    drawInsetRect(
-      platformX(platform),
-      platformY(platform),
-      platform.width,
-      platform.height,
-      "rgba(168, 12, 84, 0.7)",
-      "rgba(255, 60, 130, 0.85)",
-      hazardTexturePattern
-    );
+    if (neon) {
+      drawInsetRect(
+        platformX(platform),
+        platformY(platform),
+        platform.width,
+        platform.height,
+        "rgba(30, 4, 16, 0.85)",
+        "rgba(255, 45, 110, 0.95)",
+        null,
+        "rgba(255, 45, 110, 0.9)"
+      );
+    } else {
+      drawInsetRect(
+        platformX(platform),
+        platformY(platform),
+        platform.width,
+        platform.height,
+        "rgba(168, 12, 84, 0.7)",
+        "rgba(255, 60, 130, 0.85)",
+        hazardTexturePattern
+      );
+    }
   });
 }
 
@@ -1389,12 +1557,20 @@ function drawDeadlyPlatforms() {
 // gradient, not an image) and, unlike a tiled texture, always crisp
 // regardless of a spike's actual size, which varies per level.
 function drawSpikes() {
+  const neon = currentLevelTheme === "neon";
   spikes.forEach((spike) => {
     ctx.save();
     ctx.translate(spike.x - cameraOffsetX, spike.y - cameraOffsetY);
     const grad = ctx.createLinearGradient(0, -spike.size, 0, 0);
-    grad.addColorStop(0, "rgba(255, 140, 190, 0.85)");
-    grad.addColorStop(1, "rgba(150, 10, 70, 0.75)");
+    if (neon) {
+      grad.addColorStop(0, "rgba(255, 90, 170, 0.95)");
+      grad.addColorStop(1, "rgba(120, 5, 60, 0.85)");
+      ctx.shadowColor = "rgba(255, 60, 150, 0.9)";
+      ctx.shadowBlur = 12;
+    } else {
+      grad.addColorStop(0, "rgba(255, 140, 190, 0.85)");
+      grad.addColorStop(1, "rgba(150, 10, 70, 0.75)");
+    }
     ctx.fillStyle = grad;
     ctx.strokeStyle = "rgba(255, 90, 160, 0.85)";
     ctx.lineWidth = 3;
@@ -1562,9 +1738,12 @@ function drawFadeOverlay(dtScale) {
 // browser is delivering frames.
 let levelFrameCount = 0;
 
-function updateMovingPlatforms(dtScale) {
-  levelFrameCount += dtScale;
-  platforms.forEach((p) => {
+// Shared by both solid platforms and deadly ones — a deadly platform with
+// `moveAxis` set (see the crisscrossing red decoys in the generated
+// levels, .claude/gen-levels.js) sweeps back and forth exactly like a
+// solid mover, just without ever being safe to land on.
+function updateMoverList(list, dtScale) {
+  list.forEach((p) => {
     if (!p.moveAxis) return;
     const prevOffset = p._offset || 0;
     const t =
@@ -1575,6 +1754,12 @@ function updateMovingPlatforms(dtScale) {
     p._deltaOffset = newOffset - prevOffset;
     p._offset = newOffset;
   });
+}
+
+function updateMovingPlatforms(dtScale) {
+  levelFrameCount += dtScale;
+  updateMoverList(platforms, dtScale);
+  if (typeof deadlyPlatforms !== "undefined") updateMoverList(deadlyPlatforms, dtScale);
 }
 
 function platformX(p) {
@@ -1816,6 +2001,15 @@ function updatePlayer(dtScale) {
   const { grounded, groundedOn } = resolveAxis("y", dtScale);
   riddenPlatform = grounded ? groundedOn : null;
 
+  // Conveyor platforms (`conveyor: true`, `conveyorSpeed` px/tick) push the
+  // player horizontally for as long as they're actually standing on one —
+  // on top of whatever movement keys are held, not instead of them, so
+  // walking against a conveyor can still fight it (slowly) rather than
+  // locking the player into one direction.
+  if (grounded && groundedOn && groundedOn.conveyor) {
+    player.x += (groundedOn.conveyorSpeed || 0) * dtScale;
+  }
+
   // Sticky wall-cling: pressed into a wall while airborne, fall is slowed
   // to a slow slide instead of falling at normal speed, and the air jump
   // is refreshed every frame it holds — a "wall jump" is always available
@@ -1913,6 +2107,25 @@ function updatePlayer(dtScale) {
       if (equippedSkin.ability === "bouncy" && incomingDy > 3) {
         player.dy = -incomingDy * 0.55;
       }
+
+      // Bounce pads (`bounce: true`, optional `bounceStrength`) launch the
+      // player straight back up on contact, hard enough to clear a chunk of
+      // extra height — a level's guaranteed path never depends on one (see
+      // .claude/gen-levels.js), so this only ever opens up faster/higher
+      // optional routes, never gates progress.
+      if (groundedOn && groundedOn.bounce) {
+        player.dy = groundedOn.bounceStrength || BOUNCE_STRENGTH;
+        airJumpsUsed = 0;
+        spawnParticles(player.x, player.y + player.height / 2, 12, {
+          colors: ["rgba(80,255,220,0.9)", "rgba(160,255,255,0.85)", "#fff"],
+          speed: 4,
+          life: 24,
+          size: 3.5,
+          spread: Math.PI * 0.9,
+          baseAngle: -Math.PI / 2,
+          gravity: 0.1,
+        });
+      }
     }
   }
   wasGrounded = grounded;
@@ -1929,13 +2142,18 @@ function updatePlayer(dtScale) {
     });
   }
 
-  // Deadly
+  // Deadly — uses platformX()/platformY() rather than the raw x/y fields
+  // so a moving decoy (see .claude/gen-levels.js's crisscrossing red
+  // platforms) actually kills where it's drawn, not at its static rest
+  // position.
   deadlyPlatforms.forEach((platform) => {
+    const dpx = platformX(platform);
+    const dpy = platformY(platform);
     if (
-      player.x + player.width / 2 > platform.x &&
-      player.x - player.width / 2 < platform.x + platform.width &&
-      player.y + player.height / 2 > platform.y &&
-      player.y - player.height / 2 < platform.y + platform.height
+      player.x + player.width / 2 > dpx &&
+      player.x - player.width / 2 < dpx + platform.width &&
+      player.y + player.height / 2 > dpy &&
+      player.y - player.height / 2 < dpy + platform.height
     ) {
       resetPlayer();
     }
@@ -2300,6 +2518,8 @@ function draw(dtScale) {
     drawPlatforms();
     drawGhostPlatforms();
     drawMeltPlatforms();
+    drawBouncePlatforms();
+    drawConveyorPlatforms();
     drawSpikes();
     drawCheckpoints();
     drawParticles();

@@ -1,0 +1,106 @@
+// Level 98 Data — "The Last Ascent"
+// Generated to fit the established difficulty tiers (see this
+// script's header and docs/gameplay.md) — every gap here is verified
+// against the same physics .claude/audit-gaps.js checks, and any
+// ghost-gated gap is confirmed to genuinely require the ghost platform.
+
+window.levelText = "Level 98";
+
+window.platforms = [
+  { x: 50, y: 380, width: 250, height: 20 },
+  { x: 746, y: 365, width: 192, height: 18, bounce: true, bounceStrength: -17 },
+  { x: 1388, y: 364, width: 231, height: 29, melt: true, meltDelay: 20 },
+  { x: 2069, y: 359, width: 132, height: 19 },
+  { x: 2651, y: 356, width: 130, height: 30, ghost: true, ghostPeriod: 120, ghostOnRatio: 0.4 },
+  { x: 3014, y: 371, width: 167, height: 19, bounce: true, bounceStrength: -19 },
+  { x: 3345, y: 371, width: 308, height: 23 },
+  { x: 3876, y: 366, width: 164, height: 27 },
+  { x: 4248, y: 327, width: 186, height: 24, melt: true, meltDelay: 20 },
+  { x: 4642, y: 285, width: 50, height: 17, moveAxis: "y", moveRange: 157, moveSpeed: 0.075, movePhase: 1.01 },
+  { x: 4880, y: 212, width: 104, height: 20, melt: true, meltDelay: 20 },
+  { x: 5172, y: 138, width: 214, height: 16, melt: true, meltDelay: 20 },
+  { x: 5555, y: 34, width: 191, height: 24, melt: true, meltDelay: 20 },
+  { x: 6153, y: -64, width: 110, height: 25 },
+  { x: 6263, y: -64, width: 254, height: 20 },
+  { x: 6711, y: -91, width: 97, height: 20, ghost: true, ghostPeriod: 120, ghostOnRatio: 0.35 },
+  { x: 7010, y: -112, width: 220, height: 20 },
+  { x: 7632, y: -226, width: 139, height: 19, bounce: true, bounceStrength: -19 },
+  { x: 7946, y: -324, width: 83, height: 23, moveAxis: "x", moveRange: 173, moveSpeed: 0.071, movePhase: 3.49 },
+  { x: 8446, y: -409, width: 153, height: 23, conveyor: true, conveyorSpeed: -1.1 },
+  { x: 9020, y: -481, width: 131, height: 26, melt: true, meltDelay: 20 },
+  { x: 9588, y: -520, width: 226, height: 18 },
+  { x: 10245, y: -569, width: 97, height: 23 },
+  { x: 10342, y: -569, width: 284, height: 20 },
+  { x: 10830, y: -592, width: 98, height: 20, ghost: true, ghostPeriod: 120, ghostOnRatio: 0.35 },
+  { x: 11117, y: -614, width: 260, height: 20 },
+  { x: 11827, y: -620, width: 121, height: 14, conveyor: true, conveyorSpeed: 1.75 },
+  { x: 12175, y: -611, width: 58, height: 21, melt: true, meltDelay: 20 },
+  { x: 12466, y: -597, width: 141, height: 28, melt: true, meltDelay: 20 },
+  { x: 12840, y: -579, width: 232, height: 22, bounce: true, bounceStrength: -17 },
+  { x: 13299, y: -574, width: 100, height: 28, melt: true, meltDelay: 20 },
+  { x: 13616, y: -590, width: 175, height: 28, melt: true, meltDelay: 20 },
+  { x: 13955, y: -590, width: 253, height: 18 },
+  { x: 14645, y: -635, width: 215, height: 25 },
+  { x: 15281, y: -711, width: 188, height: 28 },
+  { x: 15896, y: -772, width: 148, height: 14, moveAxis: "x", moveRange: 94, moveSpeed: 0.063, movePhase: 1.49 },
+  { x: 16222, y: -858, width: 95, height: 16, moveAxis: "x", moveRange: 155, moveSpeed: 0.067, movePhase: 5.76 },
+  { x: 16724, y: -963, width: 225, height: 29 },
+  { x: 17127, y: -1050, width: 219, height: 15, conveyor: true, conveyorSpeed: 1.53 },
+  { x: 17510, y: -1050, width: 379, height: 24 },
+  { x: 18306, y: -1136, width: 149, height: 18, bounce: true, bounceStrength: -19 },
+  { x: 18630, y: -1232, width: 109, height: 14 },
+  { x: 18933, y: -1301, width: 209, height: 24, melt: true, meltDelay: 20 },
+  { x: 19579, y: -1345, width: 48, height: 18, bounce: true, bounceStrength: -19 },
+  { x: 19835, y: -1387, width: 121, height: 21 },
+  { x: 20159, y: -1372, width: 388, height: 20 },
+];
+
+window.deadlyPlatforms = [
+  { x: 7892, y: -298, width: 50, height: 19, moveAxis: "y", moveRange: 191, moveSpeed: 0.069, movePhase: 3.01 },
+  { x: 15839, y: -807, width: 89, height: 19, moveAxis: "y", moveRange: 76, moveSpeed: 0.064, movePhase: 0.63 },
+  { x: 16166, y: -824, width: 69, height: 17, moveAxis: "y", moveRange: 142, moveSpeed: 0.077, movePhase: 1 },
+  { x: 2224, y: 355, width: 68, height: 20 },
+  { x: 6299, y: -66, width: 65, height: 20 },
+  { x: 9847, y: -518, width: 189, height: 20 },
+  { x: 10379, y: -567, width: 83, height: 20 },
+  { x: 14897, y: -638, width: 172, height: 20 },
+  { x: 15498, y: -719, width: 161, height: 20 },
+  { x: 16984, y: -967, width: 145, height: 20 },
+  { x: 18772, y: -1230, width: 60, height: 20 },
+  { x: 19980, y: -1394, width: 101, height: 20 },
+];
+
+window.spikes = [
+  { x: 2089, y: 359, size: 29 },
+  { x: 2118, y: 359, size: 55 },
+  { x: 3926, y: 366, size: 39 },
+  { x: 3965, y: 366, size: 24 },
+  { x: 3989, y: 366, size: 21 },
+  { x: 6178, y: -64, size: 16 },
+  { x: 9657, y: -520, size: 24 },
+  { x: 9681, y: -520, size: 18 },
+  { x: 9699, y: -520, size: 35 },
+  { x: 9734, y: -520, size: 18 },
+  { x: 10276, y: -569, size: 33 },
+  { x: 14714, y: -635, size: 43 },
+  { x: 14757, y: -635, size: 43 },
+  { x: 14800, y: -635, size: 36 },
+  { x: 15306, y: -711, size: 22 },
+  { x: 15328, y: -711, size: 15 },
+  { x: 15343, y: -711, size: 25 },
+  { x: 16783, y: -963, size: 12 },
+  { x: 16795, y: -963, size: 52 },
+  { x: 16847, y: -963, size: 52 },
+  { x: 18656, y: -1232, size: 19 },
+  { x: 19857, y: -1387, size: 12 },
+];
+
+window.checkpoints = [
+  { x: 150, y: 350, reached: false },
+  { x: 3499, y: 341, reached: false },
+  { x: 7070, y: -142, reached: false },
+  { x: 11177, y: -644, reached: false },
+  { x: 14082, y: -620, reached: false },
+  { x: 17700, y: -1080, reached: false },
+  { x: 20353, y: -1402, reached: false }, // Final
+];
