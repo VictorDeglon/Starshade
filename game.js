@@ -17,6 +17,12 @@ const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
 // through every gradient, pattern fill and glow every frame, for detail
 // nobody can see on 25px sprites and 3px strokes. 2x is still fully crisp.
 const MAX_RENDER_DPR = 2;
+// The live cap — starts at MAX_RENDER_DPR and only ever ratchets *down*,
+// by trackFramePace() (see gameLoop()) on a device that can't sustain a
+// smooth frame rate at its current resolution. Fewer pixels is the one
+// lever that reliably buys frame rate on a weak phone once the draw
+// code itself is cheap.
+let renderDprCap = MAX_RENDER_DPR;
 // The DPR actually in use after the cap — the pre-rendered sprite caches
 // below (see getSprite()) render at this scale so they stay as sharp as
 // direct drawing would have been.
@@ -50,7 +56,7 @@ let viewportHeight = window.innerHeight;
 function resizeCanvas() {
   viewportWidth = window.innerWidth;
   viewportHeight = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, MAX_RENDER_DPR);
+  const dpr = Math.min(window.devicePixelRatio || 1, renderDprCap);
   renderDpr = dpr;
   canvas.width = Math.round(viewportWidth * dpr);
   canvas.height = Math.round(viewportHeight * dpr);
@@ -1740,6 +1746,11 @@ function drawStarLayer(forceAlpha, denseVariant) {
       if (!denseVariant && rsparkle > 0.87) {
         drawSparkleStar(screenX, screenY, size * 2.8, a);
       } else {
+        // Plain dots stay as direct arc fills on purpose — measured, a
+        // drawImage() of a tiny cached sprite per star is ~12x SLOWER
+        // than this in Chrome (every distinct sprite canvas is its own
+        // texture bind), so the sprite cache is only worth it for shapes
+        // that carry a shadowBlur glow.
         ctx.globalAlpha = a;
         ctx.beginPath();
         ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
@@ -4223,13 +4234,52 @@ function draw(dtScale) {
 let lastFrameTime = null;
 const MAX_DT_SCALE = 3;
 
+// -------------------------------------------------------------
+// ADAPTIVE RESOLUTION
+// -------------------------------------------------------------
+// Once the draw code itself is cheap (sprite caches, culling — see the
+// BACKGROUND/VIEWPORT CULLING sections), what's left on a phone is raw
+// pixel fill: every full-screen blit, pattern fill and glow costs in
+// proportion to canvas.width * canvas.height. A device that can't hold a
+// smooth rate at 2x gets stepped down a quarter-DPR at a time (2 → 1.75 →
+// … → 1) and stays there — never scaled back up, so it can't oscillate
+// between two resolutions mid-level. Decided on a smoothed average of
+// real frame deltas held above SLOW_FRAME_MS for SLOW_FRAME_STREAK frames
+// in a row, so a single hitch (level load, a GC pause, switching apps)
+// never triggers it; anything over HITCH_MS is treated as a stall rather
+// than a "slow frame" and resets the streak, as does being paused or in a
+// background tab (where rAF is throttled and every delta looks slow).
+const SLOW_FRAME_MS = 20; // below ~50fps
+const SLOW_FRAME_STREAK = 90; // ~1.5s of sustained slowness
+const HITCH_MS = 100;
+const MIN_RENDER_DPR = 1;
+let frameDeltaEma = 0;
+let slowFrameStreak = 0;
+
+function trackFramePace(rawDeltaMs) {
+  if (isPaused || document.visibilityState !== "visible" || rawDeltaMs > HITCH_MS) {
+    slowFrameStreak = 0;
+    return;
+  }
+  if (renderDpr <= MIN_RENDER_DPR) return; // nothing left to give back
+  frameDeltaEma = frameDeltaEma === 0 ? rawDeltaMs : frameDeltaEma * 0.9 + rawDeltaMs * 0.1;
+  if (frameDeltaEma > SLOW_FRAME_MS) slowFrameStreak++;
+  else slowFrameStreak = 0;
+  if (slowFrameStreak >= SLOW_FRAME_STREAK) {
+    renderDprCap = Math.max(MIN_RENDER_DPR, renderDprCap - 0.25);
+    slowFrameStreak = 0;
+    frameDeltaEma = 0;
+    resizeCanvas();
+    console.info(`[starshade] sustained slow frames — render scale lowered to ${renderDpr}x`);
+  }
+}
+
 function gameLoop(timestamp) {
   if (lastFrameTime === null) lastFrameTime = timestamp;
-  const dtScale = Math.min(
-    MAX_DT_SCALE,
-    Math.max(0, (timestamp - lastFrameTime) / (1000 / 60))
-  );
+  const rawDelta = timestamp - lastFrameTime;
+  const dtScale = Math.min(MAX_DT_SCALE, Math.max(0, rawDelta / (1000 / 60)));
   lastFrameTime = timestamp;
+  trackFramePace(rawDelta);
 
   update(dtScale);
   requestAnimationFrame(gameLoop);
