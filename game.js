@@ -224,21 +224,24 @@ let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
 
-// Zooms the whole world view out a little during a real, dangerous fall
-// (see the fall-speed-proportional openAmount in updatePlayer()) and back
-// to normal on landing — seeing more of the level around you while you're
-// falling fast, where you most need to spot the platform you're aiming
-// for, without needing a hard cap on jump height or a bigger, more
+// Zooms the whole world view out a little during a fall (see the
+// fall-speed-proportional openAmount in updatePlayer()) and back to
+// normal on landing — seeing more of the level around you while you're
+// falling, where you most need to spot the platform you're aiming for,
+// without needing a hard cap on jump height or a bigger, more
 // disorienting jump-instant zoom. Proportional to actual fall speed
-// rather than a flat "airborne y/n" toggle specifically so an ordinary
-// jump — which never builds up much more than jumpStrength's own downward
-// speed before landing — stays right at 0 effect: earlier versions of
-// this snapped to the zoomed-out target the instant the player left the
-// ground at all, which made a routine hop look and feel different from
-// how the game always played, the actual problem players had with it.
+// rather than a flat "airborne y/n" toggle, so the tiniest hop still
+// barely opens up at all — earlier versions of this snapped to the
+// zoomed-out target the instant the player left the ground at all, which
+// made a routine hop look and feel different from how the game always
+// played. CAMERA_OPEN_FALL_SPEED_MIN is now low enough that an ordinary
+// jump's own landing speed (dy approaches jumpStrength's magnitude, 12,
+// by the time it comes back down) opens the view a little too — the
+// level should stay in view through a normal jump, not just a real,
+// dangerous fall.
 let cameraZoom = 1;
 const CAMERA_ZOOM_GROUNDED = 1;
-const CAMERA_ZOOM_OPEN_RANGE = 0.14; // how far zoom drops at full "openAmount"
+const CAMERA_ZOOM_OPEN_RANGE = 0.2; // how far zoom drops at full "openAmount"
 const CAMERA_ZOOM_SMOOTHING = 0.06;
 
 // Where the player sits vertically on screen, as a fraction of
@@ -252,14 +255,15 @@ const CAMERA_ZOOM_SMOOTHING = 0.06;
 // normal jump" guarantee.
 let cameraVerticalAnchor = 0.5;
 const CAMERA_ANCHOR_GROUNDED = 0.5;
-const CAMERA_ANCHOR_OPEN_RANGE = 0.14; // how far the anchor rises at full "openAmount"
+const CAMERA_ANCHOR_OPEN_RANGE = 0.2; // how far the anchor rises at full "openAmount"
 const CAMERA_ANCHOR_SMOOTHING = 0.05;
 
-// The player.dy range (px/tick) that "openAmount" ramps across — below
-// the low end (comfortably above what a normal jump's arc ever reaches,
-// see the constants' own comments above) there's no effect at all; at/
-// above the high end, the zoom/anchor shift above are at their maximum.
-const CAMERA_OPEN_FALL_SPEED_MIN = 13;
+// The player.dy range (px/tick) that "openAmount" ramps across — a normal
+// jump's descent brushes the low end right near landing (a brief, gentle
+// widen-then-settle rather than a snap), while a real, dangerous fall
+// (a long drop, a missed platform) climbs toward the high end and holds
+// the view open the whole way down.
+const CAMERA_OPEN_FALL_SPEED_MIN = 9;
 const CAMERA_OPEN_FALL_SPEED_MAX = 24;
 
 // How far the camera leans in the direction the player is actually
@@ -1372,11 +1376,36 @@ function forEachVisibleCell(cellSize, parallax, fn) {
   }
 }
 
+// A chunky four-point cartoon sparkle (a pinched diamond, not a pointy
+// 5-star) for the brightest handful of stars — plain circles alone read
+// as a realistic photo starfield; mixing in a few of these per screen is
+// what actually sells "cartoon sky" at a glance. Cheap: one filled path
+// plus a matching shadowBlur glow, no gradient.
+function drawSparkleStar(x, y, r, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.fillStyle = "#fff8e6";
+  ctx.shadowColor = "rgba(255, 244, 214, 0.95)";
+  ctx.shadowBlur = r * 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.quadraticCurveTo(r * 0.16, -r * 0.16, r, 0);
+  ctx.quadraticCurveTo(r * 0.16, r * 0.16, 0, r);
+  ctx.quadraticCurveTo(-r * 0.16, r * 0.16, -r, 0);
+  ctx.quadraticCurveTo(-r * 0.16, -r * 0.16, 0, -r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Farthest layer: a starfield that grows richer as the backdrop climbs
 // toward deep cosmos — a dim but real baseline is visible from level 1
 // onward (STAR_BASE_ALPHA) rather than a completely flat, empty sky at
 // the very start of the game; by level ~17 (see SKY_PROGRESS_LEVEL_COUNT)
-// it's ramped up to full brightness.
+// it's ramped up to full brightness. Mostly plain dots (cheap, and there
+// are a lot of them), with roughly one in eight promoted to a chunky
+// drawSparkleStar() glint instead — see above.
 const STAR_BASE_ALPHA = 0.3;
 function drawStarLayer(forceAlpha, denseVariant) {
   const alpha =
@@ -1394,85 +1423,176 @@ function drawStarLayer(forceAlpha, denseVariant) {
   const salt = denseVariant ? 200 : 0;
   forEachVisibleCell(cellSize, STAR_PARALLAX, (cx, cy, camX, camY) => {
     for (let i = 0; i < STARS_PER_CELL; i++) {
-      const rx = hash01(cx, cy, salt + i * 4 + 1);
+      const rx = hash01(cx, cy, salt + i * 5 + 1);
       // Raised to a power > 1 skews the result toward 0 — stars cluster
       // toward the top of each cell rather than spreading evenly, so the
       // sky overall reads as "stars up top" instead of uniformly speckled
       // (there's no single, camera-independent "top of the level" once
       // the view can scroll vertically — see drawCloudLayer()'s matching
       // bottom-bias for the same reasoning from the other direction).
-      const ry = Math.pow(hash01(cx, cy, salt + i * 4 + 2), 1.8);
-      const rsize = hash01(cx, cy, salt + i * 4 + 3);
-      const rphase = hash01(cx, cy, salt + i * 4 + 4);
+      const ry = Math.pow(hash01(cx, cy, salt + i * 5 + 2), 1.8);
+      const rsize = hash01(cx, cy, salt + i * 5 + 3);
+      const rphase = hash01(cx, cy, salt + i * 5 + 4);
+      const rsparkle = hash01(cx, cy, salt + i * 5 + 5);
       const screenX = cx * cellSize + rx * cellSize - camX;
       const screenY = cy * cellSize + ry * cellSize - camY;
       const size = (denseVariant ? 0.4 : 0.6) + rsize * (denseVariant ? 1 : 1.6);
       const twinkle = 0.55 + 0.45 * Math.sin(now / 550 + rphase * Math.PI * 2);
-      ctx.globalAlpha = alpha * twinkle;
-      ctx.beginPath();
-      ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
-      ctx.fill();
+      const a = alpha * twinkle;
+      if (!denseVariant && rsparkle > 0.87) {
+        drawSparkleStar(screenX, screenY, size * 2.8, a);
+      } else {
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   });
   ctx.restore();
 }
 
-// Mid layer: soft, blurred-looking blobs (a plain radial gradient, cheaper
-// than a canvas blur filter — this has to stay fast on mobile). HSL rather
-// than a two-color RGB lerp, so hue can drift across a wide, genuinely
-// nebula-like band (blue/violet/magenta/pink) with real per-cloud
-// variation instead of everything sharing one or two repeating tones —
-// gradually warming from cooler blue-violets toward magenta/pink as the
-// backdrop climbs toward deep cosmos.
+// A flat-shaded "cumulus" nebula puff — a small cluster of overlapping
+// circles unioned into one silhouette (one fill() over several arcs on
+// the same path, rather than a separate shape per lobe), a single flat
+// base color plus one offset highlight patch for cheap two-tone shading,
+// and a soft same-hue glow behind it (shadowBlur). Deliberately has no
+// hard outline stroke, unlike drawCartoonPlanet() below — a soft-edged
+// gas cloud reads as a genuinely different kind of background object than
+// a solid outlined "sticker" planet, rather than the two layers blurring
+// into "a bunch of circles." Replaces the old soft radial-gradient blob,
+// which read as a blurry smudge rather than a distinct illustrated shape.
+function drawNebulaPuff(x, y, r, hue, sat, light, alpha) {
+  const base = `hsl(${hue}, ${sat}%, ${light}%)`;
+  const glow = `hsla(${hue}, ${Math.min(100, sat + 10)}%, ${Math.min(70, light + 15)}%, 0.5)`;
+  const lobes = [
+    [0, 0, r],
+    [-r * 0.58, r * 0.24, r * 0.52],
+    [r * 0.56, r * 0.2, r * 0.48],
+    [-r * 0.2, -r * 0.4, r * 0.42],
+    [r * 0.3, -r * 0.34, r * 0.4],
+  ];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = r * 0.65;
+  ctx.fillStyle = base;
+  ctx.beginPath();
+  lobes.forEach(([lx, ly, lr]) => {
+    ctx.moveTo(lx + lr, ly);
+    ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+  });
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // Flat highlight patch, offset toward upper-left — a second flat tone
+  // instead of a gradient is what makes this read as "illustrated" rather
+  // than "softly lit," without needing an outline to define the shape.
+  ctx.globalAlpha = alpha * 0.45;
+  ctx.fillStyle = `hsl(${hue}, ${Math.min(100, sat + 15)}%, ${Math.min(88, light + 28)}%)`;
+  ctx.beginPath();
+  ctx.arc(-r * 0.3, -r * 0.36, r * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Mid layer: sparse flat-shaded nebula puffs (see drawNebulaPuff() above).
+// HSL rather than a two-color RGB lerp, so hue can drift across a wide,
+// genuinely nebula-like band (blue/violet/magenta/pink) with real
+// per-cloud variation instead of everything sharing one or two repeating
+// tones — gradually warming from cooler blue-violets toward magenta/pink
+// as the backdrop climbs toward deep cosmos. Kept deliberately restrained
+// (sparser, smaller, dimmer than an earlier pass at this) — the backdrop
+// is set dressing, and the actual level (platforms/hazards/checkpoints)
+// needs to stay the thing your eye goes to first.
 function drawCloudLayer() {
-  const baseAlpha = lerp(0.3, 0.26, sceneProgress);
+  const baseAlpha = lerp(0.5, 0.44, sceneProgress);
   const hueBase = lerp(230, 300, sceneProgress);
   forEachVisibleCell(CLOUD_CELL, CLOUD_PARALLAX, (cx, cy, camX, camY) => {
-    if (hash01(cx, cy, 90) > 0.6) return; // sparse — not every cell gets one
+    if (hash01(cx, cy, 90) > 0.4) return; // sparse — most cells get none at all
     const rx = hash01(cx, cy, 1);
     // Skewed toward 1 (the bottom of the cell) — the mirror image of the
     // star layer's top bias above, so clouds read as "low in the sky"
     // without needing a single fixed world-space "bottom" to anchor to.
     const ry = 1 - Math.pow(hash01(cx, cy, 2), 1.8);
     const rw = hash01(cx, cy, 3);
-    // A per-cloud squash jitter so a whole field of these doesn't look
-    // like one shape copy-pasted everywhere — some read as nearly round
-    // "puffs," others as flatter, wider ovals.
-    const squash = 0.4 + hash01(cx, cy, 5) * 0.4;
     // A wide hue spread around the current base — real nebula photos are
     // patches of several distinct colors next to each other, not one
     // uniform tint.
     const hueJitter = (hash01(cx, cy, 6) - 0.5) * 140;
     const hue = Math.round(((hueBase + hueJitter) % 360 + 360) % 360);
-    const sat = Math.round(55 + hash01(cx, cy, 7) * 30);
-    const light = Math.round(45 + hash01(cx, cy, 8) * 20);
+    const sat = Math.round(50 + hash01(cx, cy, 7) * 28);
+    const light = Math.round(34 + hash01(cx, cy, 8) * 14);
     const screenX = cx * CLOUD_CELL + rx * CLOUD_CELL - camX;
     const screenY = cy * CLOUD_CELL + ry * CLOUD_CELL - camY;
-    const w = 130 + rw * 130;
-    ctx.save();
-    ctx.translate(screenX, screenY);
-    ctx.scale(1, squash);
-    // A brighter, smaller core stop in addition to the original two —
-    // without it every cloud is one flat, evenly-fading blob with no
-    // internal shape ("smudged colors"); the bright center gives each one
-    // a visible nucleus to read as a distinct cloud rather than a uniform
-    // color patch.
-    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
-    grad.addColorStop(0, `hsla(${hue}, ${Math.min(100, sat + 20)}%, ${Math.min(85, light + 25)}%, ${baseAlpha * 1.4})`);
-    grad.addColorStop(0.4, `hsla(${hue}, ${sat}%, ${light}%, ${baseAlpha})`);
-    grad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light}%, 0)`);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(0, 0, w, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    const w = 40 + rw * 36;
+    drawNebulaPuff(screenX, screenY, w, hue, sat, light, baseAlpha);
   });
 }
 
+// A flat two-tone cartoon planet — a lit base color, a hard-edged shadow
+// crescent (clipped to the sphere, not a soft gradient), a bold rim
+// stroke, and a small glossy highlight dot for a "sticker" pop. About a
+// third get a simple ellipse ring behind them for extra silhouette
+// variety. Replaces the old single soft radial-gradient glow ball, which
+// had no real light/shadow shape of its own.
+function drawCartoonPlanet(x, y, r, hue, alpha, hasRing) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+
+  if (hasRing) {
+    ctx.save();
+    ctx.scale(1, 0.32);
+    ctx.strokeStyle = `hsla(${hue}, 50%, 80%, 0.5)`;
+    ctx.lineWidth = r * 0.16;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.shadowColor = `hsla(${hue}, 70%, 55%, 0.4)`;
+  ctx.shadowBlur = r * 0.35;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = `hsl(${hue}, 70%, 68%)`;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Hard-edged shadow crescent — an offset circle clipped to the sphere,
+  // not a gradient blur, so the terminator reads as one clean flat shape.
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.arc(r * 0.55, r * 0.3, r * 1.05, 0, Math.PI * 2);
+  ctx.fillStyle = `hsl(${hue}, 55%, 32%)`;
+  ctx.fill();
+  ctx.restore();
+
+  ctx.lineWidth = Math.max(1.5, r * 0.06);
+  ctx.strokeStyle = `hsl(${hue}, 60%, 20%)`;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.beginPath();
+  ctx.arc(-r * 0.35, -r * 0.35, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 // Nearest (but still very slow — these read as huge and distant) layer:
-// sparse glowing planets, only appearing in the back half of the game as
+// sparse cartoon planets, only appearing in the back half of the game as
 // a "you've come a long way" payoff, each with a random pastel-cosmic hue
-// so they don't all look identical.
+// so they don't all look identical. Kept rare, modestly sized, and
+// dimmer than an earlier pass at this — a handful of huge, saturated
+// planets competed with the actual level for attention, which is exactly
+// backwards for a background layer.
 function drawPlanetLayer() {
   // Was gated to only the back half of a 25-level game (0.35-0.8); with
   // the level count now 100, that pushed the first planet to roughly
@@ -1480,46 +1600,34 @@ function drawPlanetLayer() {
   const alpha = smoothstep(0.05, 0.55, sceneProgress);
   if (alpha <= 0.01) return;
   forEachVisibleCell(PLANET_CELL, PLANET_PARALLAX, (cx, cy, camX, camY) => {
-    if (hash01(cx, cy, 55) > 0.35) return; // most cells have no planet at all
+    if (hash01(cx, cy, 55) > 0.18) return; // rare — most cells have no planet at all
     const rx = hash01(cx, cy, 1);
     const ry = hash01(cx, cy, 2);
     const rsize = hash01(cx, cy, 3);
     const rhue = hash01(cx, cy, 4);
+    const rring = hash01(cx, cy, 10);
     const screenX = cx * PLANET_CELL + rx * PLANET_CELL - camX;
     const screenY = cy * PLANET_CELL + ry * PLANET_CELL - camY;
-    const r = 30 + rsize * 50;
+    const r = 18 + rsize * 30;
     const hue = Math.round(250 + rhue * 90);
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.85;
-    const grad = ctx.createRadialGradient(
-      screenX - r * 0.3,
-      screenY - r * 0.3,
-      r * 0.1,
-      screenX,
-      screenY,
-      r
-    );
-    grad.addColorStop(0, `hsla(${hue}, 70%, 72%, 0.9)`);
-    grad.addColorStop(1, `hsla(${hue}, 60%, 30%, 0.12)`);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    drawCartoonPlanet(screenX, screenY, r, hue, alpha * 0.7, rring > 0.65);
   });
 }
 
-// Sky gradient colors at the two ends of the game's progress — darker
-// overall than a plain dusky blue, with a vibrant purple-magenta band
-// through the middle (a nebula glowing against mostly-black space, rather
-// than an evenly-lit sky) fading toward near-black cosmos by level 25,
-// close to the #050012 used on every other page's background.
-const SKY_TOP_LOW = [6, 5, 16];
-const SKY_TOP_HIGH = [2, 1, 5];
-const SKY_MID_LOW = [46, 16, 74];
-const SKY_MID_HIGH = [28, 8, 48];
-const SKY_BOTTOM_LOW = [14, 9, 30];
-const SKY_BOTTOM_HIGH = [5, 2, 12];
+// Sky gradient colors at the two ends of the game's progress — a bolder,
+// more saturated jewel-tone magenta-violet band through the middle
+// (previously quite muted/muddy, maxing out around rgb(46,16,74)) against
+// deep near-black indigo top/bottom, closer to a flat cartoon-poster sky
+// than a soft realistic gradient — see the full background rewrite below
+// (drawStarLayer()/drawCloudLayer()/drawPlanetLayer()) for the matching
+// flat-shaded, outlined art style. Still fades toward near-black cosmos
+// by level 25, close to the #050012 used on every other page's background.
+const SKY_TOP_LOW = [10, 8, 26];
+const SKY_TOP_HIGH = [3, 2, 9];
+const SKY_MID_LOW = [92, 28, 122];
+const SKY_MID_HIGH = [54, 14, 84];
+const SKY_BOTTOM_LOW = [16, 10, 34];
+const SKY_BOTTOM_HIGH = [4, 2, 10];
 
 // Draws the full backdrop for this frame: the sky gradient (screen-space —
 // a fixed backdrop, not part of the scrolling world) followed by the
@@ -1553,6 +1661,23 @@ function drawBackground() {
   grad.addColorStop(0.55, `rgb(${mid[0]}, ${mid[1]}, ${mid[2]})`);
   grad.addColorStop(1, `rgb(${bottom[0]}, ${bottom[1]}, ${bottom[2]})`);
   ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+
+  // A soft glowing "horizon" band low in the frame — screen-space, not
+  // parallaxed with the world, so it stays put as a fixed lighting cue
+  // rather than a world object — for an illustrated-poster pop instead of
+  // a flat, uniformly dark lower sky.
+  const horizonGlow = ctx.createRadialGradient(
+    viewportWidth / 2,
+    viewportHeight * 0.85,
+    0,
+    viewportWidth / 2,
+    viewportHeight * 0.85,
+    viewportWidth * 0.75
+  );
+  horizonGlow.addColorStop(0, `rgba(${mid[0]}, ${mid[1]}, ${mid[2]}, 0.26)`);
+  horizonGlow.addColorStop(1, `rgba(${mid[0]}, ${mid[1]}, ${mid[2]}, 0)`);
+  ctx.fillStyle = horizonGlow;
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
   drawPlanetLayer();
@@ -3200,16 +3325,35 @@ function resetPlayer() {
     }
   });
 
+  // Dropped in from a bit above the checkpoint (RESPAWN_DROP_HEIGHT) rather
+  // than placed exactly on it — that fall is the only thing that visually
+  // sells "you've just been put back here," so it needs to actually read
+  // as a fall. Paired with the materialize burst below (a converging
+  // particle poof right at the drop point, the same technique the
+  // portal-suck effect uses in reverse) since the drop alone was easy to
+  // miss — barely a beat before landing, and against a background with any
+  // real depth to it (distant planets barely shift for such a short,
+  // instant camera snap) it could look more like the level had lurched
+  // than like the player had fallen.
+  const RESPAWN_DROP_HEIGHT = 60;
   const lastCheckpoint = [...checkpoints].reverse().find((c) => c.reached);
+  let spawnX, spawnY;
   if (lastCheckpoint) {
-    player.x = lastCheckpoint.x;
-    player.y = lastCheckpoint.y - 30;
+    spawnX = lastCheckpoint.x;
+    spawnY = lastCheckpoint.y;
   } else {
-    player.x = levelStartX;
-    player.y = levelStartY;
+    spawnX = levelStartX;
+    spawnY = levelStartY;
   }
+  player.x = spawnX;
+  player.y = spawnY - RESPAWN_DROP_HEIGHT;
   player.dx = 0;
   player.dy = 0;
+  spawnConvergingParticles(spawnX, spawnY - RESPAWN_DROP_HEIGHT, 16, [
+    "rgba(220,210,255,0.9)",
+    "rgba(160,140,255,0.85)",
+    "#fff",
+  ]);
   // Matches the old dy===0 behavior this replaced (see tryJump()): a jump
   // pressed immediately on respawn — before the player has actually
   // fallen those last few px onto the checkpoint's platform — still
