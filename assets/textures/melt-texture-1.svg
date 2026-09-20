@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <!-- Melt platform texture, stage 1 of 3 (mild — see game.js's
+       drawMeltPlatforms(), which swaps between melt-texture-1/2/3.svg by
+       how close the platform is to actually crumbling). A few hairline
+       fractures, nothing structural yet. Edges tile seamlessly. -->
+  <rect width="36" height="36" fill="none" />
+  <path d="M0 4 L6 7 L4 12 L11 15 L9 22 L16 25 L14 32 L20 36"
+        stroke="rgba(255,150,40,0.4)" stroke-width="1.1" fill="none" stroke-linejoin="round" />
+  <path d="M36 10 L29 13 L31 18 L24 20 L26 27 L18 29"
+        stroke="rgba(255,190,90,0.3)" stroke-width="0.9" fill="none" stroke-linejoin="round" />
+</svg>

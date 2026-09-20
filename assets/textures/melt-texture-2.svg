@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <!-- Melt platform texture, stage 2 of 3 (medium — see melt-texture-1.svg
+       and game.js's drawMeltPlatforms()). Stage 1's cracks widened and
+       spread, joined by new branches and the first couple of small chips
+       actually missing (dark gaps), plus warm ember glints at a few
+       junctions. Edges tile seamlessly. -->
+  <rect width="36" height="36" fill="none" />
+  <path d="M0 4 L6 7 L4 12 L11 15 L9 22 L16 25 L14 32 L20 36"
+        stroke="rgba(255,150,40,0.6)" stroke-width="1.5" fill="none" stroke-linejoin="round" />
+  <path d="M36 10 L29 13 L31 18 L24 20 L26 27 L18 29"
+        stroke="rgba(255,190,90,0.5)" stroke-width="1.2" fill="none" stroke-linejoin="round" />
+  <path d="M6 7 L2 9 M11 15 L15 17 M16 25 L12 27 M29 13 L33 15 M24 20 L20 22"
+        stroke="rgba(255,150,40,0.45)" stroke-width="1" fill="none" />
+  <path d="M4 12 L2.4 13.4 L4 15 L5.6 13.4 Z" fill="rgba(20,6,0,0.55)" />
+  <path d="M26 27 L24.4 28.6 L26 30.2 L27.6 28.6 Z" fill="rgba(20,6,0,0.5)" />
+  <circle cx="11" cy="15" r="1.2" fill="rgba(255,210,120,0.7)" />
+  <circle cx="24" cy="20" r="1.1" fill="rgba(255,210,120,0.6)" />
+</svg>

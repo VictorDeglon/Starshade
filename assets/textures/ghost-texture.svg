@@ -1,15 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <!-- Tileable "phase static" texture for ghost platforms (see
-       game.js's ghostTexturePattern) — broken dashed grid lines instead
-       of the solid plating grid ordinary platforms use, so an
-       intangible-when-flickering platform reads as unstable/glitching
-       even at a glance, before a player has learned to watch its
-       alpha flicker. Edges tile seamlessly when repeated. -->
-  <rect width="32" height="32" fill="none" />
-  <path d="M0 0.5 H9 M13 0.5 H23 M27 0.5 H32" stroke="rgba(255,236,140,0.4)" stroke-width="1" />
-  <path d="M0 16.5 H5 M9 16.5 H19 M23 16.5 H32" stroke="rgba(255,236,140,0.4)" stroke-width="1" />
-  <path d="M0.5 0 V7 M0.5 11 V21 M0.5 25 V32" stroke="rgba(255,236,140,0.3)" stroke-width="1" />
-  <path d="M16.5 0 V4 M16.5 8 V18 M16.5 22 V32" stroke="rgba(255,236,140,0.3)" stroke-width="1" />
-  <circle cx="8" cy="24" r="1.1" fill="rgba(255,244,190,0.45)" />
-  <circle cx="24" cy="8" r="1.1" fill="rgba(255,244,190,0.45)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <!-- Tileable "phase circuit" texture for ghost platforms (see game.js's
+       ghostTexturePattern) — a broken circuit-trace/hex-node motif instead
+       of a plain grid, so a platform that flickers solid/intangible reads
+       as an energized, unstable device rather than just dimmer plating.
+       game.js scrolls this pattern's own transform over time (see
+       drawGhostPlatforms()) for a live "current running through it"
+       animation on top of the existing alpha flicker — a real canvas
+       pattern animation, not just a prettier static tile. Edges tile
+       seamlessly when repeated. -->
+  <rect width="36" height="36" fill="none" />
+  <g stroke="rgba(255,236,140,0.5)" stroke-width="1.1" fill="none">
+    <path d="M0 9 H8 L11 6 H20 L23 9 H36" />
+    <path d="M0 27 H5 L8 30 H16 L19 27 H30 L33 30 H36" stroke-dasharray="3 2" />
+    <path d="M14 0 V4 L17 7 V18 L14 21 V36" stroke-dasharray="2 2" />
+  </g>
+  <g fill="rgba(255,244,190,0.65)">
+    <circle cx="11" cy="6" r="1.3" />
+    <circle cx="23" cy="9" r="1.3" />
+    <circle cx="8" cy="30" r="1.1" />
+    <circle cx="19" cy="27" r="1.1" />
+    <circle cx="17" cy="7" r="1" />
+  </g>
+  <polygon points="28,16 31,17.7 31,21.3 28,23 25,21.3 25,17.7"
+           fill="none" stroke="rgba(255,236,140,0.4)" stroke-width="1" />
 </svg>

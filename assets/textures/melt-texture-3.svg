@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <!-- Melt platform texture, stage 3 of 3 (severe — see melt-texture-1.svg
+       and game.js's drawMeltPlatforms(), shown in the last stretch before
+       a platform actually crumbles). Cracks have spread into a dense web
+       with several visible missing chips and bright ember glow at the
+       widest fractures — reads as "about to give way" at a glance, on top
+       of the existing shake/flicker. Edges tile seamlessly. -->
+  <rect width="36" height="36" fill="none" />
+  <path d="M0 4 L6 7 L4 12 L11 15 L9 22 L16 25 L14 32 L20 36"
+        stroke="rgba(255,140,30,0.8)" stroke-width="1.8" fill="none" stroke-linejoin="round" />
+  <path d="M36 10 L29 13 L31 18 L24 20 L26 27 L18 29"
+        stroke="rgba(255,180,80,0.7)" stroke-width="1.5" fill="none" stroke-linejoin="round" />
+  <path d="M6 7 L2 9 M11 15 L15 17 M16 25 L12 27 M29 13 L33 15 M24 20 L20 22 M9 22 L5 24 M31 18 L34 21"
+        stroke="rgba(255,140,30,0.6)" stroke-width="1.2" fill="none" />
+  <path d="M4 12 L1.6 13.8 L4 16 L6.4 13.8 Z" fill="rgba(15,4,0,0.65)" />
+  <path d="M26 27 L23.6 28.8 L26 31 L28.4 28.8 Z" fill="rgba(15,4,0,0.6)" />
+  <path d="M14 32 L11.8 33.6 L14 35.4 L16.2 33.6 Z" fill="rgba(15,4,0,0.55)" />
+  <circle cx="11" cy="15" r="1.6" fill="rgba(255,225,150,0.9)" />
+  <circle cx="24" cy="20" r="1.4" fill="rgba(255,225,150,0.85)" />
+  <circle cx="9" cy="22" r="1.1" fill="rgba(255,200,110,0.7)" />
+</svg>

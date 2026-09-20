@@ -1265,8 +1265,11 @@ function getSkinImage(src) {
 let platformTexturePattern = null;
 let hazardTexturePattern = null;
 let ghostTexturePattern = null;
-let meltTexturePattern = null;
-let checkpointTexturePattern = null;
+// Three severity stages (see drawMeltPlatforms()) instead of one static
+// texture — swapped by how close a melt platform's own countdown is to
+// running out, so the crack art itself visibly worsens over time instead
+// of only the existing shake/flicker communicating urgency.
+let meltTexturePatternStages = [null, null, null];
 
 function loadTexturePattern(src, onReady) {
   const img = new Image();
@@ -1282,12 +1285,15 @@ loadTexturePattern("assets/textures/hazard-texture.svg", (pattern) => {
 loadTexturePattern("assets/textures/ghost-texture.svg", (pattern) => {
   ghostTexturePattern = pattern;
 });
-loadTexturePattern("assets/textures/melt-texture.svg", (pattern) => {
-  meltTexturePattern = pattern;
+[1, 2, 3].forEach((stage) => {
+  loadTexturePattern(`assets/textures/melt-texture-${stage}.svg`, (pattern) => {
+    meltTexturePatternStages[stage - 1] = pattern;
+  });
 });
-loadTexturePattern("assets/textures/checkpoint-texture.svg", (pattern) => {
-  checkpointTexturePattern = pattern;
-});
+// The ordinary-checkpoint beacon (see drawCheckpoints()) — a discrete
+// rotating rune icon drawn with drawImage(), the same treatment the
+// level-finish Starshade logo already gets, rather than a tiled pattern.
+const checkpointBeaconImage = getSkinImage("assets/textures/checkpoint-beacon.svg");
 
 // -------------------------------------------------------------
 // BACKGROUND — layered parallax sky, blending into deep cosmos
@@ -1874,6 +1880,16 @@ function drawConveyorPlatforms() {
 // solid, a faint yellow outline while intangible, with a fast flicker in
 // the last few frames of either state so the flip is always telegraphed.
 function drawGhostPlatforms() {
+  // Scrolls the phase-circuit texture's own pattern space diagonally over
+  // time — a real CanvasPattern transform (CanvasPattern.setTransform()),
+  // not just a prettier static tile — so solid ghost platforms read as
+  // energized/live rather than a flickering-but-otherwise-static surface.
+  // One shared pattern object, so this only needs setting once per frame
+  // rather than per platform.
+  if (ghostTexturePattern && ghostTexturePattern.setTransform) {
+    const scroll = (Date.now() / 45) % 36;
+    ghostTexturePattern.setTransform(new DOMMatrix().translate(-scroll, scroll));
+  }
   platforms.forEach((platform) => {
     if (!platform.ghost) return;
     const solid = platform._solid !== false;
@@ -1911,6 +1927,11 @@ function drawMeltPlatforms() {
     const urgency = Math.min(1, timer / delay);
     const shakeX = urgency > 0.35 ? (Math.random() - 0.5) * urgency * 5 : 0;
     const alpha = urgency > 0.35 && Math.random() < urgency * 0.5 ? 0.45 : 0.85;
+    // Crack art itself worsens in three visible steps as the countdown
+    // runs out (see melt-texture-1/2/3.svg) — not just the existing
+    // shake/flicker, so a player glancing at a melt platform mid-crumble
+    // sees exactly how far gone it is.
+    const stageIndex = urgency > 0.7 ? 2 : urgency > 0.34 ? 1 : 0;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -1921,7 +1942,7 @@ function drawMeltPlatforms() {
       platform.height,
       `rgba(255, ${Math.round(190 - urgency * 110)}, 30, 0.8)`,
       "rgba(255, 150, 40, 0.9)",
-      meltTexturePattern
+      meltTexturePatternStages[stageIndex]
     );
     ctx.restore();
   });
@@ -2128,25 +2149,50 @@ function drawCheckpoints() {
         ctx.fill();
       }
     } else {
+      // A spinning rune beacon (see checkpoint-beacon.svg) instead of a
+      // plain filled circle — same drawImage()-plus-ctx.rotate() treatment
+      // as the level-finish Starshade logo above, just smaller and slower,
+      // so ordinary checkpoints read as real objects rather than dots.
       const r = 15 + pulse + pop;
-      ctx.fillStyle = checkpoint.reached ? "rgba(50, 255, 50, 0.8)" : "#fff";
-      ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "#ccc";
-      ctx.lineWidth = 3;
+      const rotation = now / 5000 + checkpoint.x; // offset by x so checkpoints don't all spin in lockstep
+      const glowColor = checkpoint.reached ? "rgba(80,255,120,0.85)" : "rgba(255,205,90,0.8)";
+
+      ctx.save();
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.4);
+      glow.addColorStop(0, glowColor);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      if (checkpointBeaconImage.complete && checkpointBeaconImage.naturalWidth > 0) {
+        ctx.save();
+        ctx.rotate(rotation);
+        ctx.drawImage(checkpointBeaconImage, -r, -r, r * 2, r * 2);
+        if (checkpoint.reached) {
+          // Same source-atop green tint the finish logo uses on reach —
+          // recolors the beacon's own baked-in gold without needing a
+          // second image asset.
+          ctx.globalCompositeOperation = "source-atop";
+          ctx.fillStyle = "rgba(60, 220, 100, 0.6)";
+          ctx.fillRect(-r, -r, r * 2, r * 2);
+        }
+        ctx.restore();
+      } else {
+        // Fallback for the one frame or two before the image finishes
+        // loading.
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = glowColor;
+        ctx.fill();
+      }
+
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fill();
-      // Faceted-glass beacon texture layered on top of the flat fill, same
-      // "overlay, don't replace" treatment as the platform/hazard textures
-      // — clipped to the checkpoint's own circle since the source pattern
-      // tiles as a rectangle.
-      if (checkpointTexturePattern) {
-        ctx.save();
-        ctx.clip();
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = checkpointTexturePattern;
-        ctx.fillRect(-r, -r, r * 2, r * 2);
-        ctx.restore();
-      }
+      ctx.strokeStyle = checkpoint.reached ? "#32cd32" : "rgba(255, 225, 160, 0.7)";
+      ctx.lineWidth = 2;
       ctx.stroke();
     }
     ctx.restore();
