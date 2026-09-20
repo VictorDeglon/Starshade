@@ -3,6 +3,12 @@
 ## Images
 
 - `starshade.png` — the game's logo/favicon, used across every page.
+- `assets/icons/icon-192.png`, `assets/icons/icon-512.png` — generated from
+  `starshade.png` (`sips -z <size> <size> starshade.png`) for
+  `manifest.json`'s home-screen icon — see
+  [gameplay.md](gameplay.md#fullscreen-and-staying-installed). Regenerate
+  the same way if `starshade.png` ever changes; nothing keeps them in sync
+  automatically.
 - `assets/skins/EclipseSkin.png` — the only real skin artwork that shipped.
   The other six skins referenced in the original `skins.html`
   (`skin1.jpg`...`skin6.jpg`) were never included in the project — those
