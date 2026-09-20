@@ -403,16 +403,52 @@ const StarshadeAchievements = (() => {
 // ICONS — every achievement badge is built from one of these glyphs
 // (24x24 viewBox) plus a rarity-colored ring, all purple/blue/black.
 // -------------------------------------------------------------
+// Sub-elements carry their own classes (flag-cloth, mask-eye) so
+// achievementIconSVG's <style> block can animate just that piece — a flag
+// waves at its cloth, not its pole; a mask blinks at its eyes, not its
+// whole face — rather than every glyph only ever being able to animate as
+// one rigid unit.
 const ACHIEVEMENT_ICON_PATHS = {
-  flag: '<path d="M6 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M6 4h11l-3 4 3 4H6z" fill="currentColor"/>',
+  flag: '<path d="M6 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/><path class="flag-cloth" d="M6 4h11l-3 4 3 4H6z" fill="currentColor"/>',
   coin: '<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M12 9v6M10.3 10.2c0-.9.8-1.5 1.7-1.5s1.7.5 1.7 1.3c0 1.8-3.4 1-3.4 2.8 0 .8.8 1.3 1.7 1.3s1.7-.6 1.7-1.5" stroke="currentColor" stroke-width="0.9" fill="none" stroke-linecap="round"/>',
   skull: '<ellipse cx="12" cy="10.5" rx="6.2" ry="5.8" fill="currentColor"/><rect x="8.5" y="14.5" width="7" height="4.5" rx="1.5" fill="currentColor"/><circle cx="9.6" cy="10" r="1.6" fill="#050012"/><circle cx="14.4" cy="10" r="1.6" fill="#050012"/><path d="M11 17.2v2M13 17.2v2" stroke="#050012" stroke-width="1" stroke-linecap="round"/>',
   lightning: '<path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor"/>',
-  mask: '<path d="M4 8c2-3 5-4 8-4s6 1 8 4c0 6-3 11-8 11S4 14 4 8Z" fill="currentColor"/><ellipse cx="9" cy="9.5" rx="1.6" ry="2" fill="#050012"/><ellipse cx="15" cy="9.5" rx="1.6" ry="2" fill="#050012"/><path d="M9 15c1.4 1 4.6 1 6 0" stroke="#050012" stroke-width="1.2" fill="none" stroke-linecap="round"/>',
+  mask: '<path d="M4 8c2-3 5-4 8-4s6 1 8 4c0 6-3 11-8 11S4 14 4 8Z" fill="currentColor"/><ellipse class="mask-eye" cx="9" cy="9.5" rx="1.6" ry="2" fill="#050012"/><ellipse class="mask-eye" cx="15" cy="9.5" rx="1.6" ry="2" fill="#050012"/><path d="M9 15c1.4 1 4.6 1 6 0" stroke="#050012" stroke-width="1.2" fill="none" stroke-linecap="round"/>',
   trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="currentColor"/><path d="M7 5H4a3 3 0 0 0 3 5M17 5h3a3 3 0 0 1-3 5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="10.5" y="14" width="3" height="4" fill="currentColor"/><rect x="7.5" y="18" width="9" height="2.4" rx="1" fill="currentColor"/>',
   star: '<path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17l-5.9 3.4 1.3-6.5L2.5 9.3l6.6-.8Z" fill="currentColor"/>',
   crown: '<path d="M3 18h18l-1.5-9-4 4-3.5-6-3.5 6-4-4Z" fill="currentColor"/><rect x="3" y="19" width="18" height="2.2" rx="1" fill="currentColor"/>',
 };
+
+// One idle animation per glyph, all subtle and all built around what that
+// glyph actually depicts (a flag waves, a coin spins edge-on, a bolt
+// flickers, a mask blinks) rather than one generic pulse reused
+// everywhere — see achievementIconSVG() below, which inlines this
+// directly into every badge's own <svg> (rather than relying on an
+// external stylesheet) so a badge animates correctly no matter which
+// page's CSS happens to be loaded around it. Wrapped in a
+// prefers-reduced-motion guard so every animation drops out cleanly for
+// players who've asked for less motion, leaving the glyph static.
+const ACHIEVEMENT_ICON_ANIMATION_CSS = `
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes iconFlagWave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(10deg); } }
+  @keyframes iconCoinSpin { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.12); } }
+  @keyframes iconSkullPulse { 0%, 100% { filter: brightness(1); transform: translateY(0); } 50% { filter: brightness(1.35); transform: translateY(-1px); } }
+  @keyframes iconBoltFlicker { 0%, 18%, 22%, 52%, 58%, 100% { opacity: 1; } 20%, 55% { opacity: 0.3; } }
+  @keyframes iconMaskBlink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.15); } }
+  @keyframes iconTrophyShine { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.45); } }
+  @keyframes iconStarTwinkle { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.18); opacity: 0.7; } }
+  @keyframes iconCrownSparkle { 0%, 100% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(-4deg) scale(1.06); } }
+
+  .glyph-flag .flag-cloth { transform-box: fill-box; transform-origin: 0% 50%; animation: iconFlagWave 2.6s ease-in-out infinite; }
+  .glyph-coin { transform-box: fill-box; transform-origin: 50% 50%; animation: iconCoinSpin 3.2s linear infinite; }
+  .glyph-skull { animation: iconSkullPulse 2.4s ease-in-out infinite; }
+  .glyph-lightning { animation: iconBoltFlicker 2.8s ease-in-out infinite; }
+  .glyph-mask .mask-eye { transform-box: fill-box; transform-origin: 50% 50%; animation: iconMaskBlink 4.5s ease-in-out infinite; }
+  .glyph-trophy { animation: iconTrophyShine 2.6s ease-in-out infinite; }
+  .glyph-star { transform-box: fill-box; transform-origin: 50% 50%; animation: iconStarTwinkle 2.2s ease-in-out infinite; }
+  .glyph-crown { transform-box: fill-box; transform-origin: 50% 50%; animation: iconCrownSparkle 2.4s ease-in-out infinite; }
+}
+`;
 
 const ACHIEVEMENT_RARITY_COLORS = {
   common: { ring: "#6c7aa0", glow: "rgba(108, 122, 160, 0.55)" },
@@ -436,10 +472,11 @@ function achievementIconSVG(achievement, options = {}) {
   const bg = locked ? "#181430" : "#120a2e";
   return `
     <svg viewBox="0 0 48 48" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <style>${ACHIEVEMENT_ICON_ANIMATION_CSS}</style>
       <circle cx="24" cy="24" r="21" fill="${bg}" stroke="${ringColor}" stroke-width="2" />
       <circle cx="24" cy="24" r="21" fill="none" stroke="${glowColor}" stroke-width="5" opacity="0.5" />
       <g transform="translate(12, 12)" color="${locked ? "#4a4470" : "#ffffff"}" opacity="${locked ? 0.5 : 1}">
-        ${glyph}
+        <g class="glyph glyph-${achievement.icon}">${glyph}</g>
       </g>
     </svg>
   `;

@@ -54,7 +54,7 @@ body {
   height: 52px;
   border-radius: 50%;
   border: 2px solid #4d3f91;
-  background: #1e0f3f;
+  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
   color: #dcd4ff;
   font-size: 1.3rem;
   cursor: pointer;
@@ -215,7 +215,7 @@ body {
   font-size: 1rem;
   padding: 10px 22px;
   border: 2px solid #4d3f91;
-  background: #1e0f3f;
+  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
   color: #dcd4ff;
   border-radius: 10px;
   cursor: pointer;
@@ -277,7 +277,7 @@ body {
   font-size: 22px;
   padding: 12px 25px;
   border: 2px solid #4d3f91;
-  background: #1e0f3f;
+  background: url("assets/textures/button-texture.svg") repeat, #1e0f3f;
   color: #dcd4ff;
   border-radius: 12px;
   cursor: pointer;
