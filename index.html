@@ -31,47 +31,37 @@
     <!-- Galaxy backdrop art — sits behind everything (z-index: -1, see
          game.css) so it shows through the loading overlay and every
          semi-transparent menu panel before/around the live game canvas.
-         Nebula colors + the drifting platform shapes deliberately reuse
-         game.js's drawPlatforms() fill/stroke so the menus read as the
-         same universe as the levels, not a different app bolted on top. -->
+         Deliberately restrained to match what drawBackground()/the
+         starfield layers in game.js actually render in play (a smooth
+         violet-to-near-black vignette + a sparse starfield, no big nebula
+         blobs or a moon — those read as a different, busier place than
+         the actual game once compared side-by-side against a real
+         screenshot). The drifting platform shapes are the one deliberate
+         addition, reusing game.js's own drawPlatforms() fill/stroke, so
+         the menus still nod at "the same universe as the levels" without
+         inventing scenery the game itself never shows. -->
     <div class="galaxy-bg" aria-hidden="true">
       <svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <filter id="galaxySoftBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="34"/></filter>
-          <filter id="galaxyStarGlow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="2.6"/></filter>
-          <radialGradient id="galaxyVoidGrad" cx="35%" cy="18%" r="85%">
-            <stop offset="0%" stop-color="#2C1868"/>
-            <stop offset="45%" stop-color="#160B36"/>
+          <filter id="galaxyStarGlow" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="2.4"/></filter>
+          <radialGradient id="galaxyVoidGrad" cx="50%" cy="15%" r="90%">
+            <stop offset="0%" stop-color="#241353"/>
+            <stop offset="45%" stop-color="#140A30"/>
             <stop offset="100%" stop-color="#08061A"/>
-          </radialGradient>
-          <radialGradient id="galaxyMoonGrad" cx="38%" cy="34%" r="65%">
-            <stop offset="0%" stop-color="#E7DBFF"/>
-            <stop offset="35%" stop-color="#A98CE8"/>
-            <stop offset="70%" stop-color="#5B3FA6"/>
-            <stop offset="100%" stop-color="#241247"/>
           </radialGradient>
         </defs>
         <rect x="0" y="0" width="390" height="844" fill="url(#galaxyVoidGrad)"/>
-        <g style="mix-blend-mode: screen;">
-          <ellipse cx="80" cy="160" rx="150" ry="110" fill="#7C3AED" opacity="0.42" filter="url(#galaxySoftBlur)"/>
-          <ellipse cx="300" cy="80" rx="130" ry="95" fill="#D946EF" opacity="0.22" filter="url(#galaxySoftBlur)"/>
-          <ellipse cx="330" cy="560" rx="150" ry="130" fill="#22D3EE" opacity="0.20" filter="url(#galaxySoftBlur)"/>
-          <ellipse cx="60" cy="620" rx="140" ry="110" fill="#6D28D9" opacity="0.30" filter="url(#galaxySoftBlur)"/>
-        </g>
-        <circle cx="150" cy="150" r="112" fill="url(#galaxyMoonGrad)" opacity="0.9"/>
-        <circle cx="150" cy="150" r="118" fill="none" stroke="#B9A6FF" stroke-width="0.6" opacity="0.25"/>
-        <g stroke-linejoin="round">
-          <rect x="230" y="240" width="58" height="14" rx="6" transform="rotate(-18 259 247)" fill="rgba(74,58,150,0.55)" stroke="rgba(138,92,255,0.85)" stroke-width="2"/>
-          <rect x="20" y="470" width="46" height="12" rx="6" transform="rotate(12 43 476)" fill="rgba(74,58,150,0.45)" stroke="rgba(138,92,255,0.7)" stroke-width="1.6"/>
-          <rect x="300" y="650" width="52" height="13" rx="6" transform="rotate(-8 326 656)" fill="rgba(74,58,150,0.5)" stroke="rgba(138,92,255,0.8)" stroke-width="1.8"/>
+        <g stroke-linejoin="round" opacity="0.8">
+          <rect x="230" y="240" width="58" height="14" rx="6" transform="rotate(-18 259 247)" fill="rgba(74,58,150,0.5)" stroke="rgba(138,92,255,0.8)" stroke-width="2"/>
+          <rect x="20" y="470" width="46" height="12" rx="6" transform="rotate(12 43 476)" fill="rgba(74,58,150,0.4)" stroke="rgba(138,92,255,0.65)" stroke-width="1.6"/>
+          <rect x="300" y="650" width="52" height="13" rx="6" transform="rotate(-8 326 656)" fill="rgba(74,58,150,0.45)" stroke="rgba(138,92,255,0.72)" stroke-width="1.8"/>
         </g>
         <g fill="#fff">
-          <circle cx="244" cy="42" r="1.2" opacity="0.8"/><circle cx="20" cy="90" r="0.8" opacity="0.6"/><circle cx="360" cy="140" r="1" opacity="0.7"/><circle cx="109" cy="517" r="0.9" opacity="0.7"/><circle cx="60" cy="412" r="0.7" opacity="0.55"/><circle cx="311" cy="248" r="0.9" opacity="0.6"/><circle cx="49" cy="223" r="0.7" opacity="0.7"/><circle cx="93" cy="700" r="1" opacity="0.5"/><circle cx="150" cy="601" r="0.8" opacity="0.75"/><circle cx="20" cy="176" r="1" opacity="0.5"/><circle cx="340" cy="480" r="0.8" opacity="0.55"/><circle cx="72" cy="593" r="0.9" opacity="0.6"/><circle cx="233" cy="368" r="0.7" opacity="0.7"/><circle cx="365" cy="266" r="0.9" opacity="0.5"/><circle cx="300" cy="700" r="1" opacity="0.45"/><circle cx="180" cy="760" r="0.8" opacity="0.6"/><circle cx="250" cy="500" r="0.7" opacity="0.55"/><circle cx="340" cy="380" r="0.9" opacity="0.5"/><circle cx="30" cy="320" r="0.8" opacity="0.6"/><circle cx="200" cy="60" r="0.7" opacity="0.65"/>
+          <circle cx="244" cy="42" r="1" opacity="0.6"/><circle cx="20" cy="90" r="0.7" opacity="0.5"/><circle cx="360" cy="140" r="0.8" opacity="0.55"/><circle cx="109" cy="517" r="0.7" opacity="0.5"/><circle cx="60" cy="412" r="0.6" opacity="0.45"/><circle cx="311" cy="248" r="0.7" opacity="0.5"/><circle cx="49" cy="223" r="0.6" opacity="0.55"/><circle cx="93" cy="700" r="0.8" opacity="0.4"/><circle cx="150" cy="601" r="0.6" opacity="0.6"/><circle cx="20" cy="176" r="0.8" opacity="0.4"/><circle cx="340" cy="480" r="0.6" opacity="0.45"/><circle cx="72" cy="593" r="0.7" opacity="0.5"/><circle cx="233" cy="368" r="0.6" opacity="0.55"/><circle cx="365" cy="266" r="0.7" opacity="0.4"/><circle cx="300" cy="700" r="0.8" opacity="0.35"/><circle cx="180" cy="760" r="0.6" opacity="0.5"/><circle cx="250" cy="500" r="0.6" opacity="0.45"/><circle cx="340" cy="380" r="0.7" opacity="0.4"/><circle cx="30" cy="320" r="0.6" opacity="0.5"/><circle cx="200" cy="60" r="0.6" opacity="0.55"/>
         </g>
         <g>
-          <circle cx="309" cy="205" r="4" fill="#fff" opacity="0.5" filter="url(#galaxyStarGlow)"/><circle cx="309" cy="205" r="1.4" fill="#fff"/>
-          <circle cx="264" cy="720" r="3.4" fill="#fff" opacity="0.45" filter="url(#galaxyStarGlow)"/><circle cx="264" cy="720" r="1.1" fill="#fff"/>
-          <circle cx="45" cy="250" r="3" fill="#fff" opacity="0.4" filter="url(#galaxyStarGlow)"/><circle cx="45" cy="250" r="1" fill="#fff"/>
+          <circle cx="309" cy="205" r="3" fill="#fff" opacity="0.4" filter="url(#galaxyStarGlow)"/><circle cx="309" cy="205" r="1.1" fill="#fff"/>
+          <circle cx="264" cy="720" r="2.6" fill="#fff" opacity="0.35" filter="url(#galaxyStarGlow)"/><circle cx="264" cy="720" r="0.9" fill="#fff"/>
         </g>
       </svg>
     </div>
@@ -155,32 +145,82 @@
          any time via the pause menu's "Main Menu" button. Replaces the old
          standalone index.html.
          ------------------------------------------------------------- -->
-    <div id="mainMenuOverlay" class="menu">
-      <div class="menu-panel">
+    <!-- Full-bleed hub layout — no scrolling card. .menu is already
+         100% x 100% of the viewport (see game.css), so the hero + icon
+         grid below just spread directly across that space; the grid
+         wraps to however many columns/rows actually fit (auto-fit +
+         minmax), so a wide landscape phone gets one wide row and a
+         narrower window gets two, but nothing here is ever tall enough
+         to need `.menu-panel`'s old overflow-y scroll fallback. -->
+    <div id="mainMenuOverlay" class="menu hub-screen">
+      <div class="hub-hero">
+        <img src="starshade.png" alt="" class="logo" aria-hidden="true" />
         <h1>Starshade</h1>
         <h4>- The Cosmic Platformer -</h4>
         <p id="welcome-message" class="welcome-message"></p>
-        <button class="menu-button menu-button-primary" id="main-menu-play-button">Play</button>
-        <button class="menu-button" id="main-menu-levels-button">Levels</button>
-        <button class="menu-button" id="main-menu-shop-button">Shop</button>
-        <button class="menu-button" id="main-menu-achievements-button">Achievements</button>
-        <button class="menu-button" id="main-menu-settings-button">Settings</button>
-        <button class="menu-button" id="main-menu-contact-button">Contact</button>
-        <img src="starshade.png" alt="Starshade Logo" class="logo" />
+      </div>
+      <div class="hub-grid">
+        <button class="hub-button hub-button-primary" id="main-menu-play-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor" stroke="none"/></svg>
+          <span>Play</span>
+        </button>
+        <button class="hub-button" id="main-menu-levels-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L4 6 V20 L9 18 L15 20 L20 18 V4 L15 6 L9 4 Z M9 4 V18 M15 6 V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Levels</span>
+        </button>
+        <button class="hub-button" id="main-menu-shop-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8 H18 L17 20 H7 Z M9 8 V6 A3 3 0 0 1 15 6 V8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Shop</span>
+        </button>
+        <button class="hub-button" id="main-menu-achievements-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H17 V9 A5 5 0 0 1 7 9 Z M7 5 H4 A3 3 0 0 0 7 9 M17 5 H20 A3 3 0 0 1 17 9 M12 14 V18 M9 18 H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Achievements</span>
+        </button>
+        <button class="hub-button" id="main-menu-settings-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </button>
+        <button class="hub-button" id="main-menu-contact-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6 H20 V18 H4 Z M4 6 L12 13 L20 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Contact</span>
+        </button>
       </div>
     </div>
 
     <!-- Pause menu (Esc to toggle) -->
-    <div id="pauseMenu" class="menu hidden">
-      <div class="menu-panel">
+    <div id="pauseMenu" class="menu hub-screen hidden">
+      <div class="hub-hero hub-hero-compact">
         <h1>Paused</h1>
-        <button id="resume-button" class="menu-button menu-button-primary">Resume</button>
-        <button id="pause-shop-button" class="menu-button">Shop</button>
-        <button id="pause-settings-button" class="menu-button">Settings</button>
-        <button id="pause-levels-button" class="menu-button">Level Map</button>
-        <button id="pause-achievements-button" class="menu-button">Achievements</button>
-        <button id="pause-profile-button" class="menu-button">Profile</button>
-        <button id="pause-main-menu-button" class="menu-button">Main Menu</button>
+      </div>
+      <div class="hub-grid">
+        <button id="resume-button" class="hub-button hub-button-primary">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 L19 12 L8 19 Z" fill="currentColor" stroke="none"/></svg>
+          <span>Resume</span>
+        </button>
+        <button id="pause-levels-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L4 6 V20 L9 18 L15 20 L20 18 V4 L15 6 L9 4 Z M9 4 V18 M15 6 V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Level Map</span>
+        </button>
+        <button id="pause-shop-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8 H18 L17 20 H7 Z M9 8 V6 A3 3 0 0 1 15 6 V8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Shop</span>
+        </button>
+        <button id="pause-achievements-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H17 V9 A5 5 0 0 1 7 9 Z M7 5 H4 A3 3 0 0 0 7 9 M17 5 H20 A3 3 0 0 1 17 9 M12 14 V18 M9 18 H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Achievements</span>
+        </button>
+        <button id="pause-profile-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 20 C4 15.5 7.5 13 12 13 C16.5 13 20 15.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span>Profile</span>
+        </button>
+        <button id="pause-settings-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </button>
+        <button id="pause-main-menu-button" class="hub-button">
+          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 L12 4 L20 11 M6 10 V20 H18 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Main Menu</span>
+        </button>
       </div>
     </div>
 
@@ -195,77 +235,82 @@
 
     <!-- Settings overlay — opened from the pause menu or main menu. -->
     <div id="settingsOverlay" class="menu hidden">
-      <div class="menu-panel">
-        <div class="setting-item">
-          <h1>Settings</h1>
-        </div>
+      <div class="menu-panel settings-panel">
+        <h1>Settings</h1>
 
-        <div class="setting-item">
-          <label for="player-name">Display Name:</label>
-          <input type="text" id="player-name" name="player-name" maxlength="20" placeholder="Explorer" />
-        </div>
-
-        <div class="setting-item">
-          <label for="volume">Sound Volume:</label>
-          <input type="range" id="volume" name="volume" min="0" max="100" value="50" />
-        </div>
-
-        <div class="setting-item">
-          <label for="background-volume">Background Music Volume:</label>
-          <input type="range" id="background-volume" name="background-volume" min="0" max="100" value="33" />
-        </div>
-
-        <div class="setting-item">
-          <label for="difficulty">Difficulty:</label>
-          <select id="difficulty" name="difficulty">
-            <option value="easy">Easy — slower hazards, forgiving checkpoints</option>
-            <option value="normal" selected>Normal</option>
-            <option value="hard">Hard — faster hazards, more coins</option>
-          </select>
-        </div>
-
-        <div class="setting-item">
-          <label for="controls">Controls:</label>
-          <select id="controls" name="controls">
-            <option value="wasd">WASD</option>
-            <option value="arrowkeys">Arrow Keys</option>
-          </select>
-        </div>
-
-        <div class="setting-item">
-          <label for="click-to-jump">Click/Tap to Jump:</label>
-          <select id="click-to-jump" name="click-to-jump">
-            <option value="on" selected>On</option>
-            <option value="off">Off</option>
-          </select>
-        </div>
-
-        <div class="setting-item">
-          <label for="keybindings">Key Bindings:</label>
-          <button class="edit-button" id="edit-bindings-button">Edit Key Bindings</button>
-          <div id="bindings-panel" class="bindings-panel" hidden>
-            <div class="binding-row">
-              <span class="binding-label">Move Left</span>
-              <button class="rebind-button" data-action="left"></button>
-            </div>
-            <div class="binding-row">
-              <span class="binding-label">Move Right</span>
-              <button class="rebind-button" data-action="right"></button>
-            </div>
-            <div class="binding-row">
-              <span class="binding-label">Jump</span>
-              <button class="rebind-button" data-action="jump"></button>
-            </div>
-            <p class="bindings-hint">Click a key, then press its replacement.</p>
+        <!-- 2-column grid instead of one long stacked list — the panel
+             is no longer capped to a small fixed width (see
+             .settings-panel), so there's room to lay most fields out
+             side by side and never need the old overflow-y scroll
+             fallback for a realistic set of settings. -->
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="player-name">Display Name:</label>
+            <input type="text" id="player-name" name="player-name" maxlength="20" placeholder="Explorer" />
           </div>
-        </div>
 
-        <div class="setting-item">
-          <label for="screen-shake">Screen Shake:</label>
-          <select id="screen-shake" name="screen-shake">
-            <option value="on" selected>On</option>
-            <option value="off">Off</option>
-          </select>
+          <div class="setting-item">
+            <label for="volume">Sound Volume:</label>
+            <input type="range" id="volume" name="volume" min="0" max="100" value="50" />
+          </div>
+
+          <div class="setting-item">
+            <label for="background-volume">Background Music Volume:</label>
+            <input type="range" id="background-volume" name="background-volume" min="0" max="100" value="33" />
+          </div>
+
+          <div class="setting-item">
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty" name="difficulty">
+              <option value="easy">Easy — slower hazards, forgiving checkpoints</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Hard — faster hazards, more coins</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="controls">Controls:</label>
+            <select id="controls" name="controls">
+              <option value="wasd">WASD</option>
+              <option value="arrowkeys">Arrow Keys</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="click-to-jump">Click/Tap to Jump:</label>
+            <select id="click-to-jump" name="click-to-jump">
+              <option value="on" selected>On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="screen-shake">Screen Shake:</label>
+            <select id="screen-shake" name="screen-shake">
+              <option value="on" selected>On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+
+          <div class="setting-item setting-item-wide">
+            <label for="keybindings">Key Bindings:</label>
+            <button class="edit-button" id="edit-bindings-button">Edit Key Bindings</button>
+            <div id="bindings-panel" class="bindings-panel" hidden>
+              <div class="binding-row">
+                <span class="binding-label">Move Left</span>
+                <button class="rebind-button" data-action="left"></button>
+              </div>
+              <div class="binding-row">
+                <span class="binding-label">Move Right</span>
+                <button class="rebind-button" data-action="right"></button>
+              </div>
+              <div class="binding-row">
+                <span class="binding-label">Jump</span>
+                <button class="rebind-button" data-action="jump"></button>
+              </div>
+              <p class="bindings-hint">Click a key, then press its replacement.</p>
+            </div>
+          </div>
         </div>
 
         <button class="menu-button" id="back-button">Back</button>
