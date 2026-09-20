@@ -5,6 +5,7 @@
 // ghost-gated gap is confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 39";
+window.levelAccent = "#ff9838";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
@@ -42,28 +43,26 @@ window.platforms = [
 window.deadlyPlatforms = [
   { x: 3928, y: 151, width: 103, height: 14, moveAxis: "y", moveRange: 92, moveSpeed: 0.058, movePhase: 0.17 },
   { x: 10555, y: -22, width: 67, height: 17, moveAxis: "y", moveRange: 73, moveSpeed: 0.034, movePhase: 5.55 },
-  { x: 1527, y: 111, width: 67, height: 20 },
-  { x: 5010, y: 242, width: 166, height: 20 },
-  { x: 8073, y: 402, width: 101, height: 20 },
-  { x: 8453, y: 332, width: 134, height: 20 },
-  { x: 9811, y: 155, width: 133, height: 20 },
+  { x: 864, y: 284, width: 78, height: 20 },
+  { x: 1250, y: 187, width: 142, height: 20 },
+  { x: 2681, y: 48, width: 159, height: 20 },
+  { x: 5010, y: 242, width: 98, height: 20 },
+  { x: 8075, y: 391, width: 129, height: 20 },
+  { x: 9487, y: 257, width: 105, height: 20 },
+  { x: 10211, y: 73, width: 190, height: 20 },
 ];
 
 window.spikes = [
   { x: 733, y: 285, size: 26 },
   { x: 759, y: 285, size: 24 },
-  { x: 1070, y: 195, size: 42 },
-  { x: 1112, y: 195, size: 14 },
-  { x: 1414, y: 114, size: 31 },
-  { x: 4847, y: 233, size: 42 },
-  { x: 4889, y: 233, size: 18 },
-  { x: 7922, y: 399, size: 14 },
-  { x: 7936, y: 399, size: 45 },
-  { x: 7981, y: 399, size: 49 },
+  { x: 1039, y: 195, size: 48 },
+  { x: 1419, y: 114, size: 35 },
+  { x: 4847, y: 233, size: 50 },
+  { x: 4897, y: 233, size: 52 },
+  { x: 7894, y: 399, size: 17 },
   { x: 8284, y: 336, size: 45 },
-  { x: 8329, y: 336, size: 45 },
-  { x: 10015, y: 82, size: 13 },
-  { x: 10028, y: 82, size: 46 },
+  { x: 12197, y: 30, size: 13 },
+  { x: 12210, y: 30, size: 46 },
 ];
 
 window.checkpoints = [
@@ -75,4 +74,8 @@ window.checkpoints = [
   { x: 8742, y: 306, reached: false },
   { x: 11052, y: -7, reached: false },
   { x: 12711, y: 13, reached: false }, // Final
+];
+
+window.forceZones = [
+  { x: 6871, y: 329, width: 254, height: 90, axis: "x", force: -0.158 },
 ];

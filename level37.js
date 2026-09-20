@@ -5,6 +5,7 @@
 // ghost-gated gap is confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 37";
+window.levelAccent = "#ff9838";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
@@ -33,30 +34,27 @@ window.platforms = [
   { x: 9607, y: 530, width: 136, height: 14, ghost: true, ghostPeriod: 123, ghostOnRatio: 0.40943877551020413 },
   { x: 9952, y: 505, width: 79, height: 14, moveAxis: "x", moveRange: 114, moveSpeed: 0.041, movePhase: 2.65 },
   { x: 10195, y: 505, width: 339, height: 20 },
-  { x: 10947, y: 434, width: 178, height: 26 },
-  { x: 11310, y: 359, width: 117, height: 19, conveyor: true, conveyorSpeed: 1.52 },
+  { x: 10947, y: 434, width: 178, height: 26, bounce: true, bounceStrength: -19 },
+  { x: 11310, y: 359, width: 117, height: 19, melt: true, meltDelay: 20 },
   { x: 11598, y: 265, width: 88, height: 23, moveAxis: "x", moveRange: 75, moveSpeed: 0.051, movePhase: 5.1 },
   { x: 11849, y: 254, width: 424, height: 20 },
 ];
 
 window.deadlyPlatforms = [
   { x: 474, y: 385, width: 178, height: 15, moveAxis: "x", moveRange: 90, moveSpeed: 0.045, movePhase: 2.46 },
-  { x: 8087, y: 442, width: 50, height: 21, moveAxis: "y", moveRange: 80, moveSpeed: 0.046, movePhase: 0.67 },
-  { x: 2592, y: 419, width: 101, height: 20 },
-  { x: 3209, y: 276, width: 114, height: 20 },
-  { x: 5253, y: 54, width: 121, height: 20 },
-  { x: 7828, y: 306, width: 60, height: 20 },
-  { x: 11157, y: 443, width: 153, height: 20 },
+  { x: 1401, y: 513, width: 99, height: 18, moveAxis: "y", moveRange: 86, moveSpeed: 0.039, movePhase: 2.8 },
+  { x: 4062, y: 232, width: 50, height: 24, moveAxis: "x", moveRange: 67, moveSpeed: 0.048, movePhase: 4.19 },
+  { x: 2592, y: 416, width: 123, height: 20 },
+  { x: 3202, y: 270, width: 163, height: 20 },
+  { x: 5249, y: 54, width: 128, height: 20 },
 ];
 
 window.spikes = [
-  { x: 3023, y: 273, size: 37 },
-  { x: 4662, y: 118, size: 46 },
-  { x: 5089, y: 58, size: 24 },
-  { x: 5113, y: 58, size: 26 },
-  { x: 5139, y: 58, size: 44 },
-  { x: 10992, y: 434, size: 24 },
-  { x: 11016, y: 434, size: 48 },
+  { x: 2448, y: 425, size: 19 },
+  { x: 3011, y: 273, size: 37 },
+  { x: 4673, y: 118, size: 30 },
+  { x: 5080, y: 58, size: 13 },
+  { x: 7716, y: 308, size: 36 },
 ];
 
 window.checkpoints = [

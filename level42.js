@@ -5,6 +5,7 @@
 // ghost-gated gap is confirmed to genuinely require the ghost platform.
 
 window.levelText = "Level 42";
+window.levelAccent = "#b98fff";
 
 window.platforms = [
   { x: 50, y: 380, width: 250, height: 20 },
@@ -37,31 +38,26 @@ window.platforms = [
   { x: 11231, y: 705, width: 109, height: 18, melt: true, meltDelay: 20 },
   { x: 11504, y: 705, width: 309, height: 25 },
   { x: 12044, y: 723, width: 131, height: 17, moveAxis: "x", moveRange: 73, moveSpeed: 0.052, movePhase: 2.38 },
-  { x: 12387, y: 696, width: 101, height: 15 },
+  { x: 12387, y: 696, width: 101, height: 15, moveAxis: "x", moveRange: 121, moveSpeed: 0.038, movePhase: 5.91 },
   { x: 12639, y: 708, width: 437, height: 20 },
 ];
 
 window.deadlyPlatforms = [
-  { x: 6435, y: 521, width: 50, height: 17, moveAxis: "y", moveRange: 89, moveSpeed: 0.047, movePhase: 0.42 },
-  { x: 12095, y: 678, width: 73, height: 16, moveAxis: "y", moveRange: 62, moveSpeed: 0.056, movePhase: 2.32 },
-  { x: 1791, y: 746, width: 60, height: 20 },
+  { x: 6306, y: 490, width: 51, height: 17, moveAxis: "y", moveRange: 85, moveSpeed: 0.036, movePhase: 1.86 },
+  { x: 11994, y: 761, width: 77, height: 18, moveAxis: "y", moveRange: 65, moveSpeed: 0.045, movePhase: 0.74 },
+  { x: 1788, y: 759, width: 60, height: 20 },
+  { x: 3271, y: 794, width: 63, height: 20 },
+  { x: 5750, y: 531, width: 150, height: 20 },
   { x: 6874, y: 393, width: 152, height: 20 },
-  { x: 12516, y: 688, width: 90, height: 20 },
 ];
 
 window.spikes = [
-  { x: 1710, y: 750, size: 16 },
-  { x: 3151, y: 790, size: 50 },
-  { x: 3201, y: 790, size: 23 },
+  { x: 1712, y: 750, size: 29 },
   { x: 5558, y: 538, size: 34 },
-  { x: 5592, y: 538, size: 24 },
-  { x: 5616, y: 538, size: 20 },
-  { x: 5636, y: 538, size: 19 },
   { x: 6703, y: 393, size: 35 },
   { x: 6738, y: 393, size: 12 },
   { x: 6750, y: 393, size: 39 },
   { x: 6789, y: 393, size: 49 },
-  { x: 12413, y: 696, size: 19 },
 ];
 
 window.checkpoints = [
@@ -73,4 +69,14 @@ window.checkpoints = [
   { x: 9936, y: 443, reached: false },
   { x: 11659, y: 675, reached: false },
   { x: 12858, y: 678, reached: false }, // Final
+];
+
+window.forceZones = [
+  { x: 7756, y: 230, width: 166, height: 90, axis: "x", force: -0.161 },
+  { x: 11514, y: 615, width: 289, height: 90, axis: "x", force: 0.12 },
+];
+
+window.lasers = [
+  { x: 1093, y: 497, length: 171, width: 4, baseAngle: 2.96, sweepAngle: 0.53, period: 159, blinkPeriod: 0, onRatio: 0.5 },
+  { x: 9157, y: 475, length: 134, width: 4, baseAngle: 4.52, sweepAngle: 0.77, period: 159, blinkPeriod: 0, onRatio: 0.5 },
 ];

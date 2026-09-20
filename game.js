@@ -869,11 +869,29 @@ const SKY_PROGRESS_LEVEL_COUNT = 25;
 let sceneProgress = 0;
 
 // A level opts into a wholesale visual reskin with `window.levelTheme`
-// (currently only `"neon"` — see drawBackground()/drawInsetRect() callers)
-// instead of the normal progress-based nebula backdrop and violet/crimson
-// palette. Reset to null on every load (see loadLevel()) so a themed
-// level can't leak its look into the next, ordinary one.
+// (see the THEMES table below) instead of the normal progress-based
+// nebula backdrop and violet/crimson palette. Reset to null on every load
+// (see loadLevel()) so a themed level can't leak its look into the next,
+// ordinary one.
 let currentLevelTheme = null;
+
+// An ordinary (non-themed) level can still nudge its platform/deadly/spike
+// glow toward one accent color via `window.levelAccent` (a hex string) —
+// a much lighter touch than a full THEMES reskin: the nebula backdrop and
+// default fill/stroke colors are untouched, only an optional glow is
+// added on top (see drawInsetRect()'s existing `glow` param). Used to give
+// each ~10-level stretch of the main 30-100 path its own faint identity
+// without the backdrop-consistency risk a full per-level reskin would
+// carry across 70+ sequential levels — see docs/gameplay.md.
+let currentLevelAccent = null;
+
+// New-mechanic runtime state (levels 30+ — see docs/gameplay.md's "New
+// hazards and mechanics" section: force zones, lasers, fallers,
+// switches/gates, portals). Reset on every loadLevel() the same way
+// currentLevelTheme is, so nothing from one level's switches/portals can
+// leak into the next.
+let gateStates = {}; // { [gateId]: true } once that gate's switch has been thrown — never resets on death, only on level change
+let portalCooldown = 0; // frames of grace after a teleport before another can retrigger (stops ping-ponging between a linked pair)
 
 // The level's actual spawn point, captured once per level load (see
 // resetLevelState()) *after* applyLevelVerticalLayout() has shifted the
@@ -998,7 +1016,16 @@ function loadLevel(levelNumber) {
     window.levelText = "";
     window.tutorialTips = [];
     window.levelTheme = null;
+    window.levelAccent = null;
+    window.levelBranchId = null;
     window.slingshots = [];
+    window.forceZones = [];
+    window.lasers = [];
+    window.fallers = [];
+    window.switches = [];
+    window.portals = [];
+    gateStates = {};
+    portalCooldown = 0;
 
     const script = document.createElement("script");
     // Cache-busted: level files just changed from `const`/`let` to
@@ -1028,6 +1055,7 @@ function resetLevelState() {
     Math.min(1, (currentLevel - 1) / (SKY_PROGRESS_LEVEL_COUNT - 1))
   );
   currentLevelTheme = typeof levelTheme !== "undefined" ? levelTheme : null;
+  currentLevelAccent = typeof levelAccent !== "undefined" ? levelAccent : null;
 
   // Re-check the canvas size here too, not just on an actual window
   // resize — if the very first frame happened to run before the viewport
@@ -1446,6 +1474,54 @@ function startLevelFromOverlay(levelNumber) {
   fadeCallback = () => loadLevel(levelNumber);
 }
 window.startLevelFromOverlay = startLevelFromOverlay;
+
+// Same mechanism as startLevelFromOverlay() above, for one of the ten
+// stand-alone branch levels (see levels.js's TRUE_BRANCH_LEVELS) instead
+// of a numbered main-path level — deliberately never touches
+// currentLevel/savedLevel, so a manual refresh mid-branch-level (or simply
+// finishing/leaving it) always resumes the main path exactly where it
+// was, not inside the branch. `branchId` is the level's own id ("b1" etc,
+// matching its levelB<N>.js filename) rather than a number.
+function startBranchLevelFromOverlay(branchId) {
+  document.getElementById("levelMapOverlay").classList.add("hidden");
+  if (!hasGameStarted) {
+    hasGameStarted = true;
+    hideRootMenus();
+    loadLevel(branchId).then(() => requestAnimationFrame(gameLoop));
+    return;
+  }
+  hideRootMenus();
+  isPaused = false;
+  if (isFading || isPortalSucking) return;
+  isFading = true;
+  fadeOpacity = 0;
+  fadeDirection = 1;
+  fadeCallback = () => loadLevel(branchId);
+}
+window.startBranchLevelFromOverlay = startBranchLevelFromOverlay;
+
+// Mirrors advanceToNextLevel()'s coin/achievement bookkeeping for a
+// branch level's own, separate completion record (see
+// StarshadeEconomy.markBranchLevelCompleted() in skinsData.js) — kept
+// entirely out of the main getCompletedLevels() array so it can never
+// perturb any of the "highest level reached"/customization-unlock math
+// that array's numbers (1-100) are assumed to stay within. Instead of
+// advancing to a "next level" (there isn't one — a branch level isn't a
+// rung on the ladder), this just returns to the main path exactly where
+// the player detoured from it.
+function completeBranchLevel() {
+  const branchId = window.levelBranchId;
+  const coinsEarned = StarshadeEconomy.markBranchLevelCompleted(branchId);
+  if (coinsEarned > 0) {
+    if (hasPowerUp("coinBoost")) {
+      const bonus = Math.round(coinsEarned * 0.5);
+      StarshadeEconomy.addCoins(bonus);
+    }
+    showCoinToast(`+${coinsEarned} Coins`);
+  }
+  StarshadeAchievements.checkAndNotify();
+  return loadLevel(currentLevel);
+}
 
 document.getElementById("pause-open-button").addEventListener("click", () => {
   // A sub-overlay covers the pause menu itself — back out of that first,
@@ -1919,23 +1995,276 @@ const SKY_BOTTOM_HIGH = [4, 2, 10];
 // three parallax layers above, back-to-front. Fully opaque, so this
 // doubles as the frame clear that used to be a plain ctx.clearRect() —
 // see draw().
-// Neon levels (`window.levelTheme = "neon"`) skip the nebula/planet/cloud
-// backdrop entirely — pure black, "empty night sky" territory — so the
-// only color anywhere on screen comes from the level's own glowing
-// platforms. drawStarLayer() is reused rather than duplicated, forced to
-// full brightness (its normal alpha ramps in with sceneProgress, which a
-// neon level shouldn't depend on) and drawn twice at two densities for a
-// deeper, more crowded sky than the ordinary backdrop ever shows.
-function drawNeonBackground() {
-  ctx.fillStyle = "#020103";
+
+// -------------------------------------------------------------
+// LEVEL THEMES — wholesale visual reskins
+// -------------------------------------------------------------
+// A level opts into one of these with `window.levelTheme = "<key>"`
+// instead of the normal progress-based nebula backdrop (see
+// drawBackground()). Originally just "neon" (level 50, hand-special-cased
+// throughout the platform/deadly/spike draw functions below); generalized
+// into this table so each of those functions reads `THEMES[currentLevelTheme]`
+// once instead of repeating its own `currentLevelTheme === "neon"` ternary.
+// The "neon" entry below reproduces its exact original colors — this is a
+// refactor of that level's look, not a change to it.
+//
+// Every other key is new (see docs/gameplay.md's "Ten themed branch
+// levels" section) — each is a from-scratch backdrop + platform/deadly/
+// spike palette for one of the ten stand-alone bonus levels (levelB1.js -
+// levelB10.js), reachable only from the Level Map as a branch off the
+// main 1-100 path (see "Branch levels" below), never a numbered rung on
+// the ladder. `accent` is also reused, at low glow-only opacity, by
+// ordinary (non-themed) levels 30-100 via `window.levelAccent` — a much
+// lighter touch, see currentLevelAccent's declaration above.
+//
+// Deliberate rule kept from the original neon level and applied to every
+// theme here: ghost/melt/bounce/conveyor platforms and the player keep
+// their normal signature colors regardless of theme (see
+// drawGhostPlatforms()/drawMeltPlatforms(), untouched below, and
+// drawBouncePlatforms()/drawConveyorPlatforms(), which only reskin their
+// FILL darkness + add a glow, never their actual cyan-green/amber stroke
+// color) — those colors already read clearly against any of these dark
+// backdrops, and staying consistent means "which platform type is this"
+// never depends on which of eleven themes happens to be active. Deadly
+// platforms/spikes are also kept in a warm red family across every theme
+// (even the already-red ones, which go near-white-hot instead) rather
+// than each theme's own hue, for the same fairness reason — "this kills
+// you" has to read the same everywhere.
+const THEMES = {
+  neon: {
+    bg: "#020103",
+    starDense: true,
+    platform: { fill: "rgba(10, 12, 30, 0.85)", stroke: "rgba(80, 230, 255, 0.95)", glow: "rgba(80, 230, 255, 0.9)" },
+    deadly: { fill: "rgba(30, 4, 16, 0.85)", stroke: "rgba(255, 45, 110, 0.95)", glow: "rgba(255, 45, 110, 0.9)" },
+    bounceFill: "rgba(10, 30, 26, 0.85)",
+    conveyorFill: "rgba(30, 22, 8, 0.85)",
+    spikeTop: "rgba(255, 90, 170, 0.95)", spikeBottom: "rgba(120, 5, 60, 0.85)", spikeGlow: "rgba(255, 60, 150, 0.9)",
+    accent: "#50e6ff",
+  },
+  ember: { // Ember Forge (levelB1) — a molten black-rock forge world
+    bg: "#0c0503",
+    platform: { fill: "rgba(40, 16, 6, 0.88)", stroke: "rgba(255, 174, 64, 0.95)", glow: "rgba(255, 150, 50, 0.85)" },
+    deadly: { fill: "rgba(40, 4, 2, 0.9)", stroke: "rgba(255, 48, 24, 0.95)", glow: "rgba(255, 60, 20, 0.85)" },
+    bounceFill: "rgba(35, 18, 4, 0.88)",
+    conveyorFill: "rgba(35, 14, 4, 0.88)",
+    spikeTop: "rgba(255, 176, 96, 0.95)", spikeBottom: "rgba(160, 24, 6, 0.9)", spikeGlow: "rgba(255, 100, 30, 0.9)",
+    accent: "#ff9838",
+    accentLayer: { shape: "ember", color: "rgba(255, 140, 50, 0.8)", motion: "rise" },
+  },
+  glacier: { // Glacier Spire (levelB2) — an ice cathedral
+    bg: "#060b12",
+    platform: { fill: "rgba(10, 26, 36, 0.88)", stroke: "rgba(143, 224, 255, 0.95)", glow: "rgba(143, 224, 255, 0.8)" },
+    deadly: { fill: "rgba(30, 6, 12, 0.9)", stroke: "rgba(255, 77, 106, 0.95)", glow: "rgba(255, 70, 100, 0.85)" },
+    bounceFill: "rgba(8, 30, 32, 0.88)",
+    conveyorFill: "rgba(22, 24, 34, 0.88)",
+    spikeTop: "rgba(234, 255, 255, 0.95)", spikeBottom: "rgba(79, 168, 201, 0.9)", spikeGlow: "rgba(255, 80, 110, 0.85)",
+    accent: "#8fe0ff",
+    accentLayer: { shape: "snow", color: "rgba(230, 250, 255, 0.9)", motion: "fall" },
+  },
+  toxic: { // Toxic Hollow (levelB3) — an acid-bloom swamp
+    bg: "#070d05",
+    platform: { fill: "rgba(14, 28, 6, 0.88)", stroke: "rgba(157, 255, 77, 0.95)", glow: "rgba(160, 255, 80, 0.75)" },
+    deadly: { fill: "rgba(30, 4, 18, 0.9)", stroke: "rgba(255, 61, 122, 0.95)", glow: "rgba(255, 60, 120, 0.85)" },
+    bounceFill: "rgba(10, 30, 14, 0.88)",
+    conveyorFill: "rgba(24, 30, 6, 0.88)",
+    spikeTop: "rgba(217, 255, 158, 0.95)", spikeBottom: "rgba(90, 16, 48, 0.9)", spikeGlow: "rgba(255, 60, 120, 0.85)",
+    accent: "#9dff4d",
+    accentLayer: { shape: "spore", color: "rgba(180, 255, 100, 0.7)", motion: "drift" },
+  },
+  storm: { // Storm Reach (levelB4) — a lightning-lashed causeway
+    bg: "#05070d",
+    platform: { fill: "rgba(10, 14, 26, 0.88)", stroke: "rgba(191, 230, 255, 0.95)", glow: "rgba(190, 225, 255, 0.8)" },
+    deadly: { fill: "rgba(28, 4, 10, 0.9)", stroke: "rgba(255, 45, 77, 0.95)", glow: "rgba(255, 50, 80, 0.85)" },
+    bounceFill: "rgba(8, 24, 30, 0.88)",
+    conveyorFill: "rgba(26, 22, 12, 0.88)",
+    spikeTop: "rgba(234, 246, 255, 0.95)", spikeBottom: "rgba(90, 14, 34, 0.9)", spikeGlow: "rgba(255, 60, 90, 0.85)",
+    accent: "#bfe6ff",
+    accentLayer: { shape: "bolt", color: "rgba(210, 235, 255, 0.95)", motion: "flicker" },
+  },
+  gilded: { // Gilded Vault (levelB5) — a buried treasure vault
+    bg: "#0c0a04",
+    platform: { fill: "rgba(30, 24, 6, 0.88)", stroke: "rgba(255, 209, 92, 0.95)", glow: "rgba(255, 210, 100, 0.8)" },
+    deadly: { fill: "rgba(30, 4, 4, 0.9)", stroke: "rgba(255, 47, 47, 0.95)", glow: "rgba(255, 60, 60, 0.85)" },
+    bounceFill: "rgba(10, 28, 24, 0.88)",
+    conveyorFill: "rgba(30, 22, 6, 0.88)",
+    spikeTop: "rgba(255, 240, 176, 0.95)", spikeBottom: "rgba(122, 16, 0, 0.9)", spikeGlow: "rgba(255, 80, 40, 0.85)",
+    accent: "#ffd15c",
+    accentLayer: { shape: "coin", color: "rgba(255, 215, 110, 0.85)", motion: "drift" },
+  },
+  abyssal: { // Abyssal Trench (levelB6) — a bioluminescent deep-sea void
+    bg: "#030a0c",
+    platform: { fill: "rgba(4, 20, 22, 0.9)", stroke: "rgba(77, 232, 216, 0.95)", glow: "rgba(80, 230, 215, 0.8)" },
+    deadly: { fill: "rgba(24, 4, 14, 0.92)", stroke: "rgba(255, 61, 110, 0.95)", glow: "rgba(255, 60, 100, 0.85)" },
+    bounceFill: "rgba(4, 26, 26, 0.9)",
+    conveyorFill: "rgba(20, 20, 10, 0.9)",
+    spikeTop: "rgba(184, 255, 242, 0.95)", spikeBottom: "rgba(58, 10, 32, 0.9)", spikeGlow: "rgba(255, 70, 110, 0.85)",
+    accent: "#4de8d8",
+    accentLayer: { shape: "bubble", color: "rgba(90, 230, 220, 0.6)", motion: "rise" },
+  },
+  crimson: { // Crimson Bastion (levelB7) — a blood-iron fortress
+    bg: "#0a0304",
+    platform: { fill: "rgba(28, 6, 6, 0.9)", stroke: "rgba(255, 90, 90, 0.95)", glow: "rgba(255, 90, 90, 0.8)" },
+    deadly: { fill: "rgba(10, 2, 2, 0.92)", stroke: "rgba(255, 255, 255, 0.95)", glow: "rgba(255, 255, 255, 0.85)" },
+    bounceFill: "rgba(6, 26, 22, 0.9)",
+    conveyorFill: "rgba(28, 18, 4, 0.9)",
+    spikeTop: "rgba(255, 184, 184, 0.95)", spikeBottom: "rgba(74, 0, 0, 0.92)", spikeGlow: "rgba(255, 40, 40, 0.9)",
+    accent: "#ff5a5a",
+    accentLayer: { shape: "ember", color: "rgba(255, 80, 80, 0.7)", motion: "rise" },
+  },
+  aurora: { // Aurora Veil (levelB8) — a shifting polar sky
+    bg: "#05080f",
+    platform: { fill: "rgba(8, 16, 20, 0.85)", stroke: "rgba(125, 255, 176, 0.95)", glow: "rgba(140, 255, 190, 0.75)" },
+    deadly: { fill: "rgba(24, 4, 16, 0.9)", stroke: "rgba(255, 95, 174, 0.95)", glow: "rgba(255, 95, 175, 0.8)" },
+    bounceFill: "rgba(6, 24, 20, 0.85)",
+    conveyorFill: "rgba(20, 18, 10, 0.85)",
+    spikeTop: "rgba(234, 255, 242, 0.95)", spikeBottom: "rgba(58, 16, 80, 0.9)", spikeGlow: "rgba(255, 95, 175, 0.85)",
+    accent: "#8fffc8",
+    accentLayer: { shape: "aurora", color: null, motion: "drift" },
+  },
+  obsidian: { // Obsidian Rift (levelB9) — shattered volcanic glass over a shadow rift
+    bg: "#06040a",
+    platform: { fill: "rgba(16, 8, 26, 0.88)", stroke: "rgba(185, 143, 255, 0.95)", glow: "rgba(180, 140, 255, 0.75)" },
+    deadly: { fill: "rgba(26, 4, 12, 0.9)", stroke: "rgba(255, 47, 94, 0.95)", glow: "rgba(255, 50, 95, 0.85)" },
+    bounceFill: "rgba(8, 26, 24, 0.88)",
+    conveyorFill: "rgba(24, 18, 6, 0.88)",
+    spikeTop: "rgba(230, 216, 255, 0.95)", spikeBottom: "rgba(42, 16, 80, 0.9)", spikeGlow: "rgba(255, 60, 95, 0.85)",
+    accent: "#b98fff",
+    accentLayer: { shape: "shard", color: "rgba(190, 150, 255, 0.7)", motion: "drift" },
+  },
+  solar: { // Solar Crown (levelB10) — a sun-scorched finale, the brightest theme
+    bg: "#0d0800",
+    platform: { fill: "rgba(34, 20, 4, 0.88)", stroke: "rgba(255, 226, 122, 0.95)", glow: "rgba(255, 225, 140, 0.85)" },
+    deadly: { fill: "rgba(30, 4, 2, 0.92)", stroke: "rgba(255, 47, 47, 0.95)", glow: "rgba(255, 70, 40, 0.9)" },
+    bounceFill: "rgba(10, 28, 22, 0.88)",
+    conveyorFill: "rgba(30, 22, 4, 0.88)",
+    spikeTop: "rgba(255, 246, 208, 0.95)", spikeBottom: "rgba(122, 20, 0, 0.9)", spikeGlow: "rgba(255, 110, 30, 0.9)",
+    accent: "#ffe27a",
+    accentLayer: { shape: "flare", color: "rgba(255, 230, 150, 0.9)", motion: "flicker" },
+  },
+};
+
+// A single generic parallax "weather" layer for themed levels, reusing
+// the exact deterministic-cell approach drawStarLayer()/drawCloudLayer()
+// already use (see forEachVisibleCell()/hash01() above) rather than a
+// bespoke layer per theme — only `shape` (how one mote is drawn) and
+// `motion` (how it animates in place within its cell) differ per theme.
+// "aurora" is handled separately (drawAuroraBands(), wavy screen-space
+// bands rather than discrete motes) since a shifting polar sky doesn't
+// fit the same per-cell-dot model the other nine do.
+const ACCENT_CELL = 220;
+const ACCENT_PARALLAX = 0.14;
+const ACCENT_PER_CELL = 3;
+function drawAccentMote(x, y, size, shape, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = size * 2.2;
+  if (shape === "bolt") {
+    ctx.lineWidth = Math.max(1.2, size * 0.35);
+    ctx.beginPath();
+    ctx.moveTo(-size, -size * 2);
+    ctx.lineTo(size * 0.4, -size * 0.3);
+    ctx.lineTo(-size * 0.3, size * 0.2);
+    ctx.lineTo(size, size * 2);
+    ctx.stroke();
+  } else if (shape === "coin") {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape === "shard") {
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size * 0.5, 0);
+    ctx.lineTo(0, size);
+    ctx.lineTo(-size * 0.5, 0);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // ember / snow / spore / bubble / flare all read fine as a soft glowing dot
+    ctx.beginPath();
+    ctx.arc(0, 0, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+function drawThemeAccentLayer(cfg) {
+  const now = Date.now();
+  const t = now / 1000;
+  ctx.save();
+  forEachVisibleCell(ACCENT_CELL, ACCENT_PARALLAX, (cx, cy, camX, camY) => {
+    for (let i = 0; i < ACCENT_PER_CELL; i++) {
+      const rx = hash01(cx, cy, i * 5 + 1);
+      const ry = hash01(cx, cy, i * 5 + 2);
+      const rsize = hash01(cx, cy, i * 5 + 3);
+      const rphase = hash01(cx, cy, i * 5 + 4) * Math.PI * 2;
+      const rspeed = 0.6 + hash01(cx, cy, i * 5 + 5) * 0.8;
+      let ox = 0, oy = 0, alpha = 0.8;
+      if (cfg.motion === "rise") {
+        oy = -((t * 18 * rspeed) % ACCENT_CELL);
+        alpha = 0.35 + 0.55 * Math.pow(Math.sin(rphase + t * 2), 2);
+      } else if (cfg.motion === "fall") {
+        oy = (t * 24 * rspeed) % ACCENT_CELL;
+        ox = Math.sin(t * 1.3 + rphase) * 10;
+        alpha = 0.45 + 0.5 * Math.pow(Math.sin(rphase + t), 2);
+      } else if (cfg.motion === "drift") {
+        ox = Math.sin(t * 0.5 * rspeed + rphase) * 26;
+        oy = Math.cos(t * 0.35 * rspeed + rphase) * 18;
+        alpha = 0.35 + 0.5 * Math.pow(Math.sin(rphase + t * 0.6), 2);
+      } else if (cfg.motion === "flicker") {
+        alpha = hash01(cx, cy, i * 5 + 6) < 0.06 ? 1 : 0.12 + 0.18 * Math.pow(Math.sin(rphase + t * 4), 2);
+      }
+      const screenX = cx * ACCENT_CELL + rx * ACCENT_CELL - camX + ox;
+      const screenY = cy * ACCENT_CELL + ry * ACCENT_CELL - camY + oy;
+      const size = 1.4 + rsize * (cfg.shape === "coin" ? 4 : cfg.shape === "shard" ? 5 : 2.4);
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      drawAccentMote(screenX, screenY, size, cfg.shape, cfg.color);
+    }
+  });
+  ctx.restore();
+}
+// Aurora Veil's sky: three slow, wavy, hue-shifting translucent bands
+// (screen-space, not parallaxed — a sky-wide phenomenon reads as "far
+// away" on its own without needing to scroll with the camera at all)
+// rather than discrete motes, using the same HSL-drift technique
+// drawCloudLayer() already uses for a genuinely shifting-aurora feel.
+function drawAuroraBands() {
+  const now = Date.now() / 1400;
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    const hue = 140 + i * 55 + Math.sin(now + i) * 30;
+    const baseY = viewportHeight * (0.18 + i * 0.16);
+    ctx.globalAlpha = 0.16;
+    ctx.strokeStyle = `hsl(${hue}, 90%, 65%)`;
+    ctx.shadowColor = `hsl(${hue}, 90%, 65%)`;
+    ctx.shadowBlur = 40;
+    ctx.lineWidth = 46 + i * 10;
+    ctx.beginPath();
+    for (let x = -40; x <= viewportWidth + 40; x += 24) {
+      const y = baseY + Math.sin(x / 220 + now * 1.3 + i * 2) * 34;
+      if (x === -40) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawThemedBackground(theme) {
+  ctx.fillStyle = theme.bg;
   ctx.fillRect(0, 0, viewportWidth, viewportHeight);
-  drawStarLayer(1);
-  drawStarLayer(0.55, true);
+  drawStarLayer(theme.starDense ? 1 : 0.7, false);
+  if (theme.starDense) drawStarLayer(0.55, true);
+  if (theme.accentLayer) {
+    if (theme.accentLayer.shape === "aurora") drawAuroraBands();
+    else drawThemeAccentLayer(theme.accentLayer);
+  }
 }
 
 function drawBackground() {
-  if (currentLevelTheme === "neon") {
-    drawNeonBackground();
+  const theme = THEMES[currentLevelTheme];
+  if (theme) {
+    drawThemedBackground(theme);
     return;
   }
   const top = lerpColor(SKY_TOP_LOW, SKY_TOP_HIGH, sceneProgress);
@@ -2446,19 +2775,19 @@ function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern, glo
 // a completely different, unrelated color family from everything else on
 // screen (including the nebula background behind them).
 function drawPlatforms() {
-  const neon = currentLevelTheme === "neon";
+  const theme = THEMES[currentLevelTheme];
   platforms.forEach((platform) => {
-    if (platform.ghost || platform.melt || platform.bounce || platform.conveyor) return; // drawn separately, see below
-    if (neon) {
+    if (platform.ghost || platform.melt || platform.bounce || platform.conveyor || platform.gated) return; // drawn separately, see below
+    if (theme) {
       drawInsetRect(
         platformX(platform),
         platformY(platform),
         platform.width,
         platform.height,
-        "rgba(10, 12, 30, 0.85)",
-        "rgba(80, 230, 255, 0.95)",
+        theme.platform.fill,
+        theme.platform.stroke,
         null,
-        "rgba(80, 230, 255, 0.9)"
+        theme.platform.glow
       );
     } else {
       drawInsetRect(
@@ -2468,7 +2797,8 @@ function drawPlatforms() {
         platform.height,
         "rgba(74, 58, 150, 0.7)",
         "rgba(138, 92, 255, 0.85)",
-        platformTexturePattern
+        platformTexturePattern,
+        currentLevelAccent || undefined
       );
     }
   });
@@ -2479,7 +2809,7 @@ function drawPlatforms() {
 // chevron pointing up (the direction they launch you) rather than the
 // plating texture ordinary platforms use.
 function drawBouncePlatforms() {
-  const neon = currentLevelTheme === "neon";
+  const theme = THEMES[currentLevelTheme];
   platforms.forEach((platform) => {
     if (!platform.bounce) return;
     const px = platformX(platform);
@@ -2489,10 +2819,10 @@ function drawBouncePlatforms() {
       py,
       platform.width,
       platform.height,
-      neon ? "rgba(10, 30, 26, 0.85)" : "rgba(30, 130, 110, 0.75)",
-      neon ? "rgba(80, 255, 210, 0.95)" : "rgba(90, 255, 200, 0.9)",
+      theme ? theme.bounceFill : "rgba(30, 130, 110, 0.75)",
+      "rgba(90, 255, 200, 0.9)",
       null,
-      neon ? "rgba(80, 255, 210, 0.9)" : undefined
+      theme ? "rgba(90, 255, 200, 0.9)" : (currentLevelAccent || undefined)
     );
     ctx.save();
     ctx.translate(px - cameraOffsetX, py - cameraOffsetY);
@@ -2514,7 +2844,7 @@ function drawBouncePlatforms() {
 // a conveyor moves you is readable at a glance rather than something you
 // discover by standing on it.
 function drawConveyorPlatforms() {
-  const neon = currentLevelTheme === "neon";
+  const theme = THEMES[currentLevelTheme];
   const now = Date.now();
   platforms.forEach((platform) => {
     if (!platform.conveyor) return;
@@ -2525,10 +2855,10 @@ function drawConveyorPlatforms() {
       py,
       platform.width,
       platform.height,
-      neon ? "rgba(30, 22, 8, 0.85)" : "rgba(150, 100, 20, 0.75)",
-      neon ? "rgba(255, 200, 60, 0.95)" : "rgba(255, 190, 60, 0.9)",
+      theme ? theme.conveyorFill : "rgba(150, 100, 20, 0.75)",
+      "rgba(255, 190, 60, 0.9)",
       null,
-      neon ? "rgba(255, 200, 60, 0.9)" : undefined
+      theme ? "rgba(255, 190, 60, 0.9)" : (currentLevelAccent || undefined)
     );
     ctx.save();
     ctx.translate(px - cameraOffsetX, py - cameraOffsetY);
@@ -2627,18 +2957,18 @@ function drawMeltPlatforms() {
 // anyway), but sits in the same warm-toward-violet family as the nebula
 // background instead of clashing as a completely unrelated hue.
 function drawDeadlyPlatforms() {
-  const neon = currentLevelTheme === "neon";
+  const theme = THEMES[currentLevelTheme];
   deadlyPlatforms.forEach((platform) => {
-    if (neon) {
+    if (theme) {
       drawInsetRect(
         platformX(platform),
         platformY(platform),
         platform.width,
         platform.height,
-        "rgba(30, 4, 16, 0.85)",
-        "rgba(255, 45, 110, 0.95)",
+        theme.deadly.fill,
+        theme.deadly.stroke,
         null,
-        "rgba(255, 45, 110, 0.9)"
+        theme.deadly.glow
       );
     } else {
       drawInsetRect(
@@ -2648,7 +2978,8 @@ function drawDeadlyPlatforms() {
         platform.height,
         "rgba(168, 12, 84, 0.7)",
         "rgba(255, 60, 130, 0.85)",
-        hazardTexturePattern
+        hazardTexturePattern,
+        currentLevelAccent || undefined
       );
     }
   });
@@ -2658,19 +2989,23 @@ function drawDeadlyPlatforms() {
 // gradient, not an image) and, unlike a tiled texture, always crisp
 // regardless of a spike's actual size, which varies per level.
 function drawSpikes() {
-  const neon = currentLevelTheme === "neon";
+  const theme = THEMES[currentLevelTheme];
   spikes.forEach((spike) => {
     ctx.save();
     ctx.translate(spike.x - cameraOffsetX, spike.y - cameraOffsetY);
     const grad = ctx.createLinearGradient(0, -spike.size, 0, 0);
-    if (neon) {
-      grad.addColorStop(0, "rgba(255, 90, 170, 0.95)");
-      grad.addColorStop(1, "rgba(120, 5, 60, 0.85)");
-      ctx.shadowColor = "rgba(255, 60, 150, 0.9)";
+    if (theme) {
+      grad.addColorStop(0, theme.spikeTop);
+      grad.addColorStop(1, theme.spikeBottom);
+      ctx.shadowColor = theme.spikeGlow;
       ctx.shadowBlur = 12;
     } else {
       grad.addColorStop(0, "rgba(255, 140, 190, 0.85)");
       grad.addColorStop(1, "rgba(150, 10, 70, 0.75)");
+      if (currentLevelAccent) {
+        ctx.shadowColor = currentLevelAccent;
+        ctx.shadowBlur = 8;
+      }
     }
     ctx.fillStyle = grad;
     ctx.strokeStyle = "rgba(255, 90, 160, 0.85)";
@@ -3064,6 +3399,362 @@ function updateGhostPlatforms() {
   });
 }
 
+
+// -------------------------------------------------------------
+// NEW HAZARDS/MECHANICS (levels 30+) — lasers, fallers, force zones,
+// switches/gates, portals
+// -------------------------------------------------------------
+// Every one of these follows the same safety rule the original
+// moving/ghost/melt/bounce/conveyor set already established (see
+// docs/gameplay.md): a hazard (laser, faller) is always freestanding next
+// to the path, never something a gap's base feasibility depends on, and
+// an optional mechanic (force zone, switch/gate, portal) always opens up
+// a faster/alternate route rather than gating the guaranteed one — so
+// none of these need their own entry in .claude/audit-gaps.js's
+// feasibility model, the same reasoning that already excludes bounce/
+// conveyor/decoys from it.
+
+// Force zones (`window.forceZones`, `{x,y,width,height,axis,force}`) — a
+// constant push applied to the player's velocity every frame their
+// bounding box overlaps the zone, mid-air or grounded alike (unlike a
+// conveyor, which only pushes while actually standing on one — a force
+// zone can bend a jump's whole arc). `axis: "x"` reads as a wind gust,
+// `axis: "y"` (force negative = up) as an updraft vent — same entity,
+// same code path, just themed differently per level. Applied directly in
+// updatePlayer() (see the call site there) rather than a dedicated update
+// function, since it's a plain per-frame velocity nudge with no internal
+// state of its own to animate.
+function applyForceZones(dtScale) {
+  (window.forceZones || []).forEach((zone) => {
+    if (
+      player.x + player.width / 2 > zone.x &&
+      player.x - player.width / 2 < zone.x + zone.width &&
+      player.y + player.height / 2 > zone.y &&
+      player.y - player.height / 2 < zone.y + zone.height
+    ) {
+      if (zone.axis === "y") player.dy += zone.force * dtScale;
+      else player.dx += zone.force * dtScale;
+    }
+  });
+}
+
+// Lasers (`window.lasers`) — a rotating/sweeping or blinking beam hazard,
+// animated once per frame here and consumed by both drawLasers() and the
+// kill check in updatePlayer() below (both read the same `_angle`/`_on`
+// so they can never disagree about where the beam currently is). `period`
+// (frames for a full sweep cycle) + `sweepAngle` (radians either side of
+// `baseAngle`) drive a rotating beam; `blinkPeriod` + `onRatio` instead
+// (or in addition) drive a blinking one, with a brief `_warning` flicker
+// telegraphing the last moment before it switches back on.
+function updateLasers(dtScale) {
+  (window.lasers || []).forEach((l) => {
+    l._t = (l._t || 0) + dtScale;
+    const period = l.period || 180;
+    l._angle = (l.baseAngle || 0) + Math.sin((l._t / period) * Math.PI * 2) * (l.sweepAngle || 0);
+    const blink = l.blinkPeriod || 0;
+    if (blink > 0) {
+      const onRatio = l.onRatio != null ? l.onRatio : 0.55;
+      const cyclePos = (l._t % blink) / blink;
+      l._on = cyclePos < onRatio;
+      const offProgress = l._on ? 0 : (cyclePos - onRatio) / (1 - onRatio);
+      l._warning = !l._on && offProgress > 0.75;
+    } else {
+      l._on = true;
+      l._warning = false;
+    }
+  });
+}
+
+// Shortest distance from a point to a line segment — used by both the
+// laser kill check below and could be reused by anything else that needs
+// beam-vs-point hit testing later.
+function pointSegmentDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq > 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx, cy = y1 + t * dy;
+  return Math.hypot(px - cx, py - cy);
+}
+
+// Fallers (`window.fallers`, `{x,y,size,triggerX}`) — a hanging hazard
+// (icicle/rock shard/glass shard, themed per level) that shakes in place
+// once the player's x crosses `triggerX`, then drops straight down and
+// retires once it's fallen well past the bottom of any plausible platform
+// below it. Telegraphed (the shake window) rather than an instant,
+// unavoidable kill the moment it's triggered.
+function updateFallers(dtScale) {
+  (window.fallers || []).forEach((f) => {
+    if (f._done) return;
+    if (!f._falling) {
+      const trigger = f.triggerX != null ? f.triggerX : f.x - 80;
+      if (player.x > trigger) {
+        f._shakeT = (f._shakeT || 0) + dtScale;
+        if (f._shakeT > 22) {
+          f._falling = true;
+          f._vy = 0;
+          f._fy = f.y;
+        }
+      }
+      return;
+    }
+    f._vy = (f._vy || 0) + gravity * 1.1 * dtScale;
+    f._fy = (f._fy != null ? f._fy : f.y) + f._vy * dtScale;
+    if (f._fy - f.y > 900) f._done = true;
+  });
+}
+
+// Gated platforms (`platform.gated`, `platform.gateId`) — an ordinary
+// `platforms` entry that starts intangible (mirrors a ghost platform's
+// `_solid` flag, which resolveAxis() already knows to skip — see below)
+// and permanently becomes solid once its paired switch (see below) is
+// thrown. Always an optional shortcut, never the level's only way across
+// a gap — see the safety note at the top of this section.
+function updateGatedPlatforms() {
+  platforms.forEach((p) => {
+    if (!p.gated) return;
+    const wasSolid = p._solid;
+    p._solid = !!gateStates[p.gateId];
+    if (p._solid && !wasSolid) {
+      spawnParticles(platformX(p) + p.width / 2, platformY(p) + p.height / 2, 16, {
+        colors: ["rgba(150,220,255,0.95)", "#fff", "rgba(90,180,255,0.9)"],
+        speed: 3.5,
+        life: 30,
+        size: 2.8,
+        gravity: 0,
+      });
+    }
+  });
+}
+
+// Switches (`window.switches`, `{x,y,radius,gateId}`) — a plain proximity
+// check (like a slingshot pad's arm check, not real collision) that
+// permanently throws the matching gate the instant the player gets close
+// enough. Never resets on death/respawn (see resetPlayer() — unlike melt
+// platforms, a thrown switch stays thrown for the rest of the level,
+// exactly like a reached checkpoint) — only a full level reload clears
+// `gateStates` (see loadLevel()).
+function updateSwitches() {
+  (window.switches || []).forEach((sw) => {
+    if (gateStates[sw.gateId]) return;
+    if (Math.hypot(player.x - sw.x, player.y - sw.y) < (sw.radius || 26)) {
+      gateStates[sw.gateId] = true;
+      spawnParticles(sw.x, sw.y, 20, {
+        colors: ["rgba(150,220,255,0.95)", "#fff", "rgba(90,180,255,0.9)"],
+        speed: 4.2,
+        life: 32,
+        size: 3,
+        gravity: 0,
+      });
+      vibrateHaptic(20);
+    }
+  });
+}
+
+// Force zones — a soft, streaked band in the push direction, screen-space
+// texture but world-positioned (camera-offset translated like everything
+// else here). Purely decorative beyond communicating "something pushes
+// here" — applyForceZones() above is what actually moves the player.
+function drawForceZones() {
+  const now = Date.now();
+  (window.forceZones || []).forEach((zone) => {
+    ctx.save();
+    ctx.translate(zone.x - cameraOffsetX, zone.y - cameraOffsetY);
+    ctx.beginPath();
+    ctx.rect(0, 0, zone.width, zone.height);
+    ctx.clip();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "rgba(210, 235, 255, 0.8)";
+    ctx.lineWidth = 2;
+    const dir = zone.force >= 0 ? 1 : -1;
+    const spacing = 26;
+    if (zone.axis === "y") {
+      const scroll = ((now / 10) * dir) % spacing;
+      for (let sy = -spacing + (scroll % spacing); sy < zone.height + spacing; sy += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(zone.width * 0.2, sy + zone.width * 0.3 * dir);
+        ctx.lineTo(zone.width * 0.5, sy);
+        ctx.lineTo(zone.width * 0.8, sy + zone.width * 0.3 * dir);
+        ctx.stroke();
+      }
+    } else {
+      const scroll = ((now / 10) * dir) % spacing;
+      for (let sx = -spacing + (scroll % spacing); sx < zone.width + spacing; sx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(sx, zone.height * 0.2);
+        ctx.lineTo(sx + zone.height * 0.3 * dir, zone.height * 0.5);
+        ctx.lineTo(sx, zone.height * 0.8);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  });
+}
+
+// Lasers — a bright core line plus a wider, softer glow line underneath
+// (two strokes, not a shadowBlur alone, so it reads as a real beam rather
+// than a fuzzy line even on a light backdrop), a small emitter node at the
+// origin, and a dim outline-only preview of the full sweep range so a
+// rotating beam's danger zone is never a total surprise. Off-phase beams
+// (blinking lasers) draw only the emitter, brightened during `_warning`.
+function drawLasers() {
+  (window.lasers || []).forEach((l) => {
+    const theme = THEMES[currentLevelTheme];
+    const color = (theme && theme.laserColor) || "rgba(255, 60, 70, 0.95)";
+    const ox = l.x - cameraOffsetX;
+    const oy = l.y - cameraOffsetY;
+    ctx.save();
+    ctx.translate(ox, oy);
+    // Emitter node
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = l._on ? 14 : l._warning ? 8 : 4;
+    ctx.globalAlpha = l._on ? 1 : l._warning ? 0.6 : 0.35;
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (l._on) {
+      const x2 = Math.cos(l._angle) * l.length;
+      const y2 = Math.sin(l._angle) * l.length;
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (l.width || 4) * 2.4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = l.width || 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    } else if (l.sweepAngle || l.blinkPeriod) {
+      // A faint dashed preview of a static/off beam's reach, so it never
+      // reads as having simply vanished.
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 6]);
+      const x2 = Math.cos(l._angle) * l.length;
+      const y2 = Math.sin(l._angle) * l.length;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  });
+}
+
+// Fallers — hang as a simple faceted shard until triggered, shake in
+// place through the telegraph window, then fall. Drawn from the same
+// gradient language spikes already use (crystalline top-lit fill) rather
+// than a new art style.
+function drawFallers() {
+  (window.fallers || []).forEach((f) => {
+    if (f._done) return;
+    const theme = THEMES[currentLevelTheme];
+    const topColor = (theme && theme.spikeTop) || "rgba(255, 200, 210, 0.9)";
+    const botColor = (theme && theme.spikeBottom) || "rgba(150, 20, 40, 0.85)";
+    const fy = f._falling ? f._fy : f.y;
+    const shakeX = !f._falling && f._shakeT ? (Math.random() - 0.5) * Math.min(1, f._shakeT / 22) * 4 : 0;
+    ctx.save();
+    ctx.translate(f.x - cameraOffsetX + shakeX, fy - cameraOffsetY);
+    const half = f.size / 2;
+    const grad = ctx.createLinearGradient(0, -half, 0, half);
+    grad.addColorStop(0, topColor);
+    grad.addColorStop(1, botColor);
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = botColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -half);
+    ctx.lineTo(half * 0.7, 0);
+    ctx.lineTo(0, half);
+    ctx.lineTo(-half * 0.7, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+// Switches + their gated platforms — the switch itself is a small glowing
+// orb (dim, pulsing while unthrown; a steady bright ring once thrown), the
+// gate platform draws as a faint dashed outline while intangible and a
+// full drawInsetRect() (cyan-toned, distinct from every other platform
+// type) once opened.
+function drawSwitchesAndGates() {
+  const now = Date.now();
+  (window.switches || []).forEach((sw) => {
+    const thrown = !!gateStates[sw.gateId];
+    ctx.save();
+    ctx.translate(sw.x - cameraOffsetX, sw.y - cameraOffsetY);
+    const pulse = thrown ? 1 : 0.6 + 0.4 * Math.sin(now / 260);
+    ctx.beginPath();
+    ctx.fillStyle = thrown ? "rgba(150, 230, 255, 0.95)" : "rgba(120, 190, 255, 0.85)";
+    ctx.shadowColor = "rgba(140, 210, 255, 0.9)";
+    ctx.shadowBlur = 10 * pulse;
+    ctx.globalAlpha = pulse;
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(220, 245, 255, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+  platforms.forEach((platform) => {
+    if (!platform.gated) return;
+    const px = platformX(platform);
+    const py = platformY(platform);
+    if (platform._solid) {
+      drawInsetRect(px, py, platform.width, platform.height, "rgba(8, 26, 34, 0.88)", "rgba(140, 220, 255, 0.95)", null, "rgba(140, 220, 255, 0.85)");
+    } else {
+      ctx.save();
+      ctx.translate(px - cameraOffsetX, py - cameraOffsetY);
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = "rgba(140, 220, 255, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect(1, 1, platform.width - 2, platform.height - 2);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  });
+}
+
+// Portals (`window.portals`, `{x,y,width,height,id,linkId}`) — a swirling
+// ring pair; stepping into one teleports to its linked partner (see the
+// check in updatePlayer() below). Always an optional shortcut across
+// already-generated-safe terrain, never load-bearing.
+function drawPortals() {
+  const now = Date.now();
+  (window.portals || []).forEach((p) => {
+    const cx = p.x + p.width / 2 - cameraOffsetX;
+    const cy = p.y + p.height / 2 - cameraOffsetY;
+    const r = Math.min(p.width, p.height) / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(now / 700);
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.85 - i * 0.22;
+      ctx.strokeStyle = "rgba(180, 140, 255, 0.9)";
+      ctx.shadowColor = "rgba(180, 140, 255, 0.9)";
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r - i * 5, (r - i * 5) * 0.4, (i * Math.PI) / 3, 0, Math.PI * 1.6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
 // Resolves player movement against solid platforms one axis at a time using
 // a "crossing" test (did the relevant edge start on one side of the
 // platform's edge and end up on the other?) rather than an after-the-move
@@ -3094,6 +3785,7 @@ function resolveAxis(axis, dtScale) {
   platforms.forEach((platform) => {
     if (platform.ghost && platform._solid === false) return; // intangible right now
     if (platform.melt && platform._melted) return; // already crumbled away
+    if (platform.gated && !platform._solid) return; // gate not yet opened — see updateGatedPlatforms()
 
     const px = platformX(platform);
     const py = platformY(platform);
@@ -3199,7 +3891,7 @@ function updatePortalSuck(dtScale) {
     isFading = true;
     fadeOpacity = 0;
     fadeDirection = 1;
-    fadeCallback = advanceToNextLevel;
+    fadeCallback = window.levelBranchId ? completeBranchLevel : advanceToNextLevel;
   }
 }
 
@@ -3212,6 +3904,10 @@ function updatePlayer(dtScale) {
 
   updateMovingPlatforms(dtScale);
   updateGhostPlatforms();
+  updateLasers(dtScale);
+  updateFallers(dtScale);
+  updateGatedPlatforms();
+  updateSwitches();
 
   // Carry the player with whatever platform they were resting on last
   // frame — proactively, before gravity/collision run this frame, rather
@@ -3310,6 +4006,8 @@ function updatePlayer(dtScale) {
   } else {
     player.dx = targetDx;
   }
+
+  applyForceZones(dtScale);
 
   const incomingDy = player.dy; // captured before resolveAxis can zero it on landing — see the bouncy ability below
   const { wallHit } = resolveAxis("x", dtScale);
@@ -3577,6 +4275,70 @@ function updatePlayer(dtScale) {
       triggerDeath();
     }
   });
+
+  // Lasers — kill on contact with the beam's *current* segment (the same
+  // `_angle`/`_on` updateLasers() just computed this frame), only while
+  // actually on.
+  (window.lasers || []).forEach((l) => {
+    if (!l._on) return;
+    const x2 = l.x + Math.cos(l._angle) * l.length;
+    const y2 = l.y + Math.sin(l._angle) * l.length;
+    const dist = pointSegmentDistance(player.x, player.y, l.x, l.y, x2, y2);
+    if (dist < (l.width || 4) / 2 + player.width * 0.3) triggerDeath();
+  });
+
+  // Fallers — only lethal while actually falling (the telegraph/shake
+  // window is a fair warning, not a hitbox).
+  (window.fallers || []).forEach((f) => {
+    if (!f._falling || f._done) return;
+    const half = f.size / 2;
+    if (
+      player.x + player.width / 2 > f.x - half &&
+      player.x - player.width / 2 < f.x + half &&
+      player.y + player.height / 2 > f._fy - half &&
+      player.y - player.height / 2 < f._fy + half
+    ) {
+      triggerDeath();
+    }
+  });
+
+  // Portals — a plain overlap check (like a checkpoint, not real
+  // collision); teleports to the linked pad's center, preserving velocity,
+  // with a short cooldown so the two ends of a pair can't immediately
+  // re-trigger each other back and forth.
+  if (portalCooldown > 0) portalCooldown -= dtScale;
+  else {
+    const hitPortal = (window.portals || []).find(
+      (p) =>
+        player.x + player.width / 2 > p.x &&
+        player.x - player.width / 2 < p.x + p.width &&
+        player.y + player.height / 2 > p.y &&
+        player.y - player.height / 2 < p.y + p.height
+    );
+    if (hitPortal) {
+      const target = (window.portals || []).find((p) => p.id === hitPortal.linkId);
+      if (target) {
+        spawnParticles(player.x, player.y, 14, {
+          colors: ["rgba(180,140,255,0.9)", "#fff"],
+          speed: 4,
+          life: 24,
+          size: 2.6,
+          gravity: 0,
+        });
+        player.x = target.x + target.width / 2;
+        player.y = target.y + target.height / 2;
+        portalCooldown = 30;
+        spawnParticles(player.x, player.y, 14, {
+          colors: ["rgba(180,140,255,0.9)", "#fff"],
+          speed: 4,
+          life: 24,
+          size: 2.6,
+          gravity: 0,
+        });
+      }
+    }
+  }
+
   // Checkpoints — Checkpoint Reach (skill) and Safety Line (power-up) each
   // add a little more trigger radius on top of everything else (difficulty,
   // death-streak leniency, touch bonus); both can be equipped at once
@@ -3977,6 +4739,20 @@ function resetPlayer() {
     }
   });
 
+  // Reset every faller back to its hanging, untriggered state — same
+  // reasoning as melt platforms above; a faller that already fell on a
+  // previous attempt shouldn't just be gone (or silently already-fallen
+  // and invisible) on the next one. Switches/gates are deliberately NOT
+  // reset here — see updateSwitches()'s comment, a thrown switch behaves
+  // like a reached checkpoint and stays thrown through death.
+  (window.fallers || []).forEach((f) => {
+    f._falling = false;
+    f._done = false;
+    f._shakeT = 0;
+    f._vy = 0;
+    f._fy = undefined;
+  });
+
   // Dropped in from a bit above the checkpoint (RESPAWN_DROP_HEIGHT) rather
   // than placed exactly on it — that fall is the only thing that visually
   // sells "you've just been put back here," so it needs to actually read
@@ -4243,17 +5019,22 @@ function draw(dtScale) {
     ctx.translate(viewportWidth / 2, viewportHeight / 2);
     ctx.scale(cameraZoom, cameraZoom);
     ctx.translate(-viewportWidth / 2, -viewportHeight / 2);
+    drawForceZones();
     drawPlatforms();
     drawGhostPlatforms();
     drawMeltPlatforms();
     drawBouncePlatforms();
     drawConveyorPlatforms();
+    drawSwitchesAndGates();
+    drawPortals();
     drawSpikes();
+    drawFallers();
     drawSlingshots();
     drawCheckpoints();
     drawParticles();
     drawPlayer();
     drawDeadlyPlatforms();
+    drawLasers();
     ctx.restore();
 
     drawLevelText();

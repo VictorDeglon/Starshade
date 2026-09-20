@@ -891,6 +891,14 @@ const StarshadeEconomy = (() => {
   const EQUIPPED_KEY = "starshadeEquippedSkin";
   const UNLOCKED_KEY = "starshadeUnlockedSkins";
   const COMPLETED_LEVELS_KEY = "starshadeCompletedLevels";
+  // Ten stand-alone branch levels (levelB1.js..levelB10.js — see
+  // levels.js's TRUE_BRANCH_LEVELS and game.js's completeBranchLevel())
+  // get their own completion record, keyed by branch id ("b1" etc) rather
+  // than folded into COMPLETED_LEVELS_KEY above — that array's numbers are
+  // assumed elsewhere (isCustomizationUnlocked(), levels.js's
+  // highestUnlockedLevel()) to stay within the real 1-100 level range, and
+  // a branch id mixed into it would corrupt that math.
+  const COMPLETED_BRANCH_LEVELS_KEY = "starshadeCompletedBranchLevels";
   const CUSTOMIZATION_UNLOCK_NOTIFIED_KEY = "starshadeCustomizationUnlockNotified";
   // The Skins tab (buying premade skins) has been open from the very start
   // of the game with no level gate of its own, so "5 levels after skins
@@ -926,6 +934,11 @@ const StarshadeEconomy = (() => {
   // can't be farmed by bouncing on the same checkpoint.
   const LEVEL_COMPLETION_REWARD = 75;
   const GAME_COMPLETION_BONUS = 1000;
+  // Branch levels are longer and more detailed than an ordinary numbered
+  // level (see docs/gameplay.md's "Ten themed branch levels") — a bigger
+  // one-time payout reflects that, same "first completion only" rule as
+  // LEVEL_COMPLETION_REWARD.
+  const BRANCH_LEVEL_COMPLETION_REWARD = 150;
 
   // Difficulty (set on the Settings page) scales coin rewards — Hard pays
   // more since hazards move faster and checkpoints are less forgiving
@@ -1371,6 +1384,27 @@ const StarshadeEconomy = (() => {
     }
   }
 
+  // Mirrors getCompletedLevels()/markLevelCompleted() above for the ten
+  // branch levels, but on its own separate key — see
+  // COMPLETED_BRANCH_LEVELS_KEY's comment for why these can never mix.
+  function getCompletedBranchLevels() {
+    try {
+      return JSON.parse(localStorage.getItem(COMPLETED_BRANCH_LEVELS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function markBranchLevelCompleted(branchId) {
+    const completed = getCompletedBranchLevels();
+    if (completed.includes(branchId)) return 0;
+    completed.push(branchId);
+    localStorage.setItem(COMPLETED_BRANCH_LEVELS_KEY, JSON.stringify(completed));
+    const reward = Math.round(BRANCH_LEVEL_COMPLETION_REWARD * getCoinMultiplier());
+    addCoins(reward);
+    return reward;
+  }
+
   // Returns the number of coins actually awarded (0 if already completed
   // before, so reaching the same checkpoint again via death/respawn or
   // revisiting a level never pays out twice).
@@ -1436,6 +1470,8 @@ const StarshadeEconomy = (() => {
     getEquippedSkin,
     markLevelCompleted,
     getCompletedLevels,
+    markBranchLevelCompleted,
+    getCompletedBranchLevels,
     isGameCompleted,
     setGameCompleted,
     getDifficulty,

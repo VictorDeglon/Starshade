@@ -1122,6 +1122,72 @@ canvas {
   color: #67E8F9;
 }
 
+/* Ten true branch nodes (see TRUE_BRANCH_LEVELS in levels.js) — a longer,
+   violet-glowing dash-dot spur (vs. an ordinary bonus node's short gold
+   one, .tree-path-bonus above) and a square-ish rounded badge instead of
+   a plain circle, so "this leaves the path entirely" reads at a glance
+   next to the five ordinary numbered bonus nodes. */
+#levelMapOverlay .tree-path-branch {
+  stroke: rgba(180, 140, 255, 0.6);
+  stroke-width: 2.5;
+  stroke-dasharray: 2 7;
+  filter: drop-shadow(0 0 4px rgba(180, 140, 255, 0.5));
+}
+
+#levelMapOverlay .level-node.true-branch {
+  width: 100px;
+}
+
+#levelMapOverlay .true-branch-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 22%;
+  background: rgba(185, 143, 255, 0.08);
+  border: 1.5px solid rgba(185, 143, 255, 0.5);
+  box-shadow: 0 0 16px rgba(185, 143, 255, 0.35);
+}
+
+#levelMapOverlay .level-node.true-branch:hover:not(.locked) .true-branch-circle {
+  transform: scale(1.1);
+  box-shadow: 0 0 26px rgba(185, 143, 255, 0.65);
+  background: rgba(185, 143, 255, 0.18);
+}
+
+#levelMapOverlay .level-node.true-branch.completed .true-branch-circle {
+  border-color: #FBBF24;
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.5);
+}
+
+#levelMapOverlay .level-node.true-branch.locked .true-branch-circle {
+  opacity: 0.5;
+  filter: grayscale(0.7);
+  box-shadow: none;
+}
+
+#levelMapOverlay .true-branch-glyph {
+  width: 30px;
+  height: 30px;
+  display: flex;
+}
+
+#levelMapOverlay .true-branch-glyph svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+#levelMapOverlay .level-node.true-branch .level-node-name {
+  color: #c9b8ff;
+}
+
+#levelMapOverlay .level-node.true-branch.completed .level-node-name {
+  color: #ffcf4d;
+}
+
+#levelMapOverlay .level-node.true-branch.locked .level-node-name {
+  color: #565179;
+}
+
 #levelMapOverlay .menu-button {
   margin-top: 16px;
 }

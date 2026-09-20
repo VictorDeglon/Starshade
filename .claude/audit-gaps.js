@@ -75,16 +75,34 @@ function canClearDouble(dx, riseNeeded) {
 let maxLevel = 1;
 while (fs.existsSync(path.join(__dirname, "..", `level${maxLevel + 1}.js`))) maxLevel++;
 
+// The ten stand-alone branch levels (levelB1.js..levelB10.js — see
+// levels.js's TRUE_BRANCH_LEVELS) aren't part of the numeric 1-100
+// sequence loadLevel()'s own probe-by-number loop finds, so they're
+// appended explicitly here — same loadLevel(id)/per-level checks apply
+// unchanged, since `level${id}.js` template-interpolates a string id
+// exactly like a number.
+const BRANCH_IDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10"];
+
 const results = [];
-for (let n = 1; n <= maxLevel; n++) {
+const allIds = [];
+for (let n = 1; n <= maxLevel; n++) allIds.push(n);
+BRANCH_IDS.forEach((id) => {
+  if (fs.existsSync(path.join(__dirname, "..", `level${id}.js`))) allIds.push(id);
+});
+for (const n of allIds) {
   const level = loadLevel(n);
   // Ghost platforms (see game.js's updateGhostPlatforms()) are only
   // sometimes solid, so the level must be completable without ever relying
   // on one being there — they're an optional bonus route, not part of the
   // guaranteed path. Excluding them here checks exactly that: the original,
-  // always-solid skeleton is still fully traversable on its own.
+  // always-solid skeleton is still fully traversable on its own. Gated
+  // platforms (`gated`/`gateId` — see .claude/gen-levels.js's Pass 7 and
+  // game.js's updateGatedPlatforms(), levels 50+) are the same class of
+  // "only sometimes solid" ground (intangible until their switch is
+  // thrown, which a fresh run of the level hasn't done yet), so they're
+  // excluded here for the identical reason.
   const solid = level.platforms
-    .filter((p) => !p.ghost)
+    .filter((p) => !p.ghost && !p.gated)
     .sort((a, b) => a.x - b.x);
   for (let i = 0; i < solid.length - 1; i++) {
     const cur = solid[i];
@@ -120,7 +138,7 @@ for (let n = 1; n <= maxLevel; n++) {
 }
 
 const impossible = results.filter((r) => r.verdict.startsWith("IMPOSSIBLE"));
-console.log(`Checked all ${maxLevel} levels.`);
+console.log(`Checked all ${maxLevel} levels (plus ${allIds.length - maxLevel} branch level(s)).`);
 console.log(
   `${impossible.length} IMPOSSIBLE gap(s), ${results.length - impossible.length} double-jump-required gap(s) (informational).\n`
 );

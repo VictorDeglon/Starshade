@@ -15,7 +15,7 @@ contact). Nothing after the initial load is a real navigation — see
 | Area | Files | Purpose |
 |---|---|---|
 | App shell | `index.html`, `game.css` | Canvas, every overlay's markup, loading screen, main menu |
-| Game engine | `game.js`, `level1.js`-`level100.js` | Physics, rendering, level loading, the pause/overlay system, 100 levels (including a handful of named branch levels — see docs/gameplay.md) |
+| Game engine | `game.js`, `level1.js`-`level100.js`, `levelB1.js`-`levelB10.js` | Physics, rendering, level loading, the pause/overlay system, 100 levels (including a handful of named branch levels) plus ten stand-alone, fully-themed branch levels reached only from the Level Map — see docs/gameplay.md |
 | Level Map | `levels.js` (overlay markup lives in `index.html`) | Lock/current/completed state, jump to any unlocked level |
 | Shop | `shop.js`, `shop.css`, `shopData.js`, `skinsData.js` | Skins gallery + custom skin builder, particles, skills, power-ups — buy/equip with coins earned from playing |
 | Settings | `settings.js` | Volume, difficulty, controls/key rebinding, screen shake, click-to-jump, display name |
