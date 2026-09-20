@@ -302,23 +302,59 @@ a `StarshadeEconomy` object backed by `localStorage`:
   same skin" rather than an arbitrary clash. A fixed PRNG seed makes
   re-running it reproduce the same 50 skins rather than a fresh random
   set each time.
-- **Shop** (`skins.html`/`skins.js`): a carousel showing lock state
-  (a real SVG lock icon over a dimmed-but-still-visible preview — see
+- **Shop** (`shop.js`/`shop.css`, opened as an overlay from the pause menu
+  or main menu — see docs/architecture.md): the Skins tab is the same
+  carousel this used to be on its own `skins.html` page — lock state (a
+  real SVG lock icon over a dimmed-but-still-visible preview — see
   `LOCK_ICON_SVG` — not a hidden silhouette), a rarity badge, cost or
   unlock text, and a Buy/Equip/Equipped/Locked button per skin, plus the
   current coin balance. The dot-navigation strip wraps onto several rows
-  and caps its width now that there are 60+ skins — a plain unbroken flex
-  row that wide would silently overflow off both edges of any viewport.
+  and caps its width now that there are 60+ skins. Three more tabs sit
+  alongside it — Particles, Skills, and Power-Ups — see their own
+  sections below.
 
-## Abilities
+## Custom skin builder
 
-A skin's `ability` field (`skinsData.js`) grants a gameplay perk on top
-of its cosmetic look — `game.js` checks
-`StarshadeEconomy.getEquippedSkin().ability` at the relevant point in the
-physics loop. Every default/cosmetic-only skin has no `ability` at all
-and plays identically to how the game always has; these only ever add
-capability, never take any away, so no existing level's completability
-assumptions change.
+A second sub-tab under the Shop's Skins tab, alongside the premade
+gallery: pick a shape (square/circle/triangle — the same three
+`drawPlayer()` already renders), a center (fill) color, a border (stroke)
+color, and a glow color via plain `<input type="color">` pickers, with a
+live CSS preview. `StarshadeEconomy.saveCustomSkin()` (`skinsData.js`)
+stores the result as a plain skin-like object in its own
+`starshadeCustomSkins` localStorage list — always `unlockType: "free"`
+(nothing to unlock, you built it), equipped exactly like any other skin.
+`getEquippedSkin()` checks this list before falling back to
+`STARSHADE_SKINS`, and `drawPlayer()` needed zero changes to render one:
+it never validated that an equipped skin came from the built-in catalog
+in the first place, only that it has `.shape`/`.fill`/`.stroke`/`.glow`.
+
+## Particles (Shop tab)
+
+`shopData.js`'s `STARSHADE_PARTICLES` catalog — same
+`unlockType`/`cost`/`rarity` shape as a skin, unlocked/equipped via
+`StarshadeEconomy.isParticleUnlocked()`/`unlockParticleWithCoins()`/
+`getEquippedParticleId()`/`setEquippedParticleId()`. An equipped particle
+style's `colors` array feeds the continuous motion-trail `spawnParticles()`
+call in `updatePlayer()` directly, taking priority over — and, unlike — a
+skin's own `trail: true` field, which still works unchanged if nothing's
+equipped here.
+
+## Skills (Shop tab) & the Abilities system
+
+A skin's `ability` field (`skinsData.js`) has always granted a gameplay
+perk on top of its cosmetic look; the Shop's Skills tab
+(`shopData.js`'s `STARSHADE_ABILITIES`) now lets the same five effects be
+bought and equipped independently of any skin, via
+`StarshadeEconomy.getEquippedAbility()` — every one of the physics loop's
+five ability checks reads this instead of
+`StarshadeEconomy.getEquippedSkin().ability` directly now. It falls back
+to the equipped skin's own bundled `ability` when nothing's independently
+equipped, so every already-existing skin's built-in ability still works
+exactly as it always did without the player having to visit the Shop at
+all. Every default/cosmetic-only skin has no `ability` at all and plays
+identically to how the game always has; these only ever add capability,
+never take any away, so no existing level's completability assumptions
+change.
 
 - **`dash`** — double-tap Left/Right (keyboard or the touch d-pad — see
   `onDirectionTap()`, called from both the keydown handler and
@@ -348,6 +384,54 @@ The four movement abilities (all but `bouncy`) are each on one legendary
 skin, and `bouncy` is on the one mythic skin — all five are
 `achievement`-unlocked rather than bought, meant to feel earned. See
 Achievements below.
+
+## Power-Ups (Shop tab)
+
+`shopData.js`'s `STARSHADE_POWERUPS` — equipped one at a time via
+`StarshadeEconomy.getEquippedPowerUp()`, same pattern as an ability,
+rather than a per-use consumable inventory (simpler to reason about, and
+to build a shop UI for, than tracking per-level consumption). Each has an
+`effect` string read at the one specific point it actually applies:
+
+- **`extraAirJump`** ("Air Jump Boost") — adds 1 to whatever
+  `extraAirJumps()` would otherwise return, stacking additively with the
+  `tripleJump` skill/ability rather than replacing it.
+- **`coinBoost`** ("Coin Boost") — `advanceToNextLevel()` adds 50% more
+  coins on top of whatever a level's completion reward already was, for
+  every level completed while it stays equipped.
+
+## Slingshot launch pads
+
+An Angry-Birds-style aim-and-launch mechanic — `window.slingshots`, a
+per-level entity array declared in `levelN.js` exactly like
+`spikes`/`checkpoints` (`{ x, y, width, height, maxPower }`). Standing on
+solid ground within a pad's footprint (a plain proximity check against the
+player's feet in `updatePlayer()`, not real collision — a pad's marker
+sits on top of an ordinary platform the player already stands on
+normally) arms it. Dragging on the canvas while armed — mouse
+down/move/up or touch start/move/end, both wired to the same
+`startSlingshotAim()`/`moveSlingshotAim()`/`releaseSlingshotAim()`
+functions — previews a pull-back band plus a dashed forward-trajectory
+arc (a cheap step-by-step forward simulation using the same `gravity`
+constant the real physics loop uses), and releasing launches the player:
+`player.dx`/`player.dy` are set directly opposite the drag vector, scaled
+by drag distance up to the pad's `maxPower`.
+
+Modeled after the existing dash ability rather than the portal-suck
+canned-animation pattern: a launch just sets velocity once and lets
+`resolveAxis()`'s normal gravity/collision keep running afterward, rather
+than a separate update-loop branch. `slingshotRecoveryTicks` (mirrors
+`dashTimeRemaining`) briefly ignores the player's own left/right input
+right after a launch, so holding a direction key while aiming can't
+instantly cancel the shot the next frame. A trivial drag (≤6px — a tap
+that happened to land on the pad) doesn't launch and leaves the pad armed,
+which also means an armed pad suppresses the ordinary tap/click-to-jump
+convenience while standing on it — you're expected to drag, not tap.
+
+Level 3 has one, purely as an optional shortcut over its first deadly
+platform — not a required crossing, so it can't affect the existing
+per-level gap-size audits (`.claude/audit-gaps.js`), which never knew
+slingshots exist and don't need to.
 
 ## Achievements
 
@@ -599,7 +683,19 @@ doesn't converge faster just because it's taking more, smaller steps.
 
 ## Mobile
 
-`game.html` includes an on-screen d-pad (bottom-left) and jump button
+**The main menu is skipped entirely on a touch device.** The boot
+sequence (see docs/architecture.md) branches on the same `isTouchDevice`
+test everything else here uses: desktop/tablet gets the loading screen
+then the main menu overlay, waiting for Play; a touch device gets the
+loading screen then calls `startGame()` immediately, no tap needed. The
+existing rotate-prompt (below) is what actually gates *visibility* until
+the phone is in landscape — the game is already running underneath the
+instant loading finishes, so flipping the phone is the only remaining
+step. The main menu is still reachable afterward from either device via
+the pause menu's "Main Menu" button; it just never shows automatically on
+a phone.
+
+`index.html` includes an on-screen d-pad (bottom-left) and jump button
 (bottom-right) — `.touch-controls` in `game.css`, shown only under
 `(pointer: coarse)` so a resized desktop browser window never grows them.
 The buttons feed a `touchState` object that `anyPressed()` in `game.js`

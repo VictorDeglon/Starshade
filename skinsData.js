@@ -944,7 +944,166 @@ const StarshadeEconomy = (() => {
 
   function getEquippedSkin() {
     const id = getEquippedSkinId();
+    const custom = getCustomSkins().find((s) => s.id === id);
+    if (custom) return custom;
     return STARSHADE_SKINS.find((s) => s.id === id) || STARSHADE_SKINS[0];
+  }
+
+  // -----------------------------------------------------------
+  // SHOP — particles / abilities / power-ups / custom skins
+  // -----------------------------------------------------------
+  // Particles, abilities, and power-ups (catalogs in shopData.js — see
+  // STARSHADE_PARTICLES/STARSHADE_ABILITIES/STARSHADE_POWERUPS) share the
+  // exact same unlockType/cost/rarity shape STARSHADE_SKINS already uses
+  // above, just against their own unlocked-ids list — these two generic
+  // helpers are what isUnlocked()/unlockWithCoins() above would look like
+  // if they weren't hardcoded to the skins list specifically.
+  function getUnlockedIds(storageKey) {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function isItemUnlocked(item, storageKey) {
+    if (item.unlockType === "free") return true;
+    if (item.unlockType === "completion") return isGameCompleted();
+    return getUnlockedIds(storageKey).includes(item.id);
+  }
+
+  function unlockItemWithCoins(item, storageKey) {
+    if (item.unlockType !== "coins") return false;
+    if (isItemUnlocked(item, storageKey)) return true;
+    if (getCoins() < item.cost) return false;
+    addCoins(-item.cost);
+    const unlocked = getUnlockedIds(storageKey);
+    unlocked.push(item.id);
+    localStorage.setItem(storageKey, JSON.stringify(unlocked));
+    return true;
+  }
+
+  const UNLOCKED_PARTICLES_KEY = "starshadeUnlockedParticles";
+  const UNLOCKED_ABILITIES_KEY = "starshadeUnlockedAbilities";
+  const UNLOCKED_POWERUPS_KEY = "starshadeUnlockedPowerups";
+  const EQUIPPED_PARTICLE_KEY = "starshadeEquippedParticle";
+  const EQUIPPED_ABILITY_KEY = "starshadeEquippedAbility";
+  const POWERUP_INVENTORY_KEY = "starshadePowerupInventory";
+  const CUSTOM_SKINS_KEY = "starshadeCustomSkins";
+
+  function isParticleUnlocked(particle) {
+    return isItemUnlocked(particle, UNLOCKED_PARTICLES_KEY);
+  }
+  function unlockParticleWithCoins(particle) {
+    return unlockItemWithCoins(particle, UNLOCKED_PARTICLES_KEY);
+  }
+  function getEquippedParticleId() {
+    return localStorage.getItem(EQUIPPED_PARTICLE_KEY) || "";
+  }
+  function setEquippedParticleId(id) {
+    localStorage.setItem(EQUIPPED_PARTICLE_KEY, id);
+  }
+  // Returns the equipped particle *style* (a STARSHADE_PARTICLES entry),
+  // not just its id — null if nothing's equipped, in which case callers
+  // (game.js's trail effect) fall back to the skin's own fill color exactly
+  // as they always have.
+  function getEquippedParticleStyle() {
+    const id = getEquippedParticleId();
+    if (!id || typeof STARSHADE_PARTICLES === "undefined") return null;
+    return STARSHADE_PARTICLES.find((p) => p.id === id) || null;
+  }
+
+  function isAbilityUnlocked(ability) {
+    return isItemUnlocked(ability, UNLOCKED_ABILITIES_KEY);
+  }
+  function unlockAbilityWithCoins(ability) {
+    return unlockItemWithCoins(ability, UNLOCKED_ABILITIES_KEY);
+  }
+  function getEquippedAbilityId() {
+    return localStorage.getItem(EQUIPPED_ABILITY_KEY) || "";
+  }
+  function setEquippedAbilityId(id) {
+    localStorage.setItem(EQUIPPED_ABILITY_KEY, id);
+  }
+  // The actual ability *string* game.js's physics loop checks
+  // (dash/tripleJump/sticky/slippery/bouncy) — falls back to the equipped
+  // skin's own bundled `ability` field (unchanged from before this
+  // existed) if nothing's been independently equipped from the Shop's
+  // Skills tab, so every already-existing skin's built-in ability keeps
+  // working exactly as it always has.
+  function getEquippedAbility() {
+    const id = getEquippedAbilityId();
+    if (id && typeof STARSHADE_ABILITIES !== "undefined") {
+      const found = STARSHADE_ABILITIES.find((a) => a.id === id);
+      if (found) return found.ability;
+    }
+    return getEquippedSkin().ability || null;
+  }
+
+  // Power-ups are equipped one at a time (same pattern as abilities/
+  // particles above) rather than a consumed-on-use inventory — a
+  // persistent passive perk while equipped is simpler to reason about and
+  // to build a shop UI for than per-level consumption accounting, and
+  // still delivers the "buy a power-up" shop category. game.js reads the
+  // effect via getEquippedPowerUp() at the point each one actually applies
+  // (extraAirJumps() for "extraAirJump", markLevelCompleted's coin payout
+  // for "coinBoost" — see shopData.js's STARSHADE_POWERUPS `effect` field).
+  function isPowerUpUnlocked(powerUp) {
+    return isItemUnlocked(powerUp, UNLOCKED_POWERUPS_KEY);
+  }
+  function unlockPowerUpWithCoins(powerUp) {
+    return unlockItemWithCoins(powerUp, UNLOCKED_POWERUPS_KEY);
+  }
+  function getEquippedPowerUpId() {
+    return localStorage.getItem(POWERUP_INVENTORY_KEY) || "";
+  }
+  function setEquippedPowerUpId(id) {
+    localStorage.setItem(POWERUP_INVENTORY_KEY, id);
+  }
+  function getEquippedPowerUp() {
+    const id = getEquippedPowerUpId();
+    if (!id || typeof STARSHADE_POWERUPS === "undefined") return null;
+    return STARSHADE_POWERUPS.find((p) => p.id === id) || null;
+  }
+
+  // Custom skins built in the Shop's "Custom Builder" sub-tab — plain
+  // skin-like objects (same shape/fill/stroke/glow fields STARSHADE_SKINS
+  // entries have) stored separately so the built-in catalog above never
+  // needs to change. getEquippedSkin() above checks this list first.
+  function getCustomSkins() {
+    try {
+      return JSON.parse(localStorage.getItem(CUSTOM_SKINS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+  function saveCustomSkin(config) {
+    const skins = getCustomSkins();
+    const id = config.id || `custom-${Date.now()}`;
+    const skin = {
+      id,
+      name: config.name || "Custom Skin",
+      shape: config.shape || "square",
+      unlockType: "free",
+      rarity: "custom",
+      fill: config.fill,
+      stroke: config.stroke,
+      glow: config.glow,
+      trail: !!config.trail,
+      custom: true,
+    };
+    const existingIndex = skins.findIndex((s) => s.id === id);
+    if (existingIndex >= 0) skins[existingIndex] = skin;
+    else skins.push(skin);
+    localStorage.setItem(CUSTOM_SKINS_KEY, JSON.stringify(skins));
+    return skin;
+  }
+  function deleteCustomSkin(id) {
+    localStorage.setItem(
+      CUSTOM_SKINS_KEY,
+      JSON.stringify(getCustomSkins().filter((s) => s.id !== id))
+    );
+    if (getEquippedSkinId() === id) setEquippedSkinId("square-default");
   }
 
   function getCompletedLevels() {
@@ -1002,5 +1161,23 @@ const StarshadeEconomy = (() => {
     setGameCompleted,
     getDifficulty,
     getCoinMultiplier,
+    isParticleUnlocked,
+    unlockParticleWithCoins,
+    getEquippedParticleId,
+    setEquippedParticleId,
+    getEquippedParticleStyle,
+    isAbilityUnlocked,
+    unlockAbilityWithCoins,
+    getEquippedAbilityId,
+    setEquippedAbilityId,
+    getEquippedAbility,
+    isPowerUpUnlocked,
+    unlockPowerUpWithCoins,
+    getEquippedPowerUpId,
+    setEquippedPowerUpId,
+    getEquippedPowerUp,
+    getCustomSkins,
+    saveCustomSkin,
+    deleteCustomSkin,
   };
 })();

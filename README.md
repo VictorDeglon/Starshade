@@ -6,17 +6,21 @@ HTTP (see below) and opening `index.html`.
 
 ## Structure
 
-Each screen is its own HTML/CSS/JS trio:
+**Single-page app — one HTML file, loaded once.** `index.html` is the
+entire app: a persistent canvas plus every screen as a show/hide overlay
+(loading, main menu, pause, settings, level map, achievements, shop,
+contact). Nothing after the initial load is a real navigation — see
+[docs/architecture.md](docs/architecture.md) for why and how.
 
-| Screen | Files | Purpose |
+| Area | Files | Purpose |
 |---|---|---|
-| Main menu | `index.html`, `styles.css`, `script.js` | Title screen: Play, Levels, Skins, Settings, Contact |
-| Loading | `loading.html`, `loading.css`, `loading.js` | Fake progress bar between menu and game |
-| Game | `game.html`, `game.css`, `game.js`, `level1.js`-`level25.js` | The actual platformer, 25 levels |
-| Level Map | `levels.html`, `levels.css`, `levels.js` | Level-select grid — lock/current/completed state, jump to any unlocked level |
-| Skins | `skins.html`, `skins.css`, `skins.js` | Skin shop — buy/equip skins with coins earned from playing |
-| Settings | `settings.html`, `settings.js` (styled via `styles.css`) | Volume, difficulty, controls/key rebinding, screen shake, click-to-jump, display name |
-| Contact | `contact.html`, `contact.css`, `contact.js` | Feedback form (front-end only, no submit handler) |
+| App shell | `index.html`, `game.css` | Canvas, every overlay's markup, loading screen, main menu |
+| Game engine | `game.js`, `level1.js`-`level25.js` | Physics, rendering, level loading, the pause/overlay system |
+| Level Map | `levels.js` (overlay markup lives in `index.html`) | Lock/current/completed state, jump to any unlocked level |
+| Shop | `shop.js`, `shop.css`, `shopData.js`, `skinsData.js` | Skins gallery + custom skin builder, particles, skills, power-ups — buy/equip with coins earned from playing |
+| Settings | `settings.js` | Volume, difficulty, controls/key rebinding, screen shake, click-to-jump, display name |
+| Achievements | `achievements.js`, `achievementsData.js`, `achievements.css` | Unlock tracking + popup notifications |
+| Contact | `contact.css` (markup/handlers live in `index.html`/`game.js`) | Feedback form (front-end only, no submit handler) |
 
 See [docs/architecture.md](docs/architecture.md) for how the pages and
 scripts connect, [docs/gameplay.md](docs/gameplay.md) for how the game
