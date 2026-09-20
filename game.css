@@ -113,8 +113,8 @@ canvas {
 /* Coin-earned toast */
 .coin-toast {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: calc(20px + env(safe-area-inset-right, 0px));
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   padding: 10px 18px;
@@ -140,8 +140,8 @@ canvas {
    spacing to fake a centered double-bar icon. */
 #pause-open-button {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: calc(20px + env(safe-area-inset-left, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,8 +288,12 @@ canvas {
 
 .touch-dpad {
   position: fixed;
-  left: 24px;
-  bottom: 24px;
+  /* env(safe-area-inset-*) keeps the d-pad clear of a notch/Dynamic Island
+     and the home-indicator bar, both of which land on the game's edges in
+     forced landscape play (see game.html's rotate-prompt) — falls back to
+     the plain 24px on a device/browser with no notch to account for. */
+  left: calc(24px + env(safe-area-inset-left, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   display: flex;
   gap: 16px;
   z-index: 900;
@@ -317,8 +321,8 @@ canvas {
 
 .touch-jump {
   position: fixed;
-  right: 28px;
-  bottom: 28px;
+  right: calc(28px + env(safe-area-inset-right, 0px));
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
   width: 80px;
   height: 80px;
   font-size: 1.8rem;

@@ -4,11 +4,15 @@ Everything renders on one full-window `<canvas>` with a manual 2D camera —
 there's no game engine/library, just `requestAnimationFrame` and a hand
 rolled physics loop.
 
-**The camera only scrolls horizontally.** `cameraOffsetX` tracks the player
-left/right; there is no vertical scroll at all. That's why every level's
-platform `y` values stay within roughly the same visible band (~70-560) —
-anything outside that range would render off the top/bottom of the canvas
-on a typical window size.
+**The camera follows the player on both axes.** `cameraOffsetX`/
+`cameraOffsetY` each ease toward centering the player on their axis
+(`cameraSmoothing = 0.12`) rather than snapping instantly. Levels are no
+longer confined to a single screen-height band of platform `y` values —
+that was only ever true because there was no vertical scroll; now that the
+view scrolls to follow the player up and down too, a level is free to use
+far more vertical space than one screen (a tall climb, a long drop, etc.),
+the same way horizontal levels already sprawl across many screens' worth
+of `x`.
 
 ## Player & physics
 
@@ -29,9 +33,10 @@ on a typical window size.
   ascending gaps within a single jump's reach unless a level explicitly
   calls for chaining a double jump (verified by simulating the real
   per-frame physics while writing levels 3-12, not just eyeballed).
-- The camera (`cameraOffsetX`) eases toward centering the player
-  horizontally rather than snapping instantly (`cameraSmoothing = 0.12`),
-  and squashes/stretches briefly on jump and landing for a bit of weight.
+- The camera (`cameraOffsetX`/`cameraOffsetY`) eases toward centering the
+  player on both axes rather than snapping instantly
+  (`cameraSmoothing = 0.12`), and squashes/stretches briefly on jump and
+  landing for a bit of weight.
 
 ## Collision — solid platforms
 
@@ -315,22 +320,26 @@ platforms and moving platforms:
 `applyLevelVerticalLayout()` in `game.js` runs once per level load (from
 `resetLevelState()`), after the level script has populated
 `platforms`/`deadlyPlatforms`/`spikes`/`checkpoints` but before the first
-frame renders. It **centers the level vertically** on the actual viewport
-instead of wherever a level file happened to author its numbers —
-`window.innerHeight` varies per player, but every level was written
-against one nominal band. It shifts every platform/hazard/checkpoint y
-(and the player's start y) by the same constant, so every gap's rise and
-every checkpoint's relative safety survive unchanged (`.claude/audit-*.js`
-both check relative distances, not absolute ones).
+frame renders. It gives the level a nice **opening frame** — shifts every
+platform/hazard/checkpoint y (and the player's start y) by a constant so
+the level's own vertical center lands on the viewport's center the moment
+it loads, instead of wherever a level file happened to author its numbers.
+Now that the camera scrolls vertically to follow the player (see above),
+this is no longer a visibility requirement the way it used to be when
+there was no vertical scroll at all — it's just a starting-frame nicety.
+It shifts every y by the same constant, so every gap's rise and every
+checkpoint's relative safety survive unchanged (`.claude/audit-*.js` both
+check relative distances, not absolute ones).
 
 The anti-cheat ceiling is a separate mechanism, in `updatePlayer()`:
 rather than a solid platform placed in level space (which used to need
 recomputing whenever the window resized), it's a direct clamp —
-`SCREEN_TOP_MARGIN` (16px) from the literal top edge of the canvas, every
-frame, using the live `canvas.height`. It can never go stale across a
-resize, and it's invisible on purpose: nothing is drawn for it, it's a
-boundary, not a platform. This is what stops a double jump from being
-chained to soar above the intended platforms and skip past hazards below.
+`SCREEN_TOP_MARGIN` (16px) from the top edge of the *camera's current
+view* (`cameraOffsetY + SCREEN_TOP_MARGIN`), every frame. It can never go
+stale across a resize or the camera scrolling, and it's invisible on
+purpose: nothing is drawn for it, it's a boundary, not a platform. This is
+what stops a double jump from being chained to soar above the intended
+platforms and skip past hazards below.
 
 ## Frame-rate independence
 
@@ -364,6 +373,24 @@ Jump setting (that setting is about clicking anywhere, not this dedicated
 button). Portrait on a touch device shows a "rotate to landscape" prompt
 instead of rendering a sideways platformer (`(pointer: coarse) and
 (orientation: portrait)` — pure CSS, no JS needed).
+
+The d-pad, jump button, pause button, and coin toast are all positioned
+with `env(safe-area-inset-*)` (see `game.css`), so they stay clear of a
+notch/Dynamic Island or the home-indicator bar rather than sitting
+underneath one — both can land on any edge of the screen in forced
+landscape play depending on which way the device is rotated.
+`viewport-fit=cover` in `game.html`'s meta tag is required for those
+`env()` values to resolve to anything other than 0 on iOS.
+
+`resizeCanvas()` sizes the canvas's backing pixel buffer at
+`window.innerWidth/innerHeight * devicePixelRatio` (baked into every draw
+call via `ctx.setTransform`) rather than 1:1 with CSS pixels — phones
+commonly report a DPR of 2-3, and without this the game rendered at a
+fraction of the screen's real resolution and got blurrily upscaled by the
+browser. Everything in `game.js` still works in logical/CSS pixels
+(`viewportWidth`/`viewportHeight`, tracked alongside `canvas.width`/
+`canvas.height` — see the comment at the top of the file) so none of the
+gameplay math needed to change.
 
 ## First-playthrough tutorial tips
 
@@ -443,8 +470,9 @@ Two ways to add `level26.js` and beyond:
   assign `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
   `window.checkpoints`, and `window.levelText` (plain property assignment,
   not `const`/`let` — see [architecture.md](architecture.md) for why that
-  distinction matters). Keep every `y` value within the visible band
-  described above (no vertical scroll!).
+  distinction matters). The camera now scrolls vertically to follow the
+  player (see above), so `y` values are no longer confined to one
+  screen-height band — a level can climb or drop well beyond it.
 - **Generated**, like levels 2-25: `node .claude/gen-levels.js . 26 26`
   (or a wider range to regenerate/extend a whole block at once — see the
   usage comment at the top of that script). Every gap it places is

@@ -30,8 +30,20 @@ body {
   display: inline-block;
   padding: 40px;
   width: 400px;
+  /* max-width/box-sizing keep this from running off both edges of a phone
+     in portrait (most are 360-414px wide) — plain `width: 400px` plus
+     content-box padding/border would overflow past the viewport with
+     nothing to scroll it back into view (body is overflow: hidden). */
+  max-width: 92vw;
+  box-sizing: border-box;
   border-radius: 20px;
   box-shadow: 0px 0px 30px rgba(77, 63, 145, 0.7);
+  /* Same reasoning as .settings below: on a short viewport (a small phone,
+     or any phone in landscape) five buttons plus the logo can be taller
+     than the screen — scroll the panel itself rather than silently
+     clipping the bottom entries with no way to reach them. */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 
 .settings {
@@ -41,6 +53,7 @@ body {
   display: inline-block;
   padding: 40px;
   width: 400px;
+  max-width: 92vw;
   border-radius: 20px;
   box-shadow: 0px 0px 30px rgba(77, 63, 145, 0.7);
   /* The settings list has grown past what a short/laptop viewport can show
@@ -385,6 +398,21 @@ button.edit-button:hover {
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 rgba(138, 77, 228, 0.6); }
   50% { box-shadow: 0 0 14px rgba(138, 77, 228, 0.9); }
+}
+
+/* A phone in landscape (or any short viewport) has far less vertical room
+   than the ~150px of top margin this page's panels assume by default —
+   without this, the top of the panel (and enough of the bottom to matter)
+   can end up needing that internal scroll just to compensate for
+   whitespace that isn't buying anything on a screen this short. */
+@media screen and (max-height: 700px) {
+  .menu {
+    margin-top: 16px;
+  }
+
+  .settings {
+    margin-top: 12px;
+  }
 }
 
 
