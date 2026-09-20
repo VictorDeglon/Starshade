@@ -339,7 +339,7 @@ const cameraSmoothingY = 0.08;
 let cameraZoom = 1;
 const CAMERA_ZOOM_GROUNDED = 1;
 const CAMERA_ZOOM_OPEN_RANGE = 0.2; // how far zoom drops at full "openAmount"
-const CAMERA_ZOOM_SMOOTHING = 0.06;
+const CAMERA_ZOOM_SMOOTHING = 0.045;
 
 // Where the player sits vertically on screen, as a fraction of
 // viewportHeight from the top — 0.5 is dead-center. At rest that's the
@@ -353,7 +353,7 @@ const CAMERA_ZOOM_SMOOTHING = 0.06;
 let cameraVerticalAnchor = 0.5;
 const CAMERA_ANCHOR_GROUNDED = 0.5;
 const CAMERA_ANCHOR_OPEN_RANGE = 0.2; // how far the anchor rises at full "openAmount"
-const CAMERA_ANCHOR_SMOOTHING = 0.05;
+const CAMERA_ANCHOR_SMOOTHING = 0.04;
 
 // The player.dy range (px/tick) that "openAmount" ramps across — a normal
 // jump's descent brushes the low end right near landing (a brief, gentle
@@ -3845,29 +3845,40 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetX - cameraOffsetX) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
-  // Continuous, fall-speed-proportional "opening up" — replaces a flat
-  // grounded/airborne toggle that used to snap to a fixed zoomed-out
-  // target the instant the player left the ground at all, which was the
-  // actual problem with it (an ordinary hop looked and felt different
-  // from how the game always played, not the idea of opening the view up
-  // during a real fall). `openAmount` stays at exactly 0 through a normal
-  // single/double jump — gravity only builds `player.dy` up to roughly
-  // jumpStrength's own magnitude (12) over the course of a jump that
-  // started and lands at similar heights — and only ramps up during a
-  // fall that's actually long enough to be dangerous (a bottomless-feeling
-  // drop, a level built around a long fall), which is exactly when seeing
-  // more of what's below is actually useful. Applies on desktop and touch
-  // alike now that it can't misfire on routine jumps the way the old
-  // binary version did.
+  // Fall-speed-proportional "opening up" on desktop — `openAmount` stays
+  // at exactly 0 through a normal single/double jump (gravity only builds
+  // `player.dy` up to roughly jumpStrength's own magnitude, 12, over a
+  // jump that lands near its launch height) and only ramps up during a
+  // fall that's actually long enough to be dangerous. That's the right
+  // call on a full-size desktop viewport, where a routine hop already
+  // keeps its own platform on screen.
+  //
+  // On a phone, it isn't: the viewport is smaller and often landscape-
+  // locked, so even an ordinary jump's arc can carry the platform you're
+  // aiming for off the top or bottom of frame — the ascent, not just the
+  // fall, is exactly when that happens. Touch devices open up to at
+  // least MOBILE_AIRBORNE_OPEN_AMOUNT for the *entire* time the player is
+  // airborne, not just while actually falling fast, and use a wider
+  // zoom/anchor range while doing it — still just feeding the same
+  // smoothing below, so it's a real "camera pulls back" the moment you
+  // leave the ground rather than a snap, and settles right back to normal
+  // the instant you land.
+  const MOBILE_AIRBORNE_OPEN_AMOUNT = 0.85;
+  const MOBILE_ZOOM_OPEN_RANGE = 0.32;
+  const MOBILE_ANCHOR_OPEN_RANGE = 0.28;
   const fallSpeed = Math.max(0, player.dy);
-  const openAmount = Math.max(
+  const fallOpenAmount = Math.max(
     0,
     Math.min(1, (fallSpeed - CAMERA_OPEN_FALL_SPEED_MIN) / (CAMERA_OPEN_FALL_SPEED_MAX - CAMERA_OPEN_FALL_SPEED_MIN))
   );
+  const openAmount =
+    isTouchDevice && !grounded ? Math.max(MOBILE_AIRBORNE_OPEN_AMOUNT, fallOpenAmount) : fallOpenAmount;
+  const zoomOpenRange = isTouchDevice ? MOBILE_ZOOM_OPEN_RANGE : CAMERA_ZOOM_OPEN_RANGE;
+  const anchorOpenRange = isTouchDevice ? MOBILE_ANCHOR_OPEN_RANGE : CAMERA_ANCHOR_OPEN_RANGE;
 
   // Ease the vertical anchor first — it's part of this frame's Y target
   // below, not just a cosmetic value read later.
-  const targetAnchor = CAMERA_ANCHOR_GROUNDED - openAmount * CAMERA_ANCHOR_OPEN_RANGE;
+  const targetAnchor = CAMERA_ANCHOR_GROUNDED - openAmount * anchorOpenRange;
   cameraVerticalAnchor +=
     (targetAnchor - cameraVerticalAnchor) *
     (1 - Math.pow(1 - CAMERA_ANCHOR_SMOOTHING, dtScale));
@@ -3884,7 +3895,7 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothingY, dtScale));
 
-  const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * CAMERA_ZOOM_OPEN_RANGE;
+  const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * zoomOpenRange;
   cameraZoom +=
     (targetCameraZoom - cameraZoom) *
     (1 - Math.pow(1 - CAMERA_ZOOM_SMOOTHING, dtScale));
