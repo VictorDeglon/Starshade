@@ -16,7 +16,11 @@ const progressEl = document.getElementById("achievements-progress");
 function renderAchievements() {
   // Re-check on every render (not just on page load) — e.g. an
   // achievement based on total coins could have been earned on a
-  // previous page and only now gets reflected here.
+  // previous page and only now gets reflected here. revalidateUnlocked()
+  // runs first so a stale unlock (see game.js's call at startup) never
+  // flashes as "unlocked" for a frame before checkAll() would otherwise
+  // fix it.
+  StarshadeAchievements.revalidateUnlocked();
   StarshadeAchievements.checkAll();
   const unlockedIds = StarshadeAchievements.getUnlockedIds();
 

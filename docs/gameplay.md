@@ -444,16 +444,57 @@ Achievements below.
   that goes down when you buy a skin — see `getTotalCoinsEarned()`),
   total deaths (also lifetime, separate from `consecutiveDeaths`'s
   in-session rubber-banding counter), whether a level's ever been beaten
-  on Hard, and how many skins are unlocked.
+  on Hard, how many skins (and how many distinct skin *rarities*) are
+  unlocked, and the "weird" achievements' backing counters below.
 - `checkAll()` evaluates every not-yet-unlocked achievement against that
   snapshot, persists any newly met ones, grants a skin reward via
   `StarshadeEconomy.grantSkin()` if the achievement has one
-  (`grantsSkin`), and returns what's newly unlocked; `checkAndNotify()`
+  (`grantsSkin`) or a coin reward via `addCoins()` if it has one
+  (`grantsCoins`), and returns what's newly unlocked; `checkAndNotify()`
   also pops up a notification for each. Called after anything that could
   move the needle: a level completing or the game completing
   (`advanceToNextLevel()`), a death (`resetPlayer()`), a skin purchase
   (`skins.js`), and once on `skins.html` load to catch anything already
   earned before that visit.
+- **`revalidateUnlocked()`** runs the opposite direction — re-checks every
+  already-*unlocked* achievement and strips any that no longer pass,
+  called once at `game.html` startup (before anything else) and on every
+  `achievements.html` render. It exists for two real cases: a milestone
+  achievement's threshold moving (the Quarter Way/Halfway Hero/Three
+  Quarters/Almost There/Final Ascent rescale from the old 25-level game's
+  fractions — 6/13/19/24/25 — to the new 100-level ones — 25/50/75/99/100
+  — left some players holding a badge for a threshold they'd cleared under
+  the old numbers but not the new ones), and any future bug that marks
+  something unlocked without its condition actually being true. It skips
+  an achievement marked `retestable: false` (Night Owl, Bad Luck — see
+  below — whose `check()` depends on the real-world clock/calendar, not a
+  stable fact about the save; re-testing one of those the normal way would
+  strip a legitimately-earned badge the moment it's no longer literally
+  that exact minute) and an unknown id (one whose definition has since
+  been removed entirely — nothing to re-check, so it's left alone rather
+  than silently vanishing). It never claws back an already-granted skin or
+  coin reward — only the achievement/badge state, since retroactively
+  reversing spent coins or an equipped skin risks a worse bug than the
+  stale badge itself.
+- **"Weird" achievements** — a set built around specific play behavior
+  rather than another stat threshold, backed by new counters/flags in
+  `StarshadeEconomy` (`skinsData.js`) that game.js updates at the relevant
+  moment: `recordDeathlessCompletion()`/`recordNoDoubleJumpCompletion()`
+  (checked in `advanceToNextLevel()` against per-attempt flags reset in
+  `resetLevelState()` and set in `resetPlayer()`/`tryJump()`),
+  `recordBouncePadUse()`/`recordConveyorRide()` (the conveyor one is
+  edge-detected — once per landing, not once per frame standing on one),
+  `recordLevelPlaythrough()` (every completion, replays included — the
+  gap between this and `getCompletedLevels().length` is exactly "how many
+  levels you've replayed," see Déjà Vu), `hasEquippedNonFreeSkin()` (set
+  the moment `setEquippedSkinId()` is called with anything but the
+  default), and `hasCompletedGameDeathless()` (captured once, inside
+  `setGameCompleted()`, from whether lifetime deaths were still 0 at that
+  exact moment — deliberately not re-derived later, so a casual death in a
+  post-completion replay can't make an already-earned zero-death clear
+  look unearned in hindsight). Two (Night Owl, Bad Luck) read the
+  real-world clock/calendar directly and are marked `retestable: false`
+  for the reason above.
 - **Popups stack like real OS notifications** rather than overlapping —
   `showPopup()` appends each into a fixed-position flex column
   (`#achievement-popup-stack`, created lazily on first use so any page
