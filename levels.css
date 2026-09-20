@@ -2,6 +2,18 @@
    share styles.css with the main menu, so the cosmic-purple look is
    duplicated per page rather than pulled from a shared stylesheet that
    doesn't otherwise exist here). */
+html {
+  /* This page scrolls (25 level nodes don't fit one screen) — without a
+     background here too, overscroll/rubber-band bounce at the top or
+     bottom briefly reveals the browser's default white canvas beyond the
+     body's box, which is exactly what made this read as "a web page"
+     instead of part of the game. overscroll-behavior-y suppresses the
+     bounce itself where the browser supports it; the background is the
+     fallback for wherever it doesn't. */
+  background: #050012;
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: "Cinzel", serif;
   background: radial-gradient(circle at 50% 50%, #10133a, #050012);

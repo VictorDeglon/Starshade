@@ -126,10 +126,21 @@ body {
     border-radius: 20px;
     padding: 40px;
     width: 600px;
+    /* Without this, a 600px panel plus 40px of content-box padding on
+       either side overflows every phone-width viewport there is. */
+    max-width: 92vw;
+    box-sizing: border-box;
     margin: 50px auto;
     box-shadow: 0px 0px 30px rgba(77, 63, 145, 0.7);
     color: #EEE5E9;
     font-family: 'Cinzel', serif;
+  }
+
+  @media screen and (max-width: 600px) {
+    .contact-section {
+      margin: 24px auto;
+      padding: 24px;
+    }
   }
   
   .contact-section h2 {

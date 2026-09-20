@@ -1,13 +1,37 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Logical viewport size in CSS px. Every gameplay/camera/UI calculation in
+// this file is written against these, never against canvas.width/height
+// directly, because the canvas's actual pixel buffer is scaled up by
+// devicePixelRatio (see resizeCanvas()) for crisp rendering on retina/
+// high-DPI phones — mixing the two up would center the camera on a quarter
+// of the real screen on a 2x-DPR phone instead of the whole thing.
+let viewportWidth = window.innerWidth;
+let viewportHeight = window.innerHeight;
+
 // Set canvas dimensions, and keep them in sync with the window — this used
 // to run once at load, which (rarely) could pick up a 0x0 size if the
 // viewport hadn't finished laying out yet, and never noticed an actual
 // window resize either since nothing re-ran it.
+//
+// The backing pixel buffer is sized at window size * devicePixelRatio (a
+// phone's DPR is commonly 2-3x) while the CSS/display size stays at the
+// logical window size — otherwise every draw call only fills as many
+// physical pixels as a 1x display would, and the browser stretches that
+// blurrily across the real, much denser screen (very visible on mobile).
+// ctx.setTransform bakes the DPR scale into every draw call so the rest of
+// this file keeps working entirely in logical/CSS pixels
+// (viewportWidth/viewportHeight), same as before this existed.
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  viewportWidth = window.innerWidth;
+  viewportHeight = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(viewportWidth * dpr);
+  canvas.height = Math.round(viewportHeight * dpr);
+  canvas.style.width = viewportWidth + "px";
+  canvas.style.height = viewportHeight + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
@@ -55,8 +79,14 @@ function leniencyLevel() {
   return Math.min(3, Math.floor(consecutiveDeaths / 4));
 }
 
-// Camera settings
+// Camera settings — the camera follows the player on both axes (see
+// updatePlayer()), easing toward centering them rather than snapping
+// instantly. Levels are no longer restricted to a single screen-height
+// band of y values (see applyLevelVerticalLayout()/docs/gameplay.md) now
+// that the view actually scrolls to follow the player up and down, not
+// just left and right.
 let cameraOffsetX = 0;
+let cameraOffsetY = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
 
 // Screen shake (triggered on death)
@@ -139,7 +169,7 @@ function drawParticles() {
     ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x - cameraOffsetX, p.y, p.size, 0, Math.PI * 2);
+    ctx.arc(p.x - cameraOffsetX, p.y - cameraOffsetY, p.size, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });
@@ -281,10 +311,11 @@ function loadLevel(levelNumber) {
 function resetLevelState() {
   // Re-check the canvas size here too, not just on an actual window
   // resize — if the very first frame happened to run before the viewport
-  // had finished laying out (see known-issues.md #15), canvas.width/height
-  // could still be stuck at 0 by now with no resize event ever having
-  // fired to fix it, and a 0-height canvas makes the "fell off the
-  // bottom" check (`player.y > canvas.height`) trip on frame one.
+  // had finished laying out (see known-issues.md #15), viewportWidth/
+  // viewportHeight could still be stuck at 0 by now with no resize event
+  // ever having fired to fix it, and a 0-height viewport makes the "fell
+  // off the bottom" check (`player.y - cameraOffsetY > viewportHeight`)
+  // trip on frame one.
   resizeCanvas();
 
   textOpacity = 1;
@@ -327,28 +358,35 @@ function resetLevelState() {
   // runs while the screen is fully black mid-transition, so a lerp would
   // just be wasted motion nobody sees, and skipping it means the fade-in
   // never has to "catch up" to the player.
-  cameraOffsetX = player.x - canvas.width / 2;
+  cameraOffsetX = player.x - viewportWidth / 2;
+  cameraOffsetY = player.y - viewportHeight / 2;
 
   if (typeof checkpoints !== "undefined") {
     checkpoints.forEach((c) => (c.reached = false));
   }
 }
 
-// Re-centers a level's vertical layout on the *actual* viewport instead of
-// wherever level authors happened to place it (window.innerHeight varies
-// per player, but every levelN.js was authored against one nominal band —
-// see docs/gameplay.md). A pure translation of already-verified geometry:
-// shifting every y by the same amount preserves every gap's rise and
-// every checkpoint's relative safety (the audits in .claude/ check
-// *relative* distances), so this can't turn a previously-safe checkpoint
-// or previously-possible jump into a bad one.
+// Gives a level's opening view a nice frame: shifts every y (platforms,
+// hazards, checkpoints, the player's start) by a constant so the level's
+// own vertical center lands on the viewport's center at the moment it
+// loads, rather than wherever a level file happened to author its numbers.
+// This used to be load-bearing (there was no vertical camera scroll at
+// all, so anything outside one screen-height band was simply never
+// visible — see docs/gameplay.md); now that the camera follows the player
+// vertically too (see updatePlayer()'s targetCameraOffsetY), it's just a
+// nicer starting frame, not a visibility requirement — a level is free to
+// span far more vertical space than one screen. A pure translation of
+// already-verified geometry: shifting every y by the same amount preserves
+// every gap's rise and every checkpoint's relative safety (the audits in
+// .claude/ check *relative* distances), so this can't turn a
+// previously-safe checkpoint or previously-possible jump into a bad one.
 //
 // The anti-cheat ceiling that used to live here (a solid platform placed
 // above the level's own highest point) is gone — see the screen-pinned
-// clamp in updatePlayer() instead: pinning to the live viewport rather
-// than level-space geometry means it can't go stale across a window
-// resize, and it's invisible on purpose (nothing to draw — you just can't
-// go there).
+// clamp in updatePlayer() instead: pinning to the live camera position
+// rather than level-space geometry means it can't go stale across a
+// window resize or a vertical scroll, and it's invisible on purpose
+// (nothing to draw — you just can't go there).
 function applyLevelVerticalLayout() {
   if (typeof platforms === "undefined" || !platforms.length) return;
 
@@ -372,7 +410,7 @@ function applyLevelVerticalLayout() {
   });
 
   const levelCenterY = (Math.min(...tops) + Math.max(...bottoms)) / 2;
-  const shiftY = Math.round(canvas.height / 2 - levelCenterY);
+  const shiftY = Math.round(viewportHeight / 2 - levelCenterY);
 
   if (shiftY !== 0) {
     platforms.forEach((p) => (p.y += shiftY));
@@ -477,7 +515,7 @@ function drawPlayer() {
   const lineWidth = 3;
 
   ctx.save();
-  ctx.translate(player.x - cameraOffsetX, player.y);
+  ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
   ctx.scale(squashX, squashY);
 
   if (skin.shape === "image" && skin.image) {
@@ -566,7 +604,7 @@ function drawImageSkin(skin, halfW, lineWidth) {
 
 function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
   ctx.save();
-  ctx.translate(x - cameraOffsetX, y);
+  ctx.translate(x - cameraOffsetX, y - cameraOffsetY);
   ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   ctx.lineWidth = 3;
@@ -666,7 +704,7 @@ function drawDeadlyPlatforms() {
 function drawSpikes() {
   spikes.forEach((spike) => {
     ctx.save();
-    ctx.translate(spike.x - cameraOffsetX, spike.y);
+    ctx.translate(spike.x - cameraOffsetX, spike.y - cameraOffsetY);
     ctx.fillStyle = "rgba(190, 7, 7, 0.63)";
     ctx.strokeStyle = "rgba(240, 22, 22, 0.61)";
     ctx.lineWidth = 3;
@@ -705,7 +743,7 @@ function drawCheckpoints() {
         : 0;
 
     ctx.save();
-    ctx.translate(checkpoint.x - cameraOffsetX, checkpoint.y);
+    ctx.translate(checkpoint.x - cameraOffsetX, checkpoint.y - cameraOffsetY);
 
     if (isFinish) {
       // The level's finish is the Starshade logo itself instead of a plain
@@ -777,7 +815,7 @@ function drawLevelText() {
     ctx.fillStyle = "#ffffff";
     ctx.font = "72px Cinzel";
     ctx.textAlign = "center";
-    ctx.fillText(levelText, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(levelText, viewportWidth / 2, viewportHeight / 2);
     ctx.restore();
   }
 }
@@ -812,7 +850,7 @@ function drawFadeOverlay(dtScale) {
   }
 
   ctx.fillStyle = `rgba(0, 0, 0, ${fadeOpacity})`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 }
 
 // -------------------------------------------------------------
@@ -1025,13 +1063,16 @@ function updatePlayer(dtScale) {
   riddenPlatform = grounded ? groundedOn : null;
 
   // An invisible ceiling pinned to the actual top of the screen — not
-  // level space, so it can't go stale across a window resize the way a
-  // fixed-in-level-coordinates barrier could. Always there regardless of
-  // level content, so a jump (or a double jump chained purely for height)
-  // can never carry the player above the visible play area, let alone
-  // skip over hazards below it. Nothing is drawn for this on purpose:
-  // it's a boundary, not a platform.
-  const screenTop = SCREEN_TOP_MARGIN + player.height / 2;
+  // level space, so it can't go stale across a window resize, or now that
+  // the camera scrolls vertically, across the player simply moving up or
+  // down through the level. Always there regardless of level content, so
+  // a jump (or a double jump chained purely for height) can never carry
+  // the player above the visible play area, let alone skip over hazards
+  // below it. Nothing is drawn for this on purpose: it's a boundary, not
+  // a platform. Uses last frame's cameraOffsetY (this frame's hasn't been
+  // computed yet — see the camera easing below) — one frame of lag here is
+  // imperceptible.
+  const screenTop = cameraOffsetY + SCREEN_TOP_MARGIN + player.height / 2;
   if (player.y < screenTop) {
     player.y = screenTop;
     if (player.dy < 0) player.dy = 0;
@@ -1179,7 +1220,12 @@ function updatePlayer(dtScale) {
     }
   });
 
-  if (player.y > canvas.height) {
+  // Falling off the bottom of the *visible* area, not some fixed
+  // level-space depth — with the camera now following the player
+  // vertically, this only trips if a fall outruns the camera's own easing
+  // (see below), same "off the bottom of the screen" death every
+  // horizontal-only version of this check already had.
+  if (player.y - cameraOffsetY > viewportHeight) {
     resetPlayer();
   }
 
@@ -1188,9 +1234,18 @@ function updatePlayer(dtScale) {
   // real-world catch-up speed regardless of frame rate, instead of a
   // higher-fps display converging faster just because it's taking more,
   // smaller steps per second.
-  const targetCameraOffsetX = player.x - canvas.width / 2;
+  const targetCameraOffsetX = player.x - viewportWidth / 2;
   cameraOffsetX +=
     (targetCameraOffsetX - cameraOffsetX) *
+    (1 - Math.pow(1 - cameraSmoothing, dtScale));
+
+  // Same easing, vertically — this is what lets a level actually use more
+  // than one screen's worth of height (a tall climb, a long drop) instead
+  // of every platform needing to stay within a single fixed on-screen
+  // band (see applyLevelVerticalLayout()/docs/gameplay.md).
+  const targetCameraOffsetY = player.y - viewportHeight / 2;
+  cameraOffsetY +=
+    (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
   // Ease the landing squash back to a normal 1:1 scale.
@@ -1237,11 +1292,11 @@ function drawTutorialTip() {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const y = canvas.height - 80;
+  const y = viewportHeight - 80;
   const textWidth = ctx.measureText(currentTutorialTip).width;
   const boxW = textWidth + 48;
   const boxH = 46;
-  const boxX = canvas.width / 2 - boxW / 2;
+  const boxX = viewportWidth / 2 - boxW / 2;
   const boxY = y - boxH / 2;
 
   ctx.fillStyle = "rgba(25, 0, 51, 0.88)";
@@ -1254,7 +1309,7 @@ function drawTutorialTip() {
   ctx.stroke();
 
   ctx.fillStyle = "#dcd4ff";
-  ctx.fillText(currentTutorialTip, canvas.width / 2, y);
+  ctx.fillText(currentTutorialTip, viewportWidth / 2, y);
   ctx.restore();
 }
 
@@ -1346,7 +1401,7 @@ function setPaused(paused) {
 }
 
 function draw(dtScale) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
   ctx.save();
   if (shakeTime > 0 && screenShakeEnabled) {
