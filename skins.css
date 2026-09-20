@@ -303,3 +303,31 @@ body {
     height: 42px;
   }
 }
+
+/* Top-corner back button — a quicker way out than scrolling all the way
+   down to "Back to Menu" on a long page. Same look as game.html's pause
+   button (SVG glyph, not a unicode arrow, for crisp rendering at any
+   size). */
+.top-back-button {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: calc(20px + env(safe-area-inset-left, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #4d3f91;
+  background: rgba(0, 0, 0, 0.6);
+  color: #dcd4ff;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.top-back-button:hover {
+  background-color: rgba(30, 15, 63, 0.9);
+  transform: scale(1.08);
+}

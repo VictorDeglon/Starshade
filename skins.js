@@ -178,6 +178,11 @@ document.getElementById("back-button").addEventListener("click", () => {
   window.location.href = "index.html";
 });
 
+// Top-corner back arrow — delegates to the handler above.
+document.getElementById("top-back-button").addEventListener("click", () => {
+  document.getElementById("back-button").click();
+});
+
 // Catches anything already earned before this page loaded (coins spent
 // elsewhere, levels completed since the last visit here) rather than only
 // reacting to a purchase made on this page.

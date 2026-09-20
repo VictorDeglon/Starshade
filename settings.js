@@ -10,6 +10,12 @@ if (cameFromPause) {
   document.getElementById("back-button").textContent = "Back to Game";
 }
 
+// Top-corner back arrow — delegates to the exact same handler above
+// (including the from-pause destination) instead of duplicating the logic.
+document.getElementById("top-back-button").addEventListener("click", () => {
+  document.getElementById("back-button").click();
+});
+
 // Display name — saved locally, read back by script.js for the main
 // menu's "Welcome back" greeting.
 const playerNameInput = document.getElementById("player-name");
