@@ -223,6 +223,14 @@ function leniencyLevel() {
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
+// Vertical follow is deliberately laggier than horizontal — a lower decay
+// factor here means the camera moves noticeably less than the player does
+// during any short burst of vertical motion (a jump, a landing) before
+// gradually catching back up, rather than snapping to match the player's
+// own Y movement 1:1. Purely a feel tweak (smoother, a bit more "the
+// player moves, the world settles behind them") — horizontal tracking
+// (cameraSmoothing above) is untouched.
+const cameraSmoothingY = 0.08;
 
 // Zooms the whole world view out a little during a fall (see the
 // fall-speed-proportional openAmount in updatePlayer()) and back to
@@ -3147,7 +3155,7 @@ function updatePlayer(dtScale) {
   const targetCameraOffsetY = cameraTargetY - viewportHeight * cameraVerticalAnchor;
   cameraOffsetY +=
     (targetCameraOffsetY - cameraOffsetY) *
-    (1 - Math.pow(1 - cameraSmoothing, dtScale));
+    (1 - Math.pow(1 - cameraSmoothingY, dtScale));
 
   const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * CAMERA_ZOOM_OPEN_RANGE;
   cameraZoom +=
