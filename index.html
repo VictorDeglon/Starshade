@@ -249,6 +249,21 @@
       </div>
     </div>
 
+    <!-- Checkpoint-skip offer — see game.js's maybeOfferCheckpointSkip().
+         Shown after enough deaths in a row without reaching a new
+         checkpoint; accepting plays a launch animation (updateSkipLaunch())
+         straight to the next one instead of forcing another attempt. -->
+    <div id="checkpointSkipOverlay" class="menu hidden">
+      <div class="menu-panel">
+        <h1>Stuck?</h1>
+        <p id="checkpointSkipMessage">
+          That's a lot of attempts at this stretch. Want a lift to the next checkpoint?
+        </p>
+        <button id="checkpoint-skip-accept-button" class="menu-button">Skip Ahead</button>
+        <button id="checkpoint-skip-decline-button" class="menu-button">Keep Trying</button>
+      </div>
+    </div>
+
     <!-- Settings overlay — opened from the pause menu or main menu. -->
     <div id="settingsOverlay" class="menu hidden">
       <button class="overlay-close-x" data-closes="back-button" aria-label="Close settings">

@@ -591,6 +591,36 @@ let deathSpinAngle = 0;
 let deathAnimX = 0;
 let deathAnimY = 0;
 
+// Checkpoint-skip offer — after enough deaths in a row without reaching a
+// *new* checkpoint (see consecutiveDeaths above), offer to skip straight
+// to the next one instead of forcing another attempt at the same
+// stretch, rather than only ever getting more forgiving hitboxes
+// (leniencyLevel(), which caps out well before this point). Shown once at
+// the threshold, and again every CHECKPOINT_SKIP_RENOTIFY_INTERVAL deaths
+// past whichever count it was last shown/dismissed at, so declining isn't
+// a one-time "never ask again" — see maybeOfferCheckpointSkip().
+const CHECKPOINT_SKIP_DEATH_THRESHOLD = 70;
+const CHECKPOINT_SKIP_RENOTIFY_INTERVAL = 20;
+let checkpointSkipOverlayOpen = false;
+let lastSkipOfferAtDeaths = 0;
+let pendingSkipCheckpointIndex = -1;
+
+// "Skip launch" — accepting the offer above plays a canned animation
+// (updateSkipLaunch(), same "frozen from normal updatePlayer(), driven by
+// its own progress value" shape as the death/portal-suck animations
+// above) that arcs the player from wherever they currently are straight
+// to the next checkpoint, then claims it exactly like actually reaching
+// it would (same particle burst, same drawCheckpoints() claim animation)
+// — a real "you got launched there," not a silent teleport.
+let isSkipLaunching = false;
+let skipLaunchProgress = 0; // 0..1
+const SKIP_LAUNCH_DURATION = 50; // ticks, ~0.83s at 60fps — long enough to read as travel, not a blink
+let skipLaunchStartX = 0;
+let skipLaunchStartY = 0;
+let skipLaunchTargetX = 0;
+let skipLaunchTargetY = 0;
+let skipLaunchCheckpointIndex = -1;
+
 // Audio
 const audio = new Audio("./assets/music/starshade.mp3");
 audio.loop = true;
@@ -1050,6 +1080,14 @@ function resetLevelState() {
   levelFrameCount = 0;
   particles = [];
   consecutiveDeaths = 0;
+  // A fresh level (or the same one restarted) starts with the offer
+  // untriggered and unshown, regardless of how the previous attempt left
+  // it — mid-launch or mid-overlay should never survive into a new level.
+  lastSkipOfferAtDeaths = 0;
+  pendingSkipCheckpointIndex = -1;
+  checkpointSkipOverlayOpen = false;
+  isSkipLaunching = false;
+  document.getElementById("checkpointSkipOverlay").classList.add("hidden");
   // Per-shape cosmetic state (see drawPlayer()) shouldn't carry a
   // mid-spin/mid-roll motion across a level transition.
   triangleSpinActive = false;
@@ -3993,6 +4031,138 @@ function resetPlayer() {
   // re-dying before the level has even scrolled back into view.
   cameraOffsetX = player.x - viewportWidth / 2;
   cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
+
+  maybeOfferCheckpointSkip();
+}
+
+// Checks whether this death should trigger the checkpoint-skip offer (see
+// its state block's comment above) — called at the end of every
+// resetPlayer(), after the normal respawn has already happened, so
+// declining or dismissing it just leaves the player exactly where a
+// normal death already put them.
+function maybeOfferCheckpointSkip() {
+  if (checkpointSkipOverlayOpen || isSkipLaunching) return;
+  if (consecutiveDeaths < CHECKPOINT_SKIP_DEATH_THRESHOLD) return;
+  if (consecutiveDeaths - lastSkipOfferAtDeaths < CHECKPOINT_SKIP_RENOTIFY_INTERVAL) return;
+  const nextIndex = checkpoints.findIndex((c) => !c.reached);
+  if (nextIndex === -1) return; // every checkpoint (including the finish) already reached
+
+  lastSkipOfferAtDeaths = consecutiveDeaths;
+  pendingSkipCheckpointIndex = nextIndex;
+  checkpointSkipOverlayOpen = true;
+  // Freezes updatePlayer() (see update()) without also raising the actual
+  // pause menu — same technique any other full-screen animation/overlay
+  // in this file uses to stop gameplay behind it.
+  isPaused = true;
+  document.getElementById("checkpointSkipOverlay").classList.remove("hidden");
+}
+
+function acceptCheckpointSkip() {
+  checkpointSkipOverlayOpen = false;
+  document.getElementById("checkpointSkipOverlay").classList.add("hidden");
+  const index = pendingSkipCheckpointIndex;
+  pendingSkipCheckpointIndex = -1;
+  const target = checkpoints[index];
+  if (!target) {
+    isPaused = false;
+    return;
+  }
+  isSkipLaunching = true;
+  skipLaunchProgress = 0;
+  skipLaunchStartX = player.x;
+  skipLaunchStartY = player.y;
+  skipLaunchTargetX = target.x;
+  skipLaunchTargetY = target.y;
+  skipLaunchCheckpointIndex = index;
+  player.dx = 0;
+  player.dy = 0;
+  isPaused = false; // let update() run updateSkipLaunch() again starting next frame
+  vibrateHaptic([20, 30, 60]);
+}
+
+function declineCheckpointSkip() {
+  checkpointSkipOverlayOpen = false;
+  document.getElementById("checkpointSkipOverlay").classList.add("hidden");
+  pendingSkipCheckpointIndex = -1;
+  isPaused = false; // resume normal play — the player is already respawned as usual
+}
+
+document.getElementById("checkpoint-skip-accept-button").addEventListener("click", acceptCheckpointSkip);
+document.getElementById("checkpoint-skip-decline-button").addEventListener("click", declineCheckpointSkip);
+
+// Arcs the player from wherever the skip was accepted straight to the
+// target checkpoint — a real launch, not a teleport: an ease-out cubic
+// horizontally/vertically toward it, plus a sine bump on top so the path
+// actually reads as an arc through the air, with a thin trailing sparkle.
+// Mirrors updateDeathAnimation()/updatePortalSuck()'s shape (driven by its
+// own 0..1 progress, frozen out of normal updatePlayer() via update()'s
+// dispatch) rather than reusing either directly, since this needs to
+// travel between two arbitrary points instead of playing in place.
+function updateSkipLaunch(dtScale) {
+  skipLaunchProgress = Math.min(1, skipLaunchProgress + dtScale / SKIP_LAUNCH_DURATION);
+  const t = skipLaunchProgress;
+  const eased = 1 - Math.pow(1 - t, 3);
+  const arcHeight = Math.min(160, Math.hypot(skipLaunchTargetX - skipLaunchStartX, skipLaunchTargetY - skipLaunchStartY) * 0.35);
+  player.x = skipLaunchStartX + (skipLaunchTargetX - skipLaunchStartX) * eased;
+  player.y =
+    skipLaunchStartY + (skipLaunchTargetY - skipLaunchStartY) * eased - Math.sin(t * Math.PI) * arcHeight;
+  cameraOffsetX = player.x - viewportWidth / 2;
+  cameraOffsetY = player.y - viewportHeight / 2;
+
+  if (Math.random() < 0.6) {
+    spawnParticles(player.x, player.y, 1, {
+      colors: ["rgba(180,220,255,0.9)", "rgba(255,255,255,0.85)"],
+      speed: 0.4,
+      life: 22,
+      size: 3,
+      spread: Math.PI * 2,
+      gravity: 0,
+    });
+  }
+
+  if (t >= 1) finishSkipLaunch();
+}
+
+function finishSkipLaunch() {
+  isSkipLaunching = false;
+  const index = skipLaunchCheckpointIndex;
+  skipLaunchCheckpointIndex = -1;
+  const cp = checkpoints[index];
+  player.x = cp.x;
+  player.y = cp.y;
+  player.dx = 0;
+  player.dy = 0;
+  if (!cp.reached) {
+    // Same claim as actually reaching it on foot — see updatePlayer()'s
+    // checkpoint-collision block and drawCheckpoints()'s claim-burst
+    // animation, which reads cp.reachedAt to play the same way here.
+    cp.reached = true;
+    cp.reachedAt = Date.now();
+    saveCheckpointProgress(currentLevel, index);
+    consecutiveDeaths = 0;
+    lastSkipOfferAtDeaths = 0;
+    spawnParticles(cp.x, cp.y, 16, {
+      colors: ["rgba(50,255,50,0.9)", "rgba(180,255,180,0.9)", "#fff"],
+      speed: 3.5,
+      life: 38,
+      size: 3.2,
+      gravity: 0.05,
+    });
+    spawnParticles(cp.x, cp.y, 10, {
+      colors: ["rgba(255,225,140,0.95)", "rgba(255,205,90,0.9)"],
+      speed: 6,
+      life: 18,
+      size: 2,
+      gravity: 0.02,
+    });
+    vibrateHaptic(15);
+  }
+  wasGrounded = true;
+  riddenPlatform = null;
+  cameraZoom = 1;
+  cameraVerticalAnchor = 0.5;
+  cameraOffsetX = player.x - viewportWidth / 2;
+  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
 }
 
 // -------------------------------------------------------------
@@ -4016,6 +4186,11 @@ function update(dtScale) {
     // (see the portal-suck state's declaration) rather than also chasing
     // it.
     updatePortalSuck(dtScale);
+  } else if (isSkipLaunching) {
+    // Accepted the checkpoint-skip offer — see acceptCheckpointSkip()/
+    // updateSkipLaunch(). No input has anything to do while airborne on
+    // rails toward the target.
+    updateSkipLaunch(dtScale);
   } else if (!isFading || fadeDirection === -1) {
     // While pinned at black between levels (fadeDirection === 0) or
     // actively fading, the outgoing level's platforms/checkpoints/etc.
@@ -4031,9 +4206,9 @@ function update(dtScale) {
 
 function setPaused(paused) {
   // Disallowed mid-transition (the level data may momentarily be empty),
-  // during the portal-suck or death animation, or once the game-complete
-  // screen is already up.
-  if (isFading || isPortalSucking || isDying) return;
+  // during the portal-suck, death, or checkpoint-skip-launch animation, or
+  // once the game-complete screen is already up.
+  if (isFading || isPortalSucking || isDying || isSkipLaunching || checkpointSkipOverlayOpen) return;
   if (!document.getElementById("gameCompleteMenu").classList.contains("hidden")) return;
   isPaused = paused;
   if (paused) pausedThisAttempt = true; // read by the Quick Clear Bonus power-up on level complete
