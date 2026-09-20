@@ -25,6 +25,16 @@
 //                 skins below
 //   check(stats) — pure function over collectStats()'s snapshot; no side
 //                 effects, so it's safe to call every time checkAll() runs
+//   retestable  — defaults to true; set to `false` for an achievement
+//                 whose check() depends on something that isn't a stable,
+//                 monotonic fact about the save (the real-world clock/
+//                 calendar, below) — StarshadeAchievements.
+//                 revalidateUnlocked() skips these so a legitimately-
+//                 earned "played after midnight" badge doesn't get
+//                 silently stripped the next time it's checked in
+//                 daylight. Every level/coin/death/skin-count/counter
+//                 achievement is safely retestable by default, since
+//                 those stats only ever go up.
 const STARSHADE_ACHIEVEMENTS = [
   { id: "first-steps", name: "First Steps", description: "Complete Level 1", rarity: "common", icon: "flag",
     check: (s) => s.completedLevels.includes(1) },
@@ -200,6 +210,65 @@ const STARSHADE_ACHIEVEMENTS = [
     check: (s) => s.totalDeaths >= 500 },
   { id: "immortal-grind", name: "Immortal Grind", description: "Die 750 times total", rarity: "mythic", icon: "skull",
     check: (s) => s.totalDeaths >= 750 },
+
+  // ---------------------------------------------------------------
+  // "Weird" achievements — built around specific play behavior (see the
+  // per-attempt flags in game.js and the counters in skinsData.js) or an
+  // odd real-world condition, rather than another stat threshold. The
+  // last two are `retestable: false` — see the header comment above and
+  // revalidateUnlocked() below for why a real-world-clock condition can't
+  // safely be re-tested the same way as everything else here.
+  // ---------------------------------------------------------------
+  { id: "flawless-victory", name: "Flawless Victory", description: "Complete a level without dying", rarity: "common", icon: "star",
+    grantsCoins: 25, check: (s) => s.deathlessCompletions >= 1 },
+  { id: "iron-legs", name: "Iron Legs", description: "Complete a level without ever double-jumping", rarity: "rare", icon: "lightning",
+    grantsCoins: 60, check: (s) => s.noDoubleJumpCompletions >= 1 },
+  { id: "springboard-junkie", name: "Springboard Junkie", description: "Use a bounce pad 25 times", rarity: "rare", icon: "star",
+    grantsCoins: 60, check: (s) => s.bouncePadUses >= 25 },
+  { id: "conveyor-commuter", name: "Conveyor Commuter", description: "Ride a conveyor belt 15 times", rarity: "rare", icon: "lightning",
+    grantsCoins: 60, check: (s) => s.conveyorRides >= 15 },
+  { id: "deja-vu", name: "Déjà Vu", description: "Replay a level you've already completed", rarity: "common", icon: "mask",
+    grantsCoins: 25, check: (s) => s.totalLevelPlaythroughs > s.completedLevels.length },
+  { id: "full-spectrum", name: "Full Spectrum", description: "Own a skin of every rarity tier", rarity: "epic", icon: "mask",
+    check: (s) => s.ownedRarityCount >= 5 },
+  // No grantsSkin here unlike the other legendaries — the whole point is
+  // NOT equipping anything else, so gating the reward behind a skin would
+  // undercut the achievement the moment you actually wore it.
+  { id: "true-minimalist", name: "True Minimalist", description: "Beat the game without ever equipping another skin", rarity: "legendary", icon: "mask",
+    check: (s) => s.isGameCompleted && !s.everEquippedNonFreeSkin },
+  { id: "zero-casualties", name: "Zero Casualties", description: "Beat the entire game without dying once", rarity: "mythic", icon: "crown",
+    grantsCoins: 500, check: (s) => s.completedGameDeathless },
+  { id: "marathoner", name: "Marathoner", description: "Complete 150 level playthroughs, replays included", rarity: "legendary", icon: "trophy",
+    check: (s) => s.totalLevelPlaythroughs >= 150 },
+  // retestable: false — true only between midnight and 4 AM on whatever
+  // day you happen to check it, not a fact that stays true forever once
+  // earned the normal way. See revalidateUnlocked()'s header comment.
+  { id: "night-owl", name: "Night Owl", description: "Complete a level between midnight and 4 AM", rarity: "rare", icon: "star",
+    retestable: false, grantsCoins: 60, check: (s) => {
+      const h = new Date().getHours();
+      return s.completedLevels.length > 0 && h >= 0 && h < 4;
+    } },
+  { id: "bad-luck", name: "Bad Luck", description: "Complete a level on Friday the 13th", rarity: "epic", icon: "skull",
+    retestable: false, check: (s) => {
+      const d = new Date();
+      return s.completedLevels.length > 0 && d.getDate() === 13 && d.getDay() === 5;
+    } },
+
+  // ---------------------------------------------------------------
+  // Named branch levels (see BONUS_LEVELS in .claude/gen-levels.js) —
+  // one flavor achievement per detour, rarity roughly matching how deep
+  // into the game it sits.
+  // ---------------------------------------------------------------
+  { id: "wind-walker", name: "Wind Walker", description: "Complete Skyline Interlude", rarity: "common", icon: "flag",
+    grantsCoins: 25, check: (s) => s.completedLevels.includes(35) },
+  { id: "into-the-rift", name: "Into the Rift", description: "Complete The Neon Rift", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(50) },
+  { id: "crossfire-survivor", name: "Crossfire Survivor", description: "Complete Crossfire Causeway", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(65) },
+  { id: "summit-seeker", name: "Summit Seeker", description: "Complete The Vertical Vein", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(82) },
+  { id: "mirror-broken", name: "Mirror Broken", description: "Complete Mirror's End", rarity: "legendary", icon: "flag",
+    check: (s) => s.completedLevels.includes(95) },
 ];
 
 const StarshadeAchievements = (() => {
@@ -218,14 +287,27 @@ const StarshadeAchievements = (() => {
   }
 
   function collectStats() {
+    const ownedSkins = STARSHADE_SKINS.filter((sk) => StarshadeEconomy.isUnlocked(sk));
     return {
       completedLevels: StarshadeEconomy.getCompletedLevels(),
       isGameCompleted: StarshadeEconomy.isGameCompleted(),
       totalCoinsEarned: StarshadeEconomy.getTotalCoinsEarned(),
       totalDeaths: StarshadeEconomy.getTotalDeaths(),
       hasHardModeWin: StarshadeEconomy.hasHardModeWin(),
-      unlockedSkinCount: STARSHADE_SKINS.filter((sk) => StarshadeEconomy.isUnlocked(sk)).length,
+      unlockedSkinCount: ownedSkins.length,
       totalSkinCount: STARSHADE_SKINS.length,
+      // Distinct rarity tiers actually owned (not just how many skins) —
+      // see the Full Spectrum achievement.
+      ownedRarityCount: new Set(ownedSkins.map((sk) => sk.rarity)).size,
+      // The "weird" achievements' backing counters — see skinsData.js and
+      // the per-attempt flags in game.js that feed them.
+      totalLevelPlaythroughs: StarshadeEconomy.getTotalLevelPlaythroughs(),
+      deathlessCompletions: StarshadeEconomy.getDeathlessCompletions(),
+      noDoubleJumpCompletions: StarshadeEconomy.getNoDoubleJumpCompletions(),
+      bouncePadUses: StarshadeEconomy.getBouncePadUses(),
+      conveyorRides: StarshadeEconomy.getConveyorRides(),
+      everEquippedNonFreeSkin: StarshadeEconomy.hasEquippedNonFreeSkin(),
+      completedGameDeathless: StarshadeEconomy.hasCompletedGameDeathless(),
     };
   }
 
@@ -253,6 +335,51 @@ const StarshadeAchievements = (() => {
     return newlyUnlocked;
   }
 
+  // Re-verifies every currently-UNLOCKED achievement still actually
+  // passes its own check() and strips any that don't — the opposite
+  // direction from checkAll() (which only ever grants, never revokes).
+  // Exists for two real cases, not hypothetical ones: (1) a rescaled
+  // milestone (Quarter Way/Halfway Hero/etc — see the header comment on
+  // STARSHADE_ACHIEVEMENTS) whose old threshold a player already cleared
+  // but whose new one they haven't, and (2) any future bug that marks
+  // something unlocked without the condition actually being true (a
+  // stale/corrupted localStorage value, a manual edit, etc).
+  //
+  // Skips any achievement definition no longer present at all (an id
+  // that's since been removed from STARSHADE_ACHIEVEMENTS entirely stays
+  // unlocked rather than silently vanishing — there's no check() left to
+  // re-run, and disappearing is a worse experience than a harmless stale
+  // badge) and anything marked `retestable: false` (see the header
+  // comment) — every other achievement's check() is a pure function of
+  // monotonic stats, so re-running it can only ever confirm or correctly
+  // revoke, never misfire.
+  //
+  // Deliberately does NOT try to claw back a `grantsSkin`/`grantsCoins`
+  // reward a revoked achievement already paid out — coins spent or a skin
+  // already equipped are real, separate state, and reversing them
+  // retroactively (mid-session, possibly while that exact skin is
+  // equipped right now) risks a worse bug than the stale badge itself.
+  // This only corrects the achievement list/gallery, not the economy.
+  function revalidateUnlocked() {
+    const unlocked = getUnlockedIds();
+    const stats = collectStats();
+    const byId = {};
+    STARSHADE_ACHIEVEMENTS.forEach((ach) => { byId[ach.id] = ach; });
+
+    const stillValid = unlocked.filter((id) => {
+      const ach = byId[id];
+      if (!ach) return true; // unknown id — leave it alone, see above
+      if (ach.retestable === false) return true; // point-in-time, not re-testable
+      return ach.check(stats);
+    });
+
+    const revoked = unlocked.filter((id) => !stillValid.includes(id));
+    if (revoked.length) {
+      localStorage.setItem(UNLOCKED_KEY, JSON.stringify(stillValid));
+    }
+    return revoked;
+  }
+
   // Runs checkAll() and pops up a notification for each newly-unlocked
   // achievement, one call site any page can use after something that
   // might have unlocked one.
@@ -268,6 +395,7 @@ const StarshadeAchievements = (() => {
     collectStats,
     checkAll,
     checkAndNotify,
+    revalidateUnlocked,
   };
 })();
 

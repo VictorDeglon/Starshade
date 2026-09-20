@@ -243,6 +243,18 @@ let wasGrounded = false;
 // outrun (see updatePlayer()'s carry comment for the full story).
 let riddenPlatform = null;
 
+// Per-attempt flags for the "weird" achievements (achievementsData.js) —
+// reset every time a level (re)loads (see resetLevelState()), so they
+// track only the CURRENT attempt at the current level, not the whole
+// session. Read (and, if still true/false the right way, acted on) once
+// in advanceToNextLevel() right before the next level's load resets them.
+let leveldiedThisAttempt = false;
+let usedExtraJumpThisAttempt = false;
+// Edge-detected (not "grounded on a conveyor" every single frame) so a
+// long ride only counts once, not once per frame — see the conveyor
+// carry step in updatePlayer().
+let wasOnConveyorLastFrame = false;
+
 // Per-shape cosmetic movement flourishes (see drawPlayer()) — purely
 // visual, never touch player.width/height or any collision math, so every
 // skin shares the exact same hitbox regardless of how it's animated.
@@ -464,6 +476,79 @@ let currentTutorialTip = null;
 let tutorialTipOpacity = 0;
 let tutorialTipShownAt = 0;
 
+// Mechanic-discovery tips: unlike level1.js's hand-authored tips above
+// (movement/jump/spikes/checkpoints/finish, which only ever run once,
+// on level 1), these cover platform *mechanics* — moving, ghost, melt,
+// bounce, conveyor — generically across all 100 levels, so a mechanic
+// introduced on any level (level 2's moving/melt/ghost platforms, for
+// instance, which otherwise get zero explanation — see
+// docs/design-standards.md #2) doesn't go unexplained just because it
+// isn't level 1. Fires once ever per mechanic *type*, tracked in
+// localStorage rather than per-level, so a mechanic already learned on
+// an earlier level never re-explains itself later. The ghost tip's
+// wording also covers the "mandatory gate" rule change starting level
+// 41 (docs/design-standards.md #3) up front, rather than staying silent
+// until a player hits that with no warning.
+const MECHANIC_TIP_TEXT = {
+  moving: "Some platforms move — time your jump to land on them.",
+  ghost:
+    "Ghost platforms flicker between solid and see-through. Most are just a bonus shortcut — but a few, later on, are the only way across a gap. Watch the timing.",
+  melt: "Platforms with a warm glow crumble a moment after you land — keep moving.",
+  bounce: "Bounce pads launch you upward on contact — ride the momentum for extra height.",
+  conveyor: "Conveyor belts push you sideways while you stand on them.",
+};
+const MECHANIC_TIP_LOOKAHEAD = 140;
+
+function loadSeenMechanicTips() {
+  try {
+    return JSON.parse(localStorage.getItem("seenMechanicTips") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function markMechanicTipSeen(key) {
+  const seen = loadSeenMechanicTips();
+  if (seen[key]) return;
+  seen[key] = true;
+  localStorage.setItem("seenMechanicTips", JSON.stringify(seen));
+}
+
+function mechanicKeyForPlatform(p) {
+  if (p.ghost) return "ghost";
+  if (p.melt) return "melt";
+  if (p.bounce) return "bounce";
+  if (p.conveyor) return "conveyor";
+  if (p.moveAxis) return "moving";
+  return null;
+}
+
+// Appends one synthetic tip per not-yet-seen mechanic present in this
+// level to window.tutorialTips (alongside whatever the level itself
+// defines), positioned a little before that mechanic's first platform so
+// there's time to read it before arriving. Marking a mechanic "seen"
+// happens when its tip actually fires (updateTutorialTips(), below), not
+// here — so quitting before reaching it doesn't burn the one-time tip.
+function injectMechanicDiscoveryTips() {
+  const seen = loadSeenMechanicTips();
+  const firstXByMechanic = {};
+  (platforms || []).forEach((p) => {
+    const key = mechanicKeyForPlatform(p);
+    if (!key || seen[key]) return;
+    if (firstXByMechanic[key] == null || p.x < firstXByMechanic[key]) {
+      firstXByMechanic[key] = p.x;
+    }
+  });
+  Object.keys(firstXByMechanic).forEach((key) => {
+    window.tutorialTips.push({
+      x: Math.max(0, firstXByMechanic[key] - MECHANIC_TIP_LOOKAHEAD),
+      text: MECHANIC_TIP_TEXT[key],
+      mechanicKey: key,
+    });
+  });
+  window.tutorialTips.sort((a, b) => a.x - b.x);
+}
+
 // Set current level from saved data if it exists, otherwise start at 1.
 // Unlike the old reload-based flow, this is now only a "resume after a
 // manual browser refresh" convenience — normal level-to-level progress
@@ -655,6 +740,9 @@ function resetLevelState() {
   player.dx = 0;
   player.dy = 0;
   airJumpsUsed = 0;
+  leveldiedThisAttempt = false;
+  usedExtraJumpThisAttempt = false;
+  wasOnConveyorLastFrame = false;
   // The player starts standing on the level's opening platform, not
   // airborne — wasGrounded is what tryJump() actually checks for "can
   // take a fresh (non-double) jump," so this needs to be true from frame
@@ -682,6 +770,7 @@ function resetLevelState() {
   triangleSpinAngle = 0;
   circleRollAngle = 0;
   circleBounceOffset = 0;
+  injectMechanicDiscoveryTips();
   tutorialTipTriggered = (tutorialTips || []).map(() => false);
   tutorialTipQueue = [];
   currentTutorialTip = null;
@@ -786,6 +875,14 @@ function applyLevelVerticalLayout() {
 function advanceToNextLevel() {
   const coinsEarned = StarshadeEconomy.markLevelCompleted(currentLevel);
   if (coinsEarned > 0) showCoinToast(`+${coinsEarned} Coins`);
+  // "Weird" achievement bookkeeping — read the CURRENT level's per-attempt
+  // flags before the next level's load resets them (see
+  // resetLevelState()). recordLevelPlaythrough() counts every completion,
+  // including replays of an already-beaten level, unlike markLevelCompleted()
+  // above which only pays out/records the first time.
+  StarshadeEconomy.recordLevelPlaythrough();
+  if (!leveldiedThisAttempt) StarshadeEconomy.recordDeathlessCompletion();
+  if (!usedExtraJumpThisAttempt) StarshadeEconomy.recordNoDoubleJumpCompletion();
   StarshadeAchievements.checkAndNotify();
 
   currentLevel++;
@@ -2007,9 +2104,12 @@ function updatePlayer(dtScale) {
   // on top of whatever movement keys are held, not instead of them, so
   // walking against a conveyor can still fight it (slowly) rather than
   // locking the player into one direction.
-  if (grounded && groundedOn && groundedOn.conveyor) {
+  const onConveyorNow = !!(grounded && groundedOn && groundedOn.conveyor);
+  if (onConveyorNow) {
     player.x += (groundedOn.conveyorSpeed || 0) * dtScale;
+    if (!wasOnConveyorLastFrame) StarshadeEconomy.recordConveyorRide();
   }
+  wasOnConveyorLastFrame = onConveyorNow;
 
   // Sticky wall-cling: pressed into a wall while airborne, fall is slowed
   // to a slow slide instead of falling at normal speed, and the air jump
@@ -2117,6 +2217,7 @@ function updatePlayer(dtScale) {
       if (groundedOn && groundedOn.bounce) {
         player.dy = groundedOn.bounceStrength || BOUNCE_STRENGTH;
         airJumpsUsed = 0;
+        StarshadeEconomy.recordBouncePadUse();
         spawnParticles(player.x, player.y + player.height / 2, 12, {
           colors: ["rgba(80,255,220,0.9)", "rgba(160,255,255,0.85)", "#fff"],
           speed: 4,
@@ -2324,6 +2425,7 @@ function updateTutorialTips() {
     if (!tutorialTipTriggered[i] && player.x >= tip.x) {
       tutorialTipTriggered[i] = true;
       tutorialTipQueue.push(tip.text);
+      if (tip.mechanicKey) markMechanicTipSeen(tip.mechanicKey);
     }
   });
 
@@ -2394,6 +2496,7 @@ function resetPlayer() {
   shakeTime = 15;
   shakeMagnitude = 6;
   consecutiveDeaths++;
+  leveldiedThisAttempt = true;
   StarshadeEconomy.incrementTotalDeaths();
   StarshadeAchievements.checkAndNotify();
   vibrateHaptic([30, 40, 30]);
@@ -2612,6 +2715,7 @@ function tryJump() {
   } else if (airJumpsUsed < extraAirJumps()) {
     player.dy = jumpStrength;
     airJumpsUsed++;
+    usedExtraJumpThisAttempt = true;
   } else {
     return; // no air jumps left — this press does nothing
   }
@@ -2727,6 +2831,19 @@ document.addEventListener("keyup", (e) => {
 // -------------------------------------------------------------
 // START GAME
 // -------------------------------------------------------------
+// Re-verify every already-unlocked achievement still actually passes its
+// own check() against current stats before anything else runs — catches
+// a stale unlock left over from a bug, from directly-edited localStorage,
+// or (the case that prompted this) a milestone's threshold moving out from
+// under it, like the recent Quarter Way/Halfway Hero rescale from the old
+// 25-level fractions to the new 100-level ones. See
+// StarshadeAchievements.revalidateUnlocked() in achievementsData.js for
+// which achievements this can safely re-test (not every one — a
+// real-world-clock achievement like "complete a level after midnight"
+// would be wrongly stripped every morning if it were re-tested the same
+// way).
+StarshadeAchievements.revalidateUnlocked();
+
 loadLevel(currentLevel)
   .then(() => {
     // Always enter the loop via rAF (never call it directly) so the very

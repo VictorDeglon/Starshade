@@ -200,6 +200,15 @@ already does on a level load), so a checkpoint respawn far from the death
 location can't hit the same class of bug via a stale, easing-instead-of-
 snapping camera on the very first frame after the teleport.
 
+### 18. Stale "25 levels" copy left over from the 100-level expansion
+
+`manifest.json`'s PWA `description` and a doc-comment in `skinsData.js`
+(the `'completion'` unlock-type explanation) still said "25 levels" after
+the level count was expanded to 100 — cosmetic/doc-only, but
+`manifest.json`'s description is user-facing (shown in install prompts)
+and was live on the deployed site. **Fix:** updated both to not hardcode
+the level count.
+
 ## Known, not fixed (out of scope / needs a real decision)
 
 - **The Contact form doesn't submit anywhere.** There's no backend, and the
@@ -230,4 +239,26 @@ snapping camera on the very first frame after the teleport.
   sets `savedLevel` and goes through the normal `loading.html` →
   `game.html` flow, so it's not a separate code path from Play. Reachable
   from the main menu's "Levels" button and the pause menu's "Level Map"
+  button.
+- **Levels 13, 14, 15, 17, 21-25 (13 gaps total) and 41-100 all contain
+  gaps that `.claude/audit-gaps.js` flags as impossible without crossing a
+  ghost platform** — a gap too wide for even a double jump directly, but
+  with a ghost platform sitting in the middle splitting it into two
+  single-jump-feasible hops (verified for the 13-25 cases by directly
+  simulating both hops' physics, not just confirming a ghost is present).
+  This is the same intentional "mandatory ghost gate" pattern level 3 was
+  originally built around, not a bug or an unreachable gap — for 41-100 it's
+  explicit in `.claude/gen-levels.js`'s `mandatoryGhostGates` (gated to
+  `t >= 1.0` within a tier, level ~41+ in the 26-75 block and from the
+  start in the harder 76-100 block, with a generation-time sanity check
+  that throws if a "gate" isn't actually mandatory); levels 13-25 predate
+  that script and were independently confirmed well-formed by hand.
+  Documented here anyway because it contradicts `.claude/audit-gaps.js`'s
+  own header comment (a ghost platform is described there as "always an
+  optional bonus route, never part of the guaranteed path") and because
+  it's a real difficulty-philosophy shift from levels 1-12/26-40 — nothing
+  in-game currently telegraphs to a first-time player that a gap like this
+  is meant to be timed rather than jumped normally. Worth a product
+  decision on whether that lack of a telegraph is the intended feel before
+  it's something players report as "this level is broken."
   button.

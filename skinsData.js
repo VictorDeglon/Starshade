@@ -5,7 +5,7 @@
 // Unlock types:
 //   'free'        — always unlocked (the starting skin)
 //   'coins'       — unlocked by spending `cost` coins, once
-//   'completion'  — unlocked by beating all 25 levels once
+//   'completion'  — unlocked by beating all levels once
 //     (StarshadeEconomy.isGameCompleted())
 //   'achievement' — unlocked the moment a specific achievement fires (see
 //     achievementsData.js's `grantsSkin` field and StarshadeEconomy.
@@ -840,6 +840,20 @@ const StarshadeEconomy = (() => {
   const TOTAL_COINS_EARNED_KEY = "starshadeTotalCoinsEarned";
   const TOTAL_DEATHS_KEY = "starshadeTotalDeaths";
   const HARD_MODE_WIN_KEY = "starshadeHardModeLevelWin";
+  // Backing storage for the "weird" achievements in achievementsData.js —
+  // same "only ever goes up" reasoning as TOTAL_COINS_EARNED_KEY/
+  // TOTAL_DEATHS_KEY above, so they're safe for
+  // StarshadeAchievements.revalidateUnlocked() to re-test at any time: an
+  // achievement built on one of these can never spuriously fail once
+  // truly earned, unlike a real-world-clock condition (see
+  // achievementsData.js's `retestable` field).
+  const TOTAL_LEVEL_PLAYTHROUGHS_KEY = "starshadeTotalLevelPlaythroughs";
+  const DEATHLESS_COMPLETIONS_KEY = "starshadeDeathlessCompletions";
+  const NO_DOUBLE_JUMP_COMPLETIONS_KEY = "starshadeNoDoubleJumpCompletions";
+  const BOUNCE_PAD_USES_KEY = "starshadeBouncePadUses";
+  const CONVEYOR_RIDES_KEY = "starshadeConveyorRides";
+  const EQUIPPED_NON_FREE_SKIN_KEY = "starshadeEquippedNonFreeSkin";
+  const COMPLETED_GAME_DEATHLESS_KEY = "starshadeCompletedGameDeathless";
 
   // Coins awarded the first time each level's final checkpoint is reached.
   // Replaying an already-completed level doesn't pay out again, so this
@@ -892,6 +906,79 @@ const StarshadeEconomy = (() => {
     return localStorage.getItem(HARD_MODE_WIN_KEY) === "true";
   }
 
+  // Simple "read an int, bump it by 1, write it back" helper — every
+  // counter below (playthroughs, deathless/no-double-jump completions,
+  // bounce-pad uses, conveyor rides) follows this exact shape.
+  function bumpCounter(key) {
+    const total = (parseInt(localStorage.getItem(key), 10) || 0) + 1;
+    localStorage.setItem(key, String(total));
+    return total;
+  }
+
+  // Every level completion, including a replay of one already beaten —
+  // unlike markLevelCompleted() below, which only records/pays out the
+  // first time. The gap between this and getCompletedLevels().length is
+  // exactly "how many times you've replayed something" (see the
+  // Déjà Vu achievement).
+  function getTotalLevelPlaythroughs() {
+    return parseInt(localStorage.getItem(TOTAL_LEVEL_PLAYTHROUGHS_KEY), 10) || 0;
+  }
+  function recordLevelPlaythrough() {
+    return bumpCounter(TOTAL_LEVEL_PLAYTHROUGHS_KEY);
+  }
+
+  // A level completed without dying since it was last (re)loaded — see
+  // game.js's `leveldiedThisAttempt`.
+  function getDeathlessCompletions() {
+    return parseInt(localStorage.getItem(DEATHLESS_COMPLETIONS_KEY), 10) || 0;
+  }
+  function recordDeathlessCompletion() {
+    return bumpCounter(DEATHLESS_COMPLETIONS_KEY);
+  }
+
+  // A level completed without ever using a double/extra air jump since it
+  // was last (re)loaded — see game.js's `usedExtraJumpThisAttempt`.
+  function getNoDoubleJumpCompletions() {
+    return parseInt(localStorage.getItem(NO_DOUBLE_JUMP_COMPLETIONS_KEY), 10) || 0;
+  }
+  function recordNoDoubleJumpCompletion() {
+    return bumpCounter(NO_DOUBLE_JUMP_COMPLETIONS_KEY);
+  }
+
+  function getBouncePadUses() {
+    return parseInt(localStorage.getItem(BOUNCE_PAD_USES_KEY), 10) || 0;
+  }
+  function recordBouncePadUse() {
+    return bumpCounter(BOUNCE_PAD_USES_KEY);
+  }
+
+  // Counts rides, not frames — game.js only calls this once per landing
+  // on a conveyor (edge-detected), not every frame spent standing on one,
+  // so a single long ride and a series of short hops both count sanely.
+  function getConveyorRides() {
+    return parseInt(localStorage.getItem(CONVEYOR_RIDES_KEY), 10) || 0;
+  }
+  function recordConveyorRide() {
+    return bumpCounter(CONVEYOR_RIDES_KEY);
+  }
+
+  // Sticky flag: once true, stays true forever (there's no "un-equip
+  // everything back to only ever having worn the default"), set from
+  // setEquippedSkinId() below the moment anything but the free starting
+  // skin gets equipped.
+  function hasEquippedNonFreeSkin() {
+    return localStorage.getItem(EQUIPPED_NON_FREE_SKIN_KEY) === "true";
+  }
+
+  // Captured once, at the exact moment the game is first completed (see
+  // setGameCompleted() below) — deliberately NOT re-derived later from
+  // "is totalDeaths still 0," since casually dying in a post-completion
+  // replay would otherwise make a legitimately-earned zero-death clear
+  // look unearned in hindsight.
+  function hasCompletedGameDeathless() {
+    return localStorage.getItem(COMPLETED_GAME_DEATHLESS_KEY) === "true";
+  }
+
   function recordHardModeWinIfApplicable() {
     if (getDifficulty() === "hard") localStorage.setItem(HARD_MODE_WIN_KEY, "true");
   }
@@ -940,6 +1027,9 @@ const StarshadeEconomy = (() => {
 
   function setEquippedSkinId(id) {
     localStorage.setItem(EQUIPPED_KEY, id);
+    if (id !== "square-default") {
+      localStorage.setItem(EQUIPPED_NON_FREE_SKIN_KEY, "true");
+    }
   }
 
   function getEquippedSkin() {
@@ -976,6 +1066,9 @@ const StarshadeEconomy = (() => {
   function setGameCompleted() {
     if (isGameCompleted()) return 0;
     localStorage.setItem(GAME_COMPLETED_KEY, "true");
+    if (getTotalDeaths() === 0) {
+      localStorage.setItem(COMPLETED_GAME_DEATHLESS_KEY, "true");
+    }
     const bonus = Math.round(GAME_COMPLETION_BONUS * getCoinMultiplier());
     addCoins(bonus);
     return bonus;
@@ -1002,5 +1095,17 @@ const StarshadeEconomy = (() => {
     setGameCompleted,
     getDifficulty,
     getCoinMultiplier,
+    getTotalLevelPlaythroughs,
+    recordLevelPlaythrough,
+    getDeathlessCompletions,
+    recordDeathlessCompletion,
+    getNoDoubleJumpCompletions,
+    recordNoDoubleJumpCompletion,
+    getBouncePadUses,
+    recordBouncePadUse,
+    getConveyorRides,
+    recordConveyorRide,
+    hasEquippedNonFreeSkin,
+    hasCompletedGameDeathless,
   };
 })();
