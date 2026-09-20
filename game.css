@@ -404,3 +404,298 @@ canvas {
     font-size: 1.3rem;
   }
 }
+
+/* -------------------------------------------------------------
+   SETTINGS OVERLAY (embedded settings.html content — see settings.js)
+   Styled here rather than by loading styles.css, which defines a totally
+   different meaning for `.menu`/`.settings` on its own standalone page —
+   loading both would have one silently override the other since they
+   share a selector at equal specificity.
+   ------------------------------------------------------------- */
+#settingsOverlay .menu-panel {
+  width: 440px;
+  max-width: 92vw;
+  text-align: left;
+}
+
+#settingsOverlay h1 {
+  font-size: 2rem;
+  text-align: center;
+  color: #b7a0ff;
+  text-shadow: 2px 2px 6px #8a4de4;
+  font-family: 'Almendra Display', serif;
+  margin: 0 0 16px;
+}
+
+#settingsOverlay .setting-item {
+  margin: 14px 0;
+  font-family: 'Cinzel', serif;
+}
+
+#settingsOverlay .setting-item label {
+  display: block;
+  margin-bottom: 6px;
+  color: #dcd4ff;
+  font-weight: bold;
+}
+
+#settingsOverlay input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: #4d3f91;
+  border-radius: 5px;
+  outline: none;
+}
+
+#settingsOverlay select,
+#settingsOverlay input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+}
+
+#settingsOverlay .bindings-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid #4d3f91;
+  border-radius: 10px;
+}
+
+#settingsOverlay .binding-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0;
+}
+
+#settingsOverlay .binding-label {
+  color: #dcd4ff;
+}
+
+#settingsOverlay .rebind-button,
+#settingsOverlay .edit-button {
+  padding: 6px 14px;
+  min-width: 90px;
+  border: 2px solid #4d3f91;
+  background: #1e0f3f;
+  color: #dcd4ff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+#settingsOverlay .rebind-button:hover,
+#settingsOverlay .edit-button:hover {
+  background-color: #0e2338;
+}
+
+#settingsOverlay .rebind-button.listening {
+  background-color: #4d3f91;
+  animation: pulse 1s infinite;
+}
+
+#settingsOverlay .bindings-hint {
+  margin: 10px 0 0;
+  font-size: 0.8em;
+  color: #8a7ec9;
+  text-align: center;
+}
+
+#settingsOverlay .menu-button {
+  margin-top: 20px;
+}
+
+/* -------------------------------------------------------------
+   LEVEL MAP OVERLAY (embedded levels.html content — see levels.js)
+   ------------------------------------------------------------- */
+#levelMapOverlay .menu-panel {
+  width: 480px;
+  max-width: 92vw;
+}
+
+#levelMapOverlay h1 {
+  font-size: 2rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: 'Almendra Display', serif;
+  margin: 0;
+}
+
+#levelMapOverlay .coin-balance {
+  margin: 8px 0 0;
+  font-family: 'Staatliches', sans-serif;
+  font-size: 1.1rem;
+  color: #ffcf4d;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#levelMapOverlay .tree-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px 0 30px;
+}
+
+#levelMapOverlay .tree-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+#levelMapOverlay .tree-nodes {
+  position: relative;
+  width: 100%;
+}
+
+#levelMapOverlay .tree-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#levelMapOverlay .tree-path-full {
+  stroke: #4d3f91;
+  stroke-width: 5;
+  stroke-dasharray: 2 16;
+  opacity: 0.8;
+}
+
+#levelMapOverlay .tree-path-lit {
+  stroke: #32cd32;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 6px rgba(50, 205, 50, 0.6));
+}
+
+#levelMapOverlay .level-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 92px;
+  cursor: pointer;
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: #dcd4ff;
+  padding: 0;
+}
+
+#levelMapOverlay .level-node-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #161a45;
+  border: 3px solid #4d3f91;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Almendra Display', serif;
+  font-size: 1.4rem;
+  color: #b7a0ff;
+  text-shadow: 1px 1px 4px #8a4de4;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#levelMapOverlay .level-node:hover:not(.locked) .level-node-circle {
+  transform: scale(1.1);
+  box-shadow: 0 0 22px rgba(106, 90, 205, 0.7);
+  background-color: #1e2358;
+}
+
+#levelMapOverlay .level-node.current .level-node-circle {
+  border-color: #87cefa;
+  box-shadow: 0 0 18px rgba(135, 206, 250, 0.55);
+  animation: node-pulse 2s ease-in-out infinite;
+}
+
+#levelMapOverlay .level-node.completed .level-node-circle {
+  border-color: #32cd32;
+  box-shadow: 0 0 14px rgba(50, 205, 50, 0.4);
+  color: #d6ffd6;
+}
+
+#levelMapOverlay .level-node.locked {
+  cursor: not-allowed;
+}
+
+#levelMapOverlay .level-node.locked .level-node-circle {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+}
+
+@keyframes node-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(135, 206, 250, 0.55); }
+  50% { box-shadow: 0 0 28px rgba(135, 206, 250, 0.85); }
+}
+
+#levelMapOverlay .level-node-name {
+  font-family: 'Staatliches', sans-serif;
+  font-size: 0.68rem;
+  text-align: center;
+  line-height: 1.15;
+  letter-spacing: 0.3px;
+  max-width: 100px;
+}
+
+#levelMapOverlay .level-node.locked .level-node-name {
+  color: #6c6395;
+}
+
+#levelMapOverlay .level-node.completed .level-node-name {
+  color: #7be07b;
+}
+
+#levelMapOverlay .level-node.current .level-node-name {
+  color: #9fd9ff;
+}
+
+#levelMapOverlay .menu-button {
+  margin-top: 16px;
+}
+
+/* -------------------------------------------------------------
+   ACHIEVEMENTS OVERLAY (embedded achievements.html content — see
+   achievements.js). Its grid/card styles come from achievements.css
+   (already loaded here for the popup notifications — see game.html),
+   this just gives the panel enough room for the grid to actually read as
+   a grid instead of a single cramped column.
+   ------------------------------------------------------------- */
+#achievementsOverlay .menu-panel {
+  width: 720px;
+  max-width: 92vw;
+}
+
+#achievementsOverlay h1 {
+  font-size: 2rem;
+  color: #6a5acd;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
+  font-family: 'Almendra Display', serif;
+  margin: 0;
+}
+
+#achievementsOverlay .achievements-grid {
+  max-width: none;
+  padding: 20px 0 0;
+}
+
+#achievementsOverlay .menu-button {
+  margin-top: 16px;
+}

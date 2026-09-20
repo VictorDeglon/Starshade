@@ -15,7 +15,8 @@ index.html --Play---------> loading.html --(1.5s fake progress)--> game.html
     |----Settings--------> settings.html --Back to Menu--> index.html
     '----Contact---------> contact.html --Back to Menu--> index.html
 
-game.html --pause menu--> Level Map / Achievements / Settings / Quit to Menu
+game.html --pause menu--> Settings / Level Map / Achievements (all in-page
+                           overlays, see below) / Quit to Menu (real nav)
 game.html --(no next level)--> "You beat Starshade!" screen --Back--> index.html
 ```
 
@@ -24,6 +25,34 @@ goes through the same `loading.html` → `game.html` path as Play — it's not
 a separate way to enter the game, just a way to aim Play at a different
 level. A level is unlocked once the one before it is in
 `StarshadeEconomy.getCompletedLevels()`; level 1 is always unlocked.
+
+**The pause menu's Settings/Level Map/Achievements are overlays, not
+navigations.** `game.html` also loads `settings.js`, `levels.js`, and
+`achievements.js` directly (after `game.js` — order matters, see below),
+each driving a copy of that page's markup embedded in `game.html` itself
+(`#settingsOverlay`/`#levelMapOverlay`/`#achievementsOverlay`) instead of
+running on their own standalone page. Opening one hides the pause menu and
+shows it in place; closing one (Back, the top-left arrow, or Escape)
+reverses that. The reason is `game.js`'s `audio` element: navigating to
+another page tears it down and recreates it on return, silently cutting
+the music (see "Menu music vs. game music" below) — an overlay never
+navigates at all, so the same `Audio` object just keeps playing
+underneath. Quit to Menu is the one pause-menu action that still does a
+real navigation, since actually leaving the game is the one case where
+stopping the music is correct.
+
+Each of those three scripts detects it's embedded by checking for a
+function only `game.js` defines (`window.closeSettingsOverlay`,
+`window.startLevelFromOverlay`, `window.closeAchievementsOverlay`) and
+branches its back-button/level-pick/etc. behavior accordingly; on their
+own standalone pages, where none of those exist, they fall back to the
+original navigation unchanged. All three are wrapped in an IIFE (an
+immediately-invoked `(function () { ... })();` around the whole file) —
+without that, several of their top-level `const`/`let` names collide with
+game.js's own (or with each other's) once all four files share one
+document's global scope, which throws the exact `SyntaxError` described
+below for level scripts. The IIFE sidesteps that regardless of what
+either file happens to be named internally.
 
 Each page is a standalone HTML file with its own `<link>`/`<script>` tags —
 there's no shared header/nav component, so navigation buttons are wired up

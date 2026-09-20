@@ -3,6 +3,14 @@
 // actually been played — and clicking a level writes the same
 // `savedLevel` key game.js reads on startup, so picking one here is just
 // "aim Play at a different level," not a separate code path.
+//
+// Wrapped in an IIFE so every name here stays local — this script is also
+// loaded on game.html (see the pause menu's Level Map overlay), which
+// shares one global scope with game.js and settings.js as plain classic
+// scripts; a top-level `const`/`let` name repeated across them throws a
+// SyntaxError (see docs/architecture.md). Doesn't change anything about
+// how this behaves on the standalone levels.html.
+(function () {
 
 // Flavor names match docs/gameplay.md's level table — the level files
 // themselves only set `levelText` to "Level N", so this is the only place
@@ -140,8 +148,16 @@ function renderLevels() {
 
     if (isUnlocked) {
       node.addEventListener("click", () => {
-        localStorage.setItem("savedLevel", String(n));
-        window.location.href = "loading.html";
+        // Embedded in game.html (see the pause menu's Level Map button) —
+        // start the level in-page instead of navigating through
+        // loading.html's fake progress bar. window.startLevelFromOverlay
+        // is only defined there (see game.js).
+        if (typeof window.startLevelFromOverlay === "function") {
+          window.startLevelFromOverlay(n);
+        } else {
+          localStorage.setItem("savedLevel", String(n));
+          window.location.href = "loading.html";
+        }
       });
     } else {
       node.disabled = true;
@@ -152,14 +168,34 @@ function renderLevels() {
   });
 }
 
-document.getElementById("back-button").addEventListener("click", () => {
-  window.location.href = "index.html";
+// Embedded in game.html: settings.js is loaded on that same page and
+// already owns the literal id "back-button" for its own overlay, so the
+// level map's back button there is "level-map-back-button" instead —
+// falling back to "back-button" is what makes this same code work
+// unchanged on the standalone levels.html, which has no such element.
+const levelMapBackButton =
+  document.getElementById("level-map-back-button") ||
+  document.getElementById("back-button");
+
+levelMapBackButton.addEventListener("click", () => {
+  if (typeof window.closeLevelMapOverlay === "function") {
+    window.closeLevelMapOverlay();
+  } else {
+    window.location.href = "index.html";
+  }
 });
 
-// Top-corner back arrow — delegates to the handler above.
-document.getElementById("top-back-button").addEventListener("click", () => {
-  document.getElementById("back-button").click();
-});
+// Top-corner back arrow (standalone levels.html only — game.html's
+// embedded overlay has no such element, hence the guard).
+const topBackButton = document.getElementById("top-back-button");
+if (topBackButton) {
+  topBackButton.addEventListener("click", () => levelMapBackButton.click());
+}
+
+// Exposed so game.js can re-run these each time the overlay opens (coin
+// balance/unlock state can have changed since the last time it was shown).
+window.updateLevelMapCoinBalance = updateCoinBalance;
+window.renderLevelMap = renderLevels;
 
 updateCoinBalance();
 renderLevels();
@@ -172,3 +208,5 @@ window.addEventListener("resize", () => {
   if (resizeRaf) cancelAnimationFrame(resizeRaf);
   resizeRaf = requestAnimationFrame(renderLevels);
 });
+
+})();

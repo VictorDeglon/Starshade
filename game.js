@@ -117,7 +117,12 @@ const DIFFICULTY_SETTINGS = {
   normal: { platformSpeedMultiplier: 1, checkpointRadius: 24 },
   hard: { platformSpeedMultiplier: 1.3, checkpointRadius: 18 },
 };
-const difficultySettings =
+// `let`, not `const` — the pause menu's Settings overlay (see
+// openSettingsOverlay()/refreshLiveSettings() below) can change the
+// difficulty without a page reload, unlike the old standalone
+// settings.html which always came back to game.html via a full navigation
+// that re-ran this whole file fresh.
+let difficultySettings =
   DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
   DIFFICULTY_SETTINGS.normal;
 
@@ -134,9 +139,32 @@ const TOUCH_INPUT_BONUS = isTouchDevice
 
 // Accessibility/preference toggles set on the Settings page (see
 // settings.js) — both default to on so existing behavior doesn't change
-// for anyone who's never touched these.
-const screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
-const clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+// for anyone who's never touched these. `let`, not `const` — same
+// live-update reasoning as difficultySettings above.
+let screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
+let clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+
+// Re-reads every setting the pause menu's Settings overlay can change, so
+// adjusting one mid-run actually takes effect immediately instead of only
+// on the next full page load. Also updates the live Audio element's
+// volume, key bindings, and difficulty in one place rather than needing a
+// bespoke listener per control (see settings.js, which calls this after
+// every change). Exposed on window so settings.js — a separate classic
+// script wrapped in its own IIFE (see its top comment) — can reach it.
+function refreshLiveSettings() {
+  screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
+  clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+  difficultySettings =
+    DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
+    DIFFICULTY_SETTINGS.normal;
+  const savedKeyBindings = loadKeyBindings();
+  keyBindings.left = savedKeyBindings.left;
+  keyBindings.right = savedKeyBindings.right;
+  keyBindings.jump = savedKeyBindings.jump;
+  const liveMusicVolume = parseInt(localStorage.getItem("musicVolume"), 10);
+  audio.volume = isNaN(liveMusicVolume) ? 0.33 : liveMusicVolume / 100;
+}
+window.refreshLiveSettings = refreshLiveSettings;
 
 // Subtle rubber-banding: after several deaths in a row without reaching a
 // *new* checkpoint, nudge the odds back in the player's favor a little —
@@ -765,27 +793,102 @@ document
 // -------------------------------------------------------------
 // PAUSE MENU
 // -------------------------------------------------------------
+// Settings, the Level Map, and Achievements all open as overlays *on top
+// of* the pause menu (hiding it, not resuming gameplay underneath) rather
+// than navigating to settings.html/levels.html/achievements.html — every
+// one of those pages' own scripts is also loaded here (each wrapped in
+// its own IIFE — see their top comments) and drives this exact same
+// markup in place instead. Besides keeping the game paused and the level
+// state intact the way a full navigation never could mid-run, this keeps
+// game.js's own `audio` element alive and playing throughout (see
+// docs/architecture.md) — navigating to another page tears down and
+// recreates it, silently cutting the music. Only Quit to Menu still
+// navigates for real, since leaving the game entirely is the one case
+// where stopping the music is actually correct.
+const SUB_OVERLAY_IDS = ["settingsOverlay", "levelMapOverlay", "achievementsOverlay"];
+
+function closeSubOverlays() {
+  let closedAny = false;
+  SUB_OVERLAY_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el.classList.contains("hidden")) {
+      el.classList.add("hidden");
+      closedAny = true;
+    }
+  });
+  if (closedAny) document.getElementById("pauseMenu").classList.remove("hidden");
+  return closedAny;
+}
+
+function openSettingsOverlay() {
+  document.getElementById("pauseMenu").classList.add("hidden");
+  document.getElementById("settingsOverlay").classList.remove("hidden");
+}
+function closeSettingsOverlay() {
+  closeSubOverlays();
+}
+window.closeSettingsOverlay = closeSettingsOverlay;
+
+function openLevelMapOverlay() {
+  document.getElementById("pauseMenu").classList.add("hidden");
+  document.getElementById("levelMapOverlay").classList.remove("hidden");
+  // Coin balance/unlock state can have changed since this was last shown
+  // (or never shown this page load) — re-render rather than trusting a
+  // stale first pass. Guarded because these only exist once levels.js has
+  // actually finished loading and run (see its IIFE).
+  if (typeof window.updateLevelMapCoinBalance === "function") window.updateLevelMapCoinBalance();
+  if (typeof window.renderLevelMap === "function") window.renderLevelMap();
+}
+function closeLevelMapOverlay() {
+  closeSubOverlays();
+}
+window.closeLevelMapOverlay = closeLevelMapOverlay;
+
+function openAchievementsOverlay() {
+  document.getElementById("pauseMenu").classList.add("hidden");
+  document.getElementById("achievementsOverlay").classList.remove("hidden");
+  // Same "don't trust a stale first render" reasoning as the level map.
+  if (typeof window.renderAchievementsOverlay === "function") window.renderAchievementsOverlay();
+}
+function closeAchievementsOverlay() {
+  closeSubOverlays();
+}
+window.closeAchievementsOverlay = closeAchievementsOverlay;
+
+// Picking a level from the map overlay starts it immediately in-page — a
+// fade + loadLevel(), the exact mechanism advancing to the next level
+// already uses — instead of navigating through loading.html's fake
+// progress bar. Unpauses (unlike closeLevelMapOverlay(), which returns to
+// the *paused* pause menu) since this is meant to resume play, not browse
+// further.
+function startLevelFromOverlay(levelNumber) {
+  document.getElementById("levelMapOverlay").classList.add("hidden");
+  document.getElementById("pauseMenu").classList.add("hidden");
+  isPaused = false;
+  currentLevel = levelNumber;
+  localStorage.setItem("savedLevel", String(levelNumber));
+  if (isFading || isPortalSucking) return; // shouldn't happen, but never stack transitions
+  isFading = true;
+  fadeOpacity = 0;
+  fadeDirection = 1;
+  fadeCallback = () => loadLevel(levelNumber);
+}
+window.startLevelFromOverlay = startLevelFromOverlay;
+
 document.getElementById("pause-open-button").addEventListener("click", () => {
+  // A sub-overlay covers the pause menu itself — back out of that first,
+  // the same way Escape does below, rather than also toggling pause and
+  // leaving the sub-overlay stranded on screen with gameplay running
+  // underneath it.
+  if (closeSubOverlays()) return;
   setPaused(!isPaused);
 });
 document.getElementById("resume-button").addEventListener("click", () => {
   setPaused(false);
 });
-document
-  .getElementById("pause-settings-button")
-  .addEventListener("click", () => {
-    // ?from=pause tells settings.js to send "Back" to game.html instead of
-    // all the way to the main menu, since currentLevel is saved on every
-    // transition anyway (see advanceToNextLevel) — checking a setting
-    // mid-run resumes close to where you left off instead of losing it.
-    window.location.href = "settings.html?from=pause";
-  });
-document.getElementById("pause-levels-button").addEventListener("click", () => {
-  window.location.href = "levels.html";
-});
-document.getElementById("pause-achievements-button").addEventListener("click", () => {
-  window.location.href = "achievements.html";
-});
+document.getElementById("pause-settings-button").addEventListener("click", openSettingsOverlay);
+document.getElementById("pause-levels-button").addEventListener("click", openLevelMapOverlay);
+document.getElementById("pause-achievements-button").addEventListener("click", openAchievementsOverlay);
 document.getElementById("pause-quit-button").addEventListener("click", () => {
   window.location.href = "index.html";
 });
@@ -2181,6 +2284,15 @@ function gameLoop(timestamp) {
 // -------------------------------------------------------------
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !e.repeat) {
+    // A key-rebind prompt inside the settings overlay owns Escape while
+    // it's listening (cancels just the rebind, not the whole panel) —
+    // see settings.js's captureRebindKey(). This listener was attached
+    // before settings.js's, so it fires first; stepping aside here is
+    // what lets that one behave correctly instead of both firing.
+    if (window.isCapturingKeyRebind) return;
+    // Back out of an open sub-overlay next, rather than also toggling
+    // pause and leaving it stranded on screen.
+    if (closeSubOverlays()) return;
     setPaused(!isPaused);
     return;
   }
