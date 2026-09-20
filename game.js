@@ -169,6 +169,20 @@ const CAMERA_ZOOM_GROUNDED = 1;
 const CAMERA_ZOOM_AIRBORNE = 0.88;
 const CAMERA_ZOOM_SMOOTHING = 0.06;
 
+// Where the player sits vertically on screen, as a fraction of
+// viewportHeight from the top — 0.5 is dead-center. Grounded, that's the
+// normal "centered" framing; airborne, it eases up to a smaller fraction
+// (the player sits higher up on screen), which hands most of the freed-up
+// space at the bottom to whatever's below them — exactly the area they
+// need to actually see to land safely, which a purely-centered camera
+// (or a uniform zoom-out alone) doesn't prioritize. This is the "mid-zone"
+// framing: never so extreme that the character themselves scrolls off the
+// top, just enough that the landing zone stops being an afterthought.
+let cameraVerticalAnchor = 0.5;
+const CAMERA_ANCHOR_GROUNDED = 0.5;
+const CAMERA_ANCHOR_AIRBORNE = 0.36;
+const CAMERA_ANCHOR_SMOOTHING = 0.05;
+
 // Screen shake (triggered on death)
 let shakeTime = 0;
 let shakeMagnitude = 0;
@@ -232,6 +246,33 @@ function spawnParticles(x, y, count, options = {}) {
   }
 }
 
+// The portal-suck effect (see updatePortalSuck()) needs particles moving
+// *toward* a point instead of away from one — spawnParticles() above
+// always starts at (x, y) and radiates outward, which can't produce that,
+// so this spawns them scattered in a ring around the target and aimed
+// inward instead. Pushes directly into the same `particles` array with
+// the same shape spawnParticles() produces, so updateParticles()/
+// drawParticles() handle these identically without needing to know the
+// difference.
+function spawnConvergingParticles(targetX, targetY, count, colors) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 35 + Math.random() * 45;
+    const speed = 3 + Math.random() * 2.5;
+    particles.push({
+      x: targetX + Math.cos(angle) * radius,
+      y: targetY + Math.sin(angle) * radius,
+      vx: -Math.cos(angle) * speed,
+      vy: -Math.sin(angle) * speed,
+      life: 20,
+      maxLife: 20,
+      size: 2 + Math.random() * 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      gravity: 0,
+    });
+  }
+}
+
 function updateParticles(dtScale) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -261,6 +302,26 @@ let isFading = false;
 let fadeOpacity = 0;
 let fadeDirection = 1;
 let fadeCallback = null;
+
+// "Portal suck" — a short canned animation that plays the instant the
+// *final* checkpoint of a level is touched, before the fade-to-black
+// transition (isFading above) even starts: the player visibly shrinks,
+// spins, and slides into the checkpoint, with particles converging
+// inward instead of the usual outward burst. Runs in place of normal
+// updatePlayer() (see update()) — no input has anything left to do once
+// the level is already complete, and freezing the camera here reads as
+// "the world holds still while you get pulled in" rather than the camera
+// also chasing the animation. Colors are drawn from the equipped skin
+// (see updatePortalSuck()), so this looks at least a little different
+// per skin without needing a wholly separate effect per one.
+let isPortalSucking = false;
+let portalSuckProgress = 0; // 0..1
+const PORTAL_SUCK_DURATION = 34; // ticks, ~0.55s at 60fps
+let portalStartX = 0;
+let portalStartY = 0;
+let portalTargetX = 0;
+let portalTargetY = 0;
+let portalSpinAngle = 0;
 
 // Audio
 const audio = new Audio("./assets/music/starshade.mp3");
@@ -556,7 +617,10 @@ function resetLevelState() {
   squashX = 1;
   squashY = 1;
   cameraZoom = 1;
+  cameraVerticalAnchor = 0.5;
   dashTimeRemaining = 0;
+  isPortalSucking = false;
+  portalSuckProgress = 0;
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
@@ -604,7 +668,7 @@ function resetLevelState() {
   // just be wasted motion nobody sees, and skipping it means the fade-in
   // never has to "catch up" to the player.
   cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight / 2;
+  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
 }
 
 // Gives a level's opening view a nice frame: shifts every y (platforms,
@@ -982,6 +1046,11 @@ function drawPlayer() {
 
   ctx.save();
   ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
+  // The portal-suck spin (see updatePortalSuck()) applies before the
+  // per-shape rotations below (circle roll, triangle tumble) so it
+  // compounds with whichever one the equipped skin already does, rather
+  // than needing a separate spin effect written per shape.
+  if (isPortalSucking) ctx.rotate(portalSpinAngle);
   ctx.scale(squashX, squashY);
 
   if (skin.shape === "image" && skin.image) {
@@ -1495,6 +1564,37 @@ function resolveAxis(axis, dtScale) {
   return { grounded, groundedOn, wallHit };
 }
 
+// Animates the "portal suck" (see its state's declaration above) and, once
+// it finishes, hands off to the normal fade-to-black/next-level sequence —
+// this used to start immediately on touching the final checkpoint;  now
+// that runs after this plays out instead.
+function updatePortalSuck(dtScale) {
+  portalSuckProgress = Math.min(1, portalSuckProgress + dtScale / PORTAL_SUCK_DURATION);
+  const t = portalSuckProgress;
+  const eased = t * t; // accelerates in, rather than a constant-speed slide
+  player.x = lerp(portalStartX, portalTargetX, eased);
+  player.y = lerp(portalStartY, portalTargetY, eased);
+  // Shrinks to a sliver but never fully to 0 — keeps ctx.scale() away from
+  // a degenerate 0x0 transform right at the last frame.
+  squashX = 1 - eased * 0.92;
+  squashY = 1 - eased * 0.92;
+  portalSpinAngle += (0.15 + eased * 0.6) * dtScale; // spins faster the closer it gets
+
+  const skin = StarshadeEconomy.getEquippedSkin();
+  spawnConvergingParticles(player.x, player.y, 2, [
+    skin.fill || "rgba(160,66,211,0.85)",
+    skin.glow || "#fff",
+  ]);
+
+  if (portalSuckProgress >= 1) {
+    isPortalSucking = false;
+    isFading = true;
+    fadeOpacity = 0;
+    fadeDirection = 1;
+    fadeCallback = advanceToNextLevel;
+  }
+}
+
 function updatePlayer(dtScale) {
   // Fetched once and reused for every ability check below (dash,
   // slippery movement, sticky wall-cling, bouncy landing) — the equipped
@@ -1697,7 +1797,6 @@ function updatePlayer(dtScale) {
       checkpoint.reached = true;
       checkpoint.reachedAt = Date.now();
       saveCheckpointProgress(currentLevel, index);
-      vibrateHaptic(15);
       consecutiveDeaths = 0; // real progress — the rubber-banding resets
       spawnParticles(checkpoint.x, checkpoint.y, 14, {
         colors: ["rgba(50,255,50,0.9)", "rgba(180,255,180,0.9)", "#fff"],
@@ -1707,12 +1806,28 @@ function updatePlayer(dtScale) {
         gravity: 0.05,
       });
 
-      // If it's the final checkpoint → start fade
-      if (index === checkpoints.length - 1 && !isFading) {
-        isFading = true;
-        fadeOpacity = 0;
-        fadeDirection = 1;
-        fadeCallback = advanceToNextLevel;
+      const isFinalCheckpoint = index === checkpoints.length - 1;
+      if (isFinalCheckpoint) {
+        // A longer, more distinct pattern for the one moment that ends a
+        // level — the same short pulse an ordinary checkpoint gives, then
+        // a rising double-pulse into one long buzz for the "the level
+        // just swallowed me whole" fade/transition that follows.
+        vibrateHaptic([15, 60, 40, 60, 220]);
+      } else {
+        vibrateHaptic(15);
+      }
+
+      // If it's the final checkpoint → play the portal-suck animation
+      // first (see updatePortalSuck()); it hands off to the actual
+      // fade-to-black/next-level sequence once it finishes.
+      if (isFinalCheckpoint && !isFading && !isPortalSucking) {
+        isPortalSucking = true;
+        portalSuckProgress = 0;
+        portalStartX = player.x;
+        portalStartY = player.y;
+        portalTargetX = checkpoint.x;
+        portalTargetY = checkpoint.y;
+        portalSpinAngle = 0;
       }
     }
   });
@@ -1789,11 +1904,21 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetX - cameraOffsetX) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
+  // Ease the vertical anchor first — it's part of this frame's Y target
+  // below, not just a cosmetic value read later.
+  const targetAnchor = grounded ? CAMERA_ANCHOR_GROUNDED : CAMERA_ANCHOR_AIRBORNE;
+  cameraVerticalAnchor +=
+    (targetAnchor - cameraVerticalAnchor) *
+    (1 - Math.pow(1 - CAMERA_ANCHOR_SMOOTHING, dtScale));
+
   // Same easing, vertically — this is what lets a level actually use more
   // than one screen's worth of height (a tall climb, a long drop) instead
   // of every platform needing to stay within a single fixed on-screen
-  // band (see applyLevelVerticalLayout()/docs/gameplay.md).
-  const targetCameraOffsetY = cameraTargetY - viewportHeight / 2;
+  // band (see applyLevelVerticalLayout()/docs/gameplay.md). Anchored at
+  // cameraVerticalAnchor rather than a flat 0.5 so the "mid-zone" framing
+  // above can shift more of the screen toward whatever's below the player
+  // while they're airborne.
+  const targetCameraOffsetY = cameraTargetY - viewportHeight * cameraVerticalAnchor;
   cameraOffsetY +=
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
@@ -1925,6 +2050,7 @@ function resetPlayer() {
   wasGrounded = true;
   riddenPlatform = null; // respawning off of whatever they died on/near
   cameraZoom = 1; // dying mid-air shouldn't leave the view zoomed out on respawn
+  cameraVerticalAnchor = 0.5;
   dashTimeRemaining = 0;
 
   // Snap (don't smoothly lerp) the camera to the respawn point — same
@@ -1941,7 +2067,7 @@ function resetPlayer() {
   // player can't act their way out of, since every attempt starts by
   // re-dying before the level has even scrolled back into view.
   cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight / 2;
+  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
 }
 
 // -------------------------------------------------------------
@@ -1954,11 +2080,18 @@ function update(dtScale) {
     draw(dtScale);
     return;
   }
-  // While pinned at black between levels (fadeDirection === 0) or actively
-  // fading, the outgoing level's platforms/checkpoints/etc. may already
-  // have been cleared by loadLevel() — skip gameplay updates and just let
-  // the overlay run until the new level is ready.
-  if (!isFading || fadeDirection === -1) {
+  if (isPortalSucking) {
+    // The level's already complete at this point — no input has anything
+    // left to do, so this plays out as a canned animation instead of
+    // normal updatePlayer(), with the camera left exactly where it was
+    // (see the portal-suck state's declaration) rather than also chasing
+    // it.
+    updatePortalSuck(dtScale);
+  } else if (!isFading || fadeDirection === -1) {
+    // While pinned at black between levels (fadeDirection === 0) or
+    // actively fading, the outgoing level's platforms/checkpoints/etc.
+    // may already have been cleared by loadLevel() — skip gameplay
+    // updates and just let the overlay run until the new level is ready.
     updatePlayer(dtScale);
     updateLevelText();
     updateTutorialTips();
@@ -1968,9 +2101,10 @@ function update(dtScale) {
 }
 
 function setPaused(paused) {
-  // Disallowed mid-transition (the level data may momentarily be empty)
-  // or once the game-complete screen is already up.
-  if (isFading) return;
+  // Disallowed mid-transition (the level data may momentarily be empty),
+  // during the portal-suck animation, or once the game-complete screen is
+  // already up.
+  if (isFading || isPortalSucking) return;
   if (!document.getElementById("gameCompleteMenu").classList.contains("hidden")) return;
   isPaused = paused;
   document.getElementById("pauseMenu").classList.toggle("hidden", !paused);
@@ -2067,6 +2201,11 @@ document.addEventListener("keydown", (e) => {
 // settings.js's "Click/Tap to Jump" toggle) so both trigger the exact same
 // jump-or-extra-jump logic.
 function tryJump() {
+  // Nothing to do once the level's finished (fading out) or mid-portal-
+  // suck — checked once here instead of at every call site (keyboard,
+  // click, touch) so none of them can forget it.
+  if (isFading || isPortalSucking) return;
+
   // wasGrounded (not player.dy === 0) is the correct "on solid ground"
   // signal — dy also lands on exactly 0 for one frame when the player
   // bonks their head on a platform's underside, or on the invisible
