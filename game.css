@@ -162,12 +162,12 @@ canvas {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  color: #f4f4f4;
-  font-size: 2rem;
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
+  color: #F7F4FF;
+  font-size: 1.9rem;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
   opacity: 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
   transition: opacity 1s ease-in-out;
   z-index: 1000;
 }
@@ -177,15 +177,16 @@ canvas {
   position: fixed;
   top: calc(20px + env(safe-area-inset-top, 0px));
   right: calc(20px + env(safe-area-inset-right, 0px));
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(20, 10, 45, 0.6);
   backdrop-filter: blur(8px);
   padding: 10px 18px;
-  border: 2px solid #ffcf4d;
-  border-radius: 10px;
-  font-family: 'Staatliches', sans-serif;
-  font-size: 1.3rem;
+  border: 1.5px solid rgba(255, 207, 77, 0.55);
+  border-radius: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
   color: #ffcf4d;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 16px rgba(255, 207, 77, 0.25);
   z-index: 1000;
   opacity: 0;
   transform: translateY(-10px);
@@ -211,21 +212,25 @@ canvas {
   height: 44px;
   padding: 0;
   border-radius: 50%;
-  border: 2px solid #4d3f91;
-  background: rgba(0, 0, 0, 0.6);
-  color: #dcd4ff;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(20, 10, 45, 0.5);
+  backdrop-filter: blur(6px);
+  color: #F7F4FF;
   cursor: pointer;
   z-index: 1000;
-  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 #pause-open-button:hover {
-  background-color: rgba(30, 15, 63, 0.9);
+  background: rgba(139, 92, 246, 0.28);
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.45);
   transform: scale(1.08);
 }
 
 #gameCompleteCoins {
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   font-size: 1.3rem;
   color: #ffcf4d;
   margin: -10px 0 20px;
@@ -434,10 +439,11 @@ canvas {
     justify-content: center;
     text-align: center;
     padding: 40px;
-    background: #0d0d0d;
-    color: #dcd4ff;
-    font-family: 'Cinzel', serif;
-    font-size: 1.3rem;
+    background: #08061A;
+    color: #F7F4FF;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 1.2rem;
   }
 }
 
@@ -466,24 +472,45 @@ canvas {
 
 #settingsOverlay .setting-item {
   margin: 14px 0;
-  font-family: 'Cinzel', serif;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 #settingsOverlay .setting-item label {
   display: block;
   margin-bottom: 6px;
-  color: #dcd4ff;
-  font-weight: bold;
+  color: #D9D6F5;
+  font-weight: 600;
 }
 
 #settingsOverlay input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 8px;
-  background: #4d3f91;
-  border-radius: 5px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
   outline: none;
+}
+
+#settingsOverlay input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #C4B5FD, #8B5CF6);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+  cursor: pointer;
+}
+
+#settingsOverlay input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #C4B5FD, #8B5CF6);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+  cursor: pointer;
 }
 
 #settingsOverlay select,
@@ -491,20 +518,20 @@ canvas {
   width: 100%;
   box-sizing: border-box;
   padding: 10px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #dcd4ff;
-  border-radius: 8px;
-  font-family: 'Cinzel', serif;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  color: #F7F4FF;
+  border-radius: 10px;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1rem;
 }
 
 #settingsOverlay .bindings-panel {
   margin-top: 12px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 2px solid #4d3f91;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid rgba(197, 178, 255, 0.3);
+  border-radius: 12px;
 }
 
 #settingsOverlay .binding-row {
@@ -515,37 +542,43 @@ canvas {
 }
 
 #settingsOverlay .binding-label {
-  color: #dcd4ff;
+  color: #D9D6F5;
 }
 
 #settingsOverlay .rebind-button,
 #settingsOverlay .edit-button {
-  padding: 6px 14px;
+  padding: 8px 16px;
   min-width: 90px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #dcd4ff;
-  border-radius: 8px;
+  border: 1.5px solid rgba(197, 178, 255, 0.45);
+  background: rgba(139, 92, 246, 0.14);
+  color: #F7F4FF;
+  border-radius: 10px;
   cursor: pointer;
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
-  transition: background-color 0.2s;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 #settingsOverlay .rebind-button:hover,
 #settingsOverlay .edit-button:hover {
-  background-color: #0e2338;
+  background: rgba(139, 92, 246, 0.26);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);
 }
 
 #settingsOverlay .rebind-button.listening {
-  background-color: #4d3f91;
-  animation: pulse 1s infinite;
+  background: rgba(139, 92, 246, 0.3);
+  animation: listening-pulse 1s infinite;
+}
+
+@keyframes listening-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(139, 92, 246, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.9); }
 }
 
 #settingsOverlay .bindings-hint {
   margin: 10px 0 0;
   font-size: 0.8em;
-  color: #8a7ec9;
+  color: #8B86B3;
   text-align: center;
 }
 
@@ -572,7 +605,8 @@ canvas {
 
 #levelMapOverlay .coin-balance {
   margin: 8px 0 0;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   font-size: 1.1rem;
   color: #ffcf4d;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
@@ -608,16 +642,16 @@ canvas {
 }
 
 #levelMapOverlay .tree-path-full {
-  stroke: #4d3f91;
-  stroke-width: 5;
+  stroke: rgba(197, 178, 255, 0.3);
+  stroke-width: 3;
   stroke-dasharray: 2 16;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 #levelMapOverlay .tree-path-lit {
-  stroke: #32cd32;
-  stroke-width: 5;
-  filter: drop-shadow(0 0 6px rgba(50, 205, 50, 0.6));
+  stroke: #22D3EE;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6));
 }
 
 #levelMapOverlay .level-node {
@@ -632,7 +666,7 @@ canvas {
   font-family: inherit;
   background: none;
   border: none;
-  color: #dcd4ff;
+  color: #D9D6F5;
   padding: 0;
 }
 
@@ -640,34 +674,34 @@ canvas {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: #161a45;
-  border: 3px solid #4d3f91;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(197, 178, 255, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Almendra Display', serif;
-  font-size: 1.4rem;
-  color: #b7a0ff;
-  text-shadow: 1px 1px 4px #8a4de4;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #D9D6F5;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 #levelMapOverlay .level-node:hover:not(.locked) .level-node-circle {
   transform: scale(1.1);
-  box-shadow: 0 0 22px rgba(106, 90, 205, 0.7);
-  background-color: #1e2358;
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.16);
 }
 
 #levelMapOverlay .level-node.current .level-node-circle {
-  border-color: #87cefa;
-  box-shadow: 0 0 18px rgba(135, 206, 250, 0.55);
+  border-color: #22D3EE;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.5);
   animation: node-pulse 2s ease-in-out infinite;
 }
 
 #levelMapOverlay .level-node.completed .level-node-circle {
-  border-color: #32cd32;
-  box-shadow: 0 0 14px rgba(50, 205, 50, 0.4);
-  color: #d6ffd6;
+  border-color: #FBBF24;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.4);
+  color: #ffcf4d;
 }
 
 #levelMapOverlay .level-node.locked {
@@ -675,34 +709,36 @@ canvas {
 }
 
 #levelMapOverlay .level-node.locked .level-node-circle {
-  opacity: 0.5;
+  opacity: 0.45;
   filter: grayscale(0.8);
 }
 
 @keyframes node-pulse {
-  0%, 100% { box-shadow: 0 0 18px rgba(135, 206, 250, 0.55); }
-  50% { box-shadow: 0 0 28px rgba(135, 206, 250, 0.85); }
+  0%, 100% { box-shadow: 0 0 18px rgba(34, 211, 238, 0.5); }
+  50% { box-shadow: 0 0 28px rgba(34, 211, 238, 0.85); }
 }
 
 #levelMapOverlay .level-node-name {
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.68rem;
+  font-weight: 600;
   text-align: center;
   line-height: 1.15;
   letter-spacing: 0.3px;
   max-width: 100px;
+  color: #9C97C4;
 }
 
 #levelMapOverlay .level-node.locked .level-node-name {
-  color: #6c6395;
+  color: #565179;
 }
 
 #levelMapOverlay .level-node.completed .level-node-name {
-  color: #7be07b;
+  color: #ffcf4d;
 }
 
 #levelMapOverlay .level-node.current .level-node-name {
-  color: #9fd9ff;
+  color: #67E8F9;
 }
 
 #levelMapOverlay .menu-button {
@@ -870,7 +906,8 @@ canvas {
 
 #shopOverlay .coin-balance {
   margin: 8px 0 16px;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   font-size: 1.1rem;
   color: #ffcf4d;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);

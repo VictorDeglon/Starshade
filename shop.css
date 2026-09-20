@@ -24,26 +24,28 @@
 .shop-tab {
   flex: 1 1 auto;
   padding: 10px 14px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #b7a0ff;
+  border: 1.5px solid rgba(197, 178, 255, 0.35);
+  background: rgba(255, 255, 255, 0.03);
+  color: #9C97C4;
   border-radius: 10px;
   cursor: pointer;
-  font-family: "Cinzel", serif;
-  font-weight: bold;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
   font-size: 0.9rem;
-  transition: background-color 0.2s, color 0.2s, transform 0.15s;
+  transition: background-color 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
   white-space: nowrap;
 }
 
 .shop-tab:hover {
-  background-color: #0e2338;
+  background: rgba(139, 92, 246, 0.14);
+  color: #F7F4FF;
 }
 
 .shop-tab[aria-selected="true"] {
-  background: #4d3f91;
-  color: #fff;
-  box-shadow: 0 0 14px rgba(138, 92, 255, 0.6);
+  background: rgba(139, 92, 246, 0.24);
+  border-color: rgba(197, 178, 255, 0.65);
+  color: #F7F4FF;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.45);
 }
 
 .shop-tab-panel.hidden {
@@ -66,9 +68,9 @@
   align-items: center;
   gap: 8px;
   padding: 16px 12px;
-  background: rgba(15, 8, 35, 0.6);
-  border: 2px solid #4d3f91;
-  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
   text-align: center;
 }
 
@@ -76,21 +78,21 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  border: 3px solid #4d3f91;
-  box-shadow: 0 0 22px var(--glow, rgba(106, 90, 205, 0.5));
+  box-shadow: 0 0 22px var(--glow, rgba(139, 92, 246, 0.5));
 }
 
 .shop-item-card h3 {
   margin: 0;
   font-size: 1rem;
-  color: #f4f4f4;
-  font-family: "Staatliches", sans-serif;
+  color: #F7F4FF;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
 }
 
 .shop-item-card p.shop-item-desc {
   margin: 0;
   font-size: 0.78rem;
-  color: #9b91c9;
+  color: #9C97C4;
   min-height: 2.2em;
 }
 
@@ -101,9 +103,9 @@
   font-size: 0.68rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--rarity-color, #7c88b8);
-  border: 1.5px solid var(--rarity-color, #7c88b8);
-  background: rgba(10, 6, 30, 0.6);
+  color: var(--rarity-color, #9CA3AF);
+  border: 1.5px solid var(--rarity-color, #9CA3AF);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ---- Skins gallery (reuses the original carousel look) ---- */
@@ -116,18 +118,19 @@
 .shop-subtab {
   flex: 1 1 auto;
   padding: 8px 12px;
-  border: 2px solid #4d3f91;
+  border: 1.5px solid rgba(197, 178, 255, 0.3);
   background: transparent;
-  color: #9b91c9;
-  border-radius: 8px;
+  color: #8B86B3;
+  border-radius: 10px;
   cursor: pointer;
-  font-family: "Cinzel", serif;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
   font-size: 0.85rem;
 }
 
 .shop-subtab.active {
-  background: #1e0f3f;
-  color: #dcd4ff;
+  background: rgba(139, 92, 246, 0.18);
+  color: #F7F4FF;
 }
 
 .shop-subtab-panel.hidden {
@@ -148,16 +151,17 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #dcd4ff;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(139, 92, 246, 0.1);
+  color: #F7F4FF;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+  transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
 }
 
 .carousel-arrow:hover {
-  background-color: #0e2338;
+  background: rgba(139, 92, 246, 0.24);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);
   transform: scale(1.08);
 }
 
@@ -194,10 +198,10 @@
   height: 180px;
   background-size: cover;
   background-position: center;
-  background-color: #161a45;
-  border: 3px solid #4d3f91;
-  box-shadow: 0 0 40px var(--glow, rgba(106, 90, 205, 0.5)),
-    inset 0 0 30px rgba(0, 0, 0, 0.4);
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  box-shadow: 0 0 40px var(--glow, rgba(139, 92, 246, 0.5)),
+    inset 0 0 30px rgba(0, 0, 0, 0.3);
   animation: skin-float 4s ease-in-out infinite;
   position: relative;
 }
@@ -253,18 +257,19 @@
 
 .skin-info {
   text-align: center;
-  font-family: "Staatliches", sans-serif;
+  font-family: "Space Grotesk", sans-serif;
 }
 
 .skin-info h2 {
-  font-size: 1.4rem;
-  color: #f4f4f4;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #F7F4FF;
   margin: 0 0 6px;
 }
 
 .skin-info .coins {
-  font-weight: bold;
-  color: #87cefa;
+  font-weight: 700;
+  color: #ffcf4d;
 }
 
 .rarity-badge {
@@ -275,26 +280,27 @@
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--rarity-color, #7c88b8);
-  border: 1.5px solid var(--rarity-color, #7c88b8);
-  background: rgba(10, 6, 30, 0.6);
+  color: var(--rarity-color, #9CA3AF);
+  border: 1.5px solid var(--rarity-color, #9CA3AF);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .shop-action-button {
   font-size: 0.95rem;
   padding: 9px 20px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #dcd4ff;
-  border-radius: 10px;
+  border: 1.5px solid rgba(197, 178, 255, 0.45);
+  background: rgba(139, 92, 246, 0.16);
+  color: #F7F4FF;
+  border-radius: 12px;
   cursor: pointer;
-  font-family: "Cinzel", serif;
-  font-weight: bold;
-  transition: background-color 0.3s, transform 0.2s;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
+  transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
 }
 
 .shop-action-button:hover:not(:disabled) {
-  background-color: #0e2338;
+  background: rgba(139, 92, 246, 0.28);
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.4);
   transform: scale(1.05);
 }
 
@@ -317,7 +323,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 2px solid #4d3f91;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
   background: transparent;
   padding: 0;
   cursor: pointer;
@@ -325,8 +331,8 @@
 }
 
 .dot:hover { transform: scale(1.2); }
-.dot.active { background: #87cefa; border-color: #87cefa; }
-.dot.owned { border-color: #32cd32; }
+.dot.active { background: #22D3EE; border-color: #22D3EE; }
+.dot.owned { border-color: #FBBF24; }
 
 /* ---- Custom skin builder ---- */
 .skin-builder {
@@ -359,8 +365,9 @@
 
 .builder-field label {
   font-size: 0.8rem;
-  color: #b7a0ff;
-  font-family: "Staatliches", sans-serif;
+  color: #B9AEDD;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
 }
 
 .builder-field-inline {
@@ -372,19 +379,19 @@
 .builder-field input[type="color"] {
   width: 100%;
   height: 36px;
-  border: 2px solid #4d3f91;
-  border-radius: 8px;
-  background: #1e0f3f;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
 }
 
 .builder-field input[type="text"] {
   padding: 8px 10px;
-  border: 2px solid #4d3f91;
-  border-radius: 8px;
-  background: #1e0f3f;
-  color: #dcd4ff;
-  font-family: "Cinzel", serif;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #F7F4FF;
+  font-family: "Space Grotesk", sans-serif;
 }
 
 .builder-swatch-row {
@@ -395,15 +402,15 @@
 .builder-shape-option {
   width: 36px;
   height: 36px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  border-radius: 8px;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
   cursor: pointer;
 }
 
 .builder-shape-option.active {
-  border-color: #87cefa;
-  box-shadow: 0 0 10px rgba(135, 206, 250, 0.6);
+  border-color: #22D3EE;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
 }
 
 .builder-shape-option[data-shape="circle"] { border-radius: 50%; }
@@ -420,17 +427,17 @@
 
 .builder-saved-item {
   padding: 6px 12px;
-  border: 2px solid #4d3f91;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
   border-radius: 999px;
-  background: #1e0f3f;
-  color: #dcd4ff;
+  background: rgba(255, 255, 255, 0.04);
+  color: #D9D6F5;
   font-size: 0.78rem;
   cursor: pointer;
 }
 
 .builder-saved-item.equipped {
-  border-color: #87cefa;
-  color: #87cefa;
+  border-color: #22D3EE;
+  color: #22D3EE;
 }
 
 /* -------------------------------------------------------------
@@ -501,8 +508,11 @@
   padding: 8px 12px;
 }
 
+/* Mobile play is landscape-only (see the rotate-prompt gate) — the phone
+   never actually shows this in portrait, so 2 columns spends the real
+   available width instead of leaving half the panel empty. */
 .layout-mobile .shop-grid {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   max-height: 38vh;
 }
 

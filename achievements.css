@@ -24,11 +24,11 @@
   width: 300px;
   max-width: calc(100vw - 40px);
   padding: 12px 16px;
-  background: rgba(15, 8, 35, 0.92);
-  border: 2px solid #4d3f91;
+  background: rgba(20, 10, 45, 0.75);
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
   border-radius: 14px;
-  box-shadow: 0 0 24px rgba(106, 66, 179, 0.55), 0 8px 20px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.4), 0 8px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
   transform: translateX(120%);
   opacity: 0;
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.35s ease;
@@ -53,8 +53,8 @@
 
 .achievement-popup-text {
   min-width: 0;
-  font-family: "Cinzel", serif;
-  color: #dcd4ff;
+  font-family: "Space Grotesk", sans-serif;
+  color: #D9D6F5;
 }
 
 .achievement-popup-label {
@@ -77,7 +77,7 @@
 
 .achievement-popup-desc {
   font-size: 0.8rem;
-  color: #b7a0ff;
+  color: #9C97C4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -99,42 +99,17 @@
   }
 }
 
-/* -------------------------------------------------------------
-   ACHIEVEMENTS GALLERY PAGE (achievements.html)
-   Mirrors levels.css's shell — same scrollable vertical page pattern.
-   ------------------------------------------------------------- */
-html {
-  background: #050012;
-  overscroll-behavior-y: none;
-}
-
-body {
-  font-family: "Cinzel", serif;
-  background: radial-gradient(circle at 50% 50%, #10133a, #050012);
-  color: #f4f4f4;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.header {
-  width: 100%;
-  text-align: center;
-  padding: 20px;
-  background-color: #0e1a3c;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-}
-
-.header h1 {
-  font-size: 2.5rem;
-  color: #6a5acd;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-family: "Almendra Display", serif;
-  margin: 0;
-}
+/* This file used to also carry a full `html`/`body`/`.header`/`.header h1`
+   page shell from before the SPA merge folded standalone achievements.html
+   into the single index.html. That `body` rule (font, background,
+   `display: flex; flex-direction: column`) had the same specificity as
+   game.css's real `body` rule and this file loads after game.css, so it
+   was silently winning the cascade for the WHOLE app's <body> — not just
+   this overlay — forcing a flex layout onto the canvas/overlay shell that
+   nothing here actually expects. `.header` itself matched no element on
+   the current page at all. Removed rather than left as dead-but-active
+   weight; only what the achievements overlay itself actually uses (below)
+   is real. */
 
 .achievements-progress {
   margin-top: 8px;
@@ -209,68 +184,27 @@ body {
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--rarity-color, #7c88b8);
-  border: 1.5px solid var(--rarity-color, #7c88b8);
-  background: rgba(10, 6, 30, 0.6);
+  color: var(--rarity-color, #9CA3AF);
+  border: 1.5px solid var(--rarity-color, #9CA3AF);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .achievement-card-reward {
   margin-top: 6px;
   font-size: 0.75rem;
-  color: #87cefa;
+  color: #67E8F9;
 }
 
-/* Back button, matching the theme used on every other page */
-.back-button {
-  font-size: 22px;
-  padding: 12px 25px;
-  border: 2px solid #4d3f91;
-  background: #1e0f3f;
-  color: #dcd4ff;
-  border-radius: 12px;
-  cursor: pointer;
-  font-family: "Cinzel", serif;
-  transition: background-color 0.3s, transform 0.3s;
-  margin: 10px auto 40px;
-  display: block;
-}
-
-.back-button:hover {
-  background-color: #0e2338;
-  transform: scale(1.1);
-}
+/* .back-button/.top-back-button rules used to live here too — leftover
+   from before the SPA merge, when this page had its own standalone
+   achievements.html with a real Back button of its own. The merged
+   overlay uses game.css's `.menu-button` (#achievements-back-button)
+   instead, and no element on the current page carries either of those
+   two classes, so they were dead weight rather than active styling. */
 
 @media screen and (max-width: 500px) {
   .achievements-grid {
     grid-template-columns: 1fr;
     padding: 24px 16px 10px;
   }
-}
-
-/* Top-corner back button — a quicker way out than scrolling all the way
-   down to "Back to Menu" on a long page. Same look as game.html's pause
-   button (SVG glyph, not a unicode arrow, for crisp rendering at any
-   size). */
-.top-back-button {
-  position: fixed;
-  top: calc(20px + env(safe-area-inset-top, 0px));
-  left: calc(20px + env(safe-area-inset-left, 0px));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid #4d3f91;
-  background: rgba(0, 0, 0, 0.6);
-  color: #dcd4ff;
-  cursor: pointer;
-  z-index: 1000;
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-.top-back-button:hover {
-  background-color: rgba(30, 15, 63, 0.9);
-  transform: scale(1.08);
 }
