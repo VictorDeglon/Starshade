@@ -45,10 +45,26 @@
     el.style.borderRadius = "";
     el.style.animation = "";
     el.style.borderColor = "";
+    // Clearing the `background` *shorthand* also clears any longhand
+    // (like backgroundImage below) already set on this element — the
+    // CSSOM treats a shorthand assignment as authoritative over its own
+    // longhands, even when the shorthand's new value is empty. Clearing
+    // it up front, before any branch below sets backgroundImage, avoids
+    // wiping out whichever one just set it (this exact bug silently blanked
+    // the shop preview for both `art` skins and the pre-existing `image`
+    // skin, Eclipse).
+    el.style.background = "";
 
-    if (skin.shape === "image" && skin.image) {
+    if (skin.art) {
+      // Real illustrated SVG art, clipped to the skin's own shape family
+      // (not forced circular the way plain `image` skins below are) — see
+      // skinsData.js's field docs.
+      el.style.backgroundImage = `url('${skin.art}')`;
+      if (skin.shape === "circle") el.classList.add("shape-circle");
+      else if (skin.shape === "triangle") el.classList.add("shape-triangle");
+      else el.classList.add("shape-square");
+    } else if (skin.shape === "image" && skin.image) {
       el.style.backgroundImage = `url('${skin.image}')`;
-      el.style.background = "";
       el.classList.add("shape-circle");
     } else {
       el.style.backgroundImage = "";

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Comet Runner skin art (dash ability, square family — see
+       skinsData.js's `art` field and game.js's drawPlayer(), which clips
+       this to the same square silhouette the flat-color version used).
+       A speed-comet motif: a hot white head trailing three tapered
+       magenta-pink streaks across a deep-garnet square, plus a scatter of
+       spark dots — reads as "fast" even at the in-game 25x25px size.
+       game.js/shop.js both hue-rotate this over time (see `animated`)
+       for the actual "in motion" flourish. -->
+  <defs>
+    <radialGradient id="cr-bg" cx="30%" cy="28%" r="80%">
+      <stop offset="0%" stop-color="#ff6fa8" />
+      <stop offset="55%" stop-color="#c81f5e" />
+      <stop offset="100%" stop-color="#590a28" />
+    </radialGradient>
+    <linearGradient id="cr-streak" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff6f9" />
+      <stop offset="100%" stop-color="#ff6fa8" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" fill="url(#cr-bg)" />
+  <g stroke="url(#cr-streak)" stroke-linecap="round" fill="none">
+    <path d="M40 8 L14 34" stroke-width="6" opacity="0.9" />
+    <path d="M44 16 L22 38" stroke-width="4" opacity="0.7" />
+    <path d="M46 25 L28 43" stroke-width="2.5" opacity="0.5" />
+  </g>
+  <circle cx="40" cy="8" r="5.5" fill="#fffaf2" />
+  <circle cx="40" cy="8" r="9" fill="#fff2d8" opacity="0.35" />
+  <g fill="#ffe6f0">
+    <circle cx="10" cy="10" r="1.4" />
+    <circle cx="18" cy="6" r="1" />
+    <circle cx="8" cy="30" r="1.1" />
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Glacial Drifter skin art (slippery ability, triangle family — see
+       skinsData.js's `art` field). A cut-crystal shard motif on the
+       skin's existing rose-red hue (kept as-is rather than reinterpreted
+       to blue/white — the palette already shipped): converging facet
+       lines like a gem cut, plus a couple of thin bright "slick"
+       highlight streaks for the icy-slide read. Bold facets on purpose
+       so it still reads at the in-game 25x25px size. -->
+  <defs>
+    <linearGradient id="gd-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffd2df" />
+      <stop offset="45%" stop-color="#e8365f" />
+      <stop offset="100%" stop-color="#5c0a1e" />
+    </linearGradient>
+  </defs>
+  <polygon points="24,3 45,45 3,45" fill="url(#gd-bg)" />
+  <g stroke="#fff0f4" stroke-width="1.4" opacity="0.75" fill="none">
+    <path d="M24 3 L24 45" />
+    <path d="M24 3 L13 45" />
+    <path d="M24 3 L35 45" />
+  </g>
+  <path d="M14 20 L22 12" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.85" />
+  <path d="M30 30 L37 24" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.6" />
+</svg>

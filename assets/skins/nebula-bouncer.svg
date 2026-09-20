@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Nebula Bouncer skin art (bouncy ability, circle family, mythic — see
+       skinsData.js's `art` field). A rainbow nebula-spiral motif baking in
+       several of the skin's own conic-gradient hues (green/cyan, violet,
+       pink) directly rather than one flat color, plus a bright core and a
+       thin "spring ring" accent for the bounce read — on top of the
+       shared hue-rotate shimmer game.js/shop.js already animate this
+       (and every other `animated: true` skin) with over time. -->
+  <defs>
+    <radialGradient id="nb-bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0d1030" />
+      <stop offset="100%" stop-color="#05061a" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#nb-bg)" />
+  <path d="M24 24 C30 20 34 24 30 30 C27 34 20 33 18 27 C16 21 21 14 29 15"
+        fill="none" stroke="#7CFFB2" stroke-width="3" stroke-linecap="round" opacity="0.9" />
+  <path d="M24 24 C18 28 15 23 19 18 C22 15 28 16 29 21"
+        fill="none" stroke="#c07bff" stroke-width="3" stroke-linecap="round" opacity="0.85" />
+  <path d="M24 24 C29 27 27 32 21 31"
+        fill="none" stroke="#ff7bd6" stroke-width="2.6" stroke-linecap="round" opacity="0.8" />
+  <circle cx="24" cy="24" r="4.2" fill="#f6fff9" />
+  <circle cx="24" cy="24" r="7" fill="none" stroke="#eafff2" stroke-width="1.2" opacity="0.5" />
+</svg>

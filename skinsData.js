@@ -24,8 +24,18 @@
 //
 // `trail: true` makes game.js spawn a continuous particle trail behind
 // the player while moving/airborne (see spawnParticles() call sites).
-// `animated: true` is a hint for the shop UI (skins.css) to apply a CSS
-// animation to that skin's preview — it has no effect on gameplay.
+// `animated: true` is a hint for the shop UI (shop.css) to apply a CSS
+// hue-rotate animation to that skin's preview — game.js mirrors the exact
+// same hue-rotate (via ctx.filter) on the in-game player when `art` is
+// set, so the two stay visually consistent.
+//
+// `art` is an optional SVG asset path (assets/skins/) layered inside the
+// skin's own `shape` silhouette instead of a flat `fill` color — unlike
+// `image` (below), which always renders as a plain circle regardless of
+// `shape`, an `art` skin still clips to its square/circle/triangle
+// outline in both the shop preview (shop.js's applySkinShape()) and
+// in-game (game.js's drawPlayer()), so it reads as "the same shape, with
+// real illustrated detail" rather than a different kind of skin.
 //
 // `ability` grants a gameplay perk on top of the cosmetic look — game.js
 // checks `StarshadeEconomy.getEquippedSkin().ability` at the relevant
@@ -762,6 +772,8 @@ const STARSHADE_SKINS = [
     unlockType: "achievement",
     achievement: "Achievement: \"Speed Demon\"",
     ability: "dash",
+    art: "assets/skins/comet-runner.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(340, 85%, 88%, 1), hsla(340, 90%, 62%, 1) 45%, hsla(340, 70%, 16%, 1) 100%)",
     glow: "hsla(340, 90%, 65%, 0.6)",
@@ -776,6 +788,8 @@ const STARSHADE_SKINS = [
     unlockType: "achievement",
     achievement: "Achievement: \"Sky Conqueror\"",
     ability: "tripleJump",
+    art: "assets/skins/skyward-herald.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(54, 85%, 88%, 1), hsla(54, 90%, 62%, 1) 45%, hsla(54, 70%, 16%, 1) 100%)",
     glow: "hsla(54, 90%, 65%, 0.6)",
@@ -790,6 +804,8 @@ const STARSHADE_SKINS = [
     unlockType: "achievement",
     achievement: "Achievement: \"Cling Master\"",
     ability: "sticky",
+    art: "assets/skins/wallcrawler-wisp.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(274, 85%, 88%, 1), hsla(274, 90%, 62%, 1) 45%, hsla(274, 70%, 16%, 1) 100%)",
     glow: "hsla(274, 90%, 65%, 0.6)",
@@ -804,6 +820,8 @@ const STARSHADE_SKINS = [
     unlockType: "achievement",
     achievement: "Achievement: \"Ice Cold\"",
     ability: "slippery",
+    art: "assets/skins/glacial-drifter.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(359, 85%, 88%, 1), hsla(359, 90%, 62%, 1) 45%, hsla(359, 70%, 16%, 1) 100%)",
     glow: "hsla(359, 90%, 65%, 0.6)",
@@ -818,6 +836,7 @@ const STARSHADE_SKINS = [
     unlockType: "achievement",
     achievement: "Achievement: \"Bounce King\"",
     ability: "bouncy",
+    art: "assets/skins/nebula-bouncer.svg",
     trail: true,
     animated: true,
     preview: "conic-gradient(from 0deg, hsla(87, 90%, 62%, 1), hsla(177, 90%, 62%, 1), hsla(267, 90%, 62%, 1), hsla(357, 90%, 62%, 1), hsla(87, 90%, 62%, 1))",

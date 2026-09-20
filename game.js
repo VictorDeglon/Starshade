@@ -1754,6 +1754,25 @@ function drawDeathAnimation() {
   ctx.restore();
 }
 
+// Draws an `art` skin's SVG (see skinsData.js's field docs) into whatever
+// clip region the caller already set up (the exact same square/circle/
+// triangle path the flat-fill version would have used) — called after
+// that path's own ctx.fill() so a not-yet-loaded image still shows the
+// skin's flat `fill` color underneath for the handful of frames before it
+// decodes, exactly like drawImageSkin()'s own fallback. `animated` skins
+// hue-rotate over a 5s cycle — the exact same period as shop.css's
+// `skin-spin` keyframes — so the in-game player and its shop preview
+// shift color in lockstep rather than just both happening to animate.
+function drawSkinArt(skin, x, y, w, h) {
+  const img = getSkinImage(skin.art);
+  if (!(img.complete && img.naturalWidth > 0)) return;
+  if (skin.animated) {
+    ctx.filter = `hue-rotate(${((Date.now() / 5000) * 360) % 360}deg)`;
+  }
+  ctx.drawImage(img, x, y, w, h);
+  ctx.filter = "none";
+}
+
 function drawPlayer() {
   if (isDying) {
     drawDeathAnimation();
@@ -1797,13 +1816,26 @@ function drawPlayer() {
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
+    if (skin.art) {
+      // circleRollAngle above already rotates this whole context, so the
+      // art itself visibly spins with the roll — no extra work needed to
+      // make an `art` circle skin read as rolling.
+      ctx.save();
+      ctx.clip();
+      drawSkinArt(skin, -r, -r, r * 2, r * 2);
+      ctx.restore();
+    }
     ctx.stroke();
-    // A rim mark so the roll is actually visible — a plain filled circle
-    // looks identical at every rotation otherwise.
-    ctx.beginPath();
-    ctx.arc(r * 0.55, 0, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = skin.stroke;
-    ctx.fill();
+    if (!skin.art) {
+      // A rim mark so the roll is actually visible on a flat-color circle
+      // — a plain filled circle looks identical at every rotation
+      // otherwise. Skipped for `art` skins, whose own illustration
+      // already gives the roll something to visibly turn.
+      ctx.beginPath();
+      ctx.arc(r * 0.55, 0, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = skin.stroke;
+      ctx.fill();
+    }
     ctx.restore();
   } else if (skin.shape === "triangle") {
     const inset = (halfW - lineWidth / 2) / halfW;
@@ -1824,12 +1856,30 @@ function drawPlayer() {
     ctx.lineTo(-halfW * inset, halfH * inset);
     ctx.closePath();
     ctx.fill();
+    if (skin.art) {
+      ctx.save();
+      ctx.clip();
+      drawSkinArt(
+        skin,
+        -halfW * inset,
+        -halfH * inset,
+        halfW * inset * 2,
+        halfH * inset * 2
+      );
+      ctx.restore();
+    }
     ctx.stroke();
     ctx.restore();
   } else {
     ctx.beginPath();
     ctx.rect(-halfW, -halfH, player.width, player.height);
     ctx.fill();
+    if (skin.art) {
+      ctx.save();
+      ctx.clip();
+      drawSkinArt(skin, -halfW, -halfH, player.width, player.height);
+      ctx.restore();
+    }
     ctx.strokeRect(
       -halfW + lineWidth / 2,
       -halfH + lineWidth / 2,

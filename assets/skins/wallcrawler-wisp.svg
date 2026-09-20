@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Wallcrawler Wisp skin art (sticky ability, circle family — see
+       skinsData.js's `art` field). A ghostly climbing-wisp motif on a
+       deep violet orb: a soft spiral wisp trail plus four small "grip
+       pad" dots ringing the edge, hinting at clinging/climbing without
+       needing a literal spider — bold enough to read at the in-game
+       25x25px size. -->
+  <defs>
+    <radialGradient id="ww-bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#c9a8ff" />
+      <stop offset="55%" stop-color="#7c3fd6" />
+      <stop offset="100%" stop-color="#2a0f56" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#ww-bg)" />
+  <path d="M24 34 C15 34 12 27 17 22 C21 18 27 20 26 25 C25.4 28 21.5 28.5 21 25.5"
+        fill="none" stroke="#f2e6ff" stroke-width="3" stroke-linecap="round" opacity="0.92" />
+  <circle cx="21" cy="25.5" r="1.6" fill="#fdf7ff" />
+  <g fill="#e6d4ff" opacity="0.85">
+    <circle cx="24" cy="7" r="2" />
+    <circle cx="41" cy="24" r="2" />
+    <circle cx="24" cy="41" r="2" />
+    <circle cx="7" cy="24" r="2" />
+  </g>
+</svg>
