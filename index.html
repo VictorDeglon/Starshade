@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Starshade</title>
+    <!-- Open the connection to the font CDN while the HTML is still
+         parsing — on a phone's cellular link the DNS+TLS handshake to a
+         second origin is a good chunk of the time-to-first-frame, and the
+         stylesheet below is render-blocking until it arrives. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&family=Orbitron:wght@700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"

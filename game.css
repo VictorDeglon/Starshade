@@ -1,10 +1,19 @@
 /* General Styles */
+html {
+  /* Nothing on this page is meant to scroll at the document level (every
+     screen is a fixed full-viewport overlay) — this stops the mobile
+     rubber-band/pull-to-refresh bounce that iOS/Android still apply to an
+     overflow: hidden body when a drag lands on a non-scrolling area. */
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   padding: 0;
   background: #08061A;
   font-family: 'Space Grotesk', sans-serif;
   overflow: hidden;
+  overscroll-behavior: none;
   color: #F7F4FF;
 }
 
@@ -28,6 +37,16 @@ canvas {
      pause button and every menu are separate elements, so hovering them
      still shows a normal cursor. */
   cursor: none;
+}
+
+/* The game canvas is created opaque (an `alpha: false` 2D context — see
+   the top of game.js — cheaper to composite on phones), which means it's
+   a solid black rectangle from page load until the first frame is drawn.
+   Kept invisible until startGame() flags the body so the loading screen
+   and main menu keep showing .galaxy-bg through their translucent panels
+   before Play, exactly as they did when the canvas was transparent. */
+body:not(.game-running) #gameCanvas {
+  visibility: hidden;
 }
 
 /* Menu shell — every overlay (main menu, pause, settings, levels,
@@ -284,11 +303,19 @@ canvas {
   padding-top: max(16px, env(safe-area-inset-top, 0px));
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   background: rgba(6, 4, 20, 0.4);
-  /* Sized to fit any realistic device without this ever kicking in (see
-     the breakpoint below) — but a safety net, not the plan: an
-     unreachable clipped button on some viewport this wasn't tuned for
-     is worse than an occasional scroll. */
-  overflow-y: auto;
+  /* The two hub screens (main menu, pause) never scroll — not up/down,
+     not side to side, and not the iOS rubber-band either. They're sized
+     to fit every realistic landscape phone via the breakpoints below, and
+     a hub that can be dragged around under a thumb reads as broken, not
+     as a safety net. `touch-action: none` stops the browser turning a
+     drag into a pan/zoom gesture at all; overscroll-behavior stops a
+     drag that does get through from bouncing the page. game.js also
+     cancels touchmove on these two screens for the browsers that still
+     rubber-band anyway (older iOS Safari). The catalog-style overlays
+     (Shop, Level Map, Achievements) keep their scrolling .menu-panel. */
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 .hub-hero {
@@ -453,8 +480,15 @@ canvas {
   padding: 0;
   border-radius: 50%;
   border: 1.5px solid rgba(197, 178, 255, 0.4);
-  background: rgba(20, 10, 45, 0.5);
-  backdrop-filter: blur(6px);
+  /* A touch more opaque than the other round buttons, and deliberately NO
+     backdrop-filter here (unlike .overlay-close-x/.hub-gear-button): this
+     is the one chrome element that sits over the live game canvas during
+     play, and a backdrop blur over a surface that repaints every frame
+     forces the compositor to re-blur that region every frame too — a
+     measurable per-frame cost on phones for a 44px button nobody's
+     looking at mid-jump. The slightly darker flat fill keeps the glyph
+     readable over a bright platform without the blur. */
+  background: rgba(20, 10, 45, 0.62);
   color: #F7F4FF;
   cursor: pointer;
   z-index: 1000;
