@@ -176,6 +176,30 @@ added a visible pause button in `game.html` (Escape alone isn't
 discoverable) and made "Settings" from the pause menu return to the game
 in progress afterward instead of dropping back to the main menu.
 
+### 17. Dying before the first checkpoint could drop the player into an unrecoverable "fall forever, die again" loop
+
+`resetPlayer()`'s no-checkpoint-reached-yet fallback teleported the player
+to the literal, hardcoded `(100, 300)` — but `applyLevelVerticalLayout()`
+(run once at level load) shifts every platform, hazard, checkpoint, *and*
+the player's actual start position by a per-level constant to center that
+level on the current viewport (see
+[gameplay.md](gameplay.md#level-centering-and-the-screen-pinned-ceiling)).
+On a viewport where that shift is more than a few pixels — a phone in
+landscape has far less vertical room than a desktop window, so the shift
+there is often large — the hardcoded fallback no longer matched the
+level's real (shifted) starting platform at all. Dying before reaching any
+checkpoint respawned the player into empty air with no ground anywhere
+near them, so they fell straight through, hit the "off the bottom of the
+screen" death check, respawned into the exact same empty air, and repeated
+— indefinitely, with no input able to break the cycle. **Fix:** capture
+the actual post-shift spawn point (`levelStartX`/`levelStartY` in
+`game.js`, set right after `applyLevelVerticalLayout()` runs) and use that
+instead of the literal `(100, 300)`. Also snap the camera to the player
+immediately in `resetPlayer()` (mirroring the snap `resetLevelState()`
+already does on a level load), so a checkpoint respawn far from the death
+location can't hit the same class of bug via a stale, easing-instead-of-
+snapping camera on the very first frame after the teleport.
+
 ## Known, not fixed (out of scope / needs a real decision)
 
 - **The Contact form doesn't submit anywhere.** There's no backend, and the

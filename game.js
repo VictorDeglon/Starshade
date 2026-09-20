@@ -203,6 +203,62 @@ function startAudioOnInteraction() {
 document.addEventListener("click", startAudioOnInteraction);
 document.addEventListener("keydown", startAudioOnInteraction);
 
+// -------------------------------------------------------------
+// MOBILE: fullscreen + keep-awake
+// -------------------------------------------------------------
+// Only on touch devices — a mouse-driven desktop player never asked to
+// have their browser chrome hijacked. (pointer: coarse) is the same test
+// game.css uses to decide whether to show the on-screen touch controls at
+// all.
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+
+// The Fullscreen API needs a direct user gesture to succeed, and iOS
+// Safari doesn't support it at all for anything but a <video> — that's
+// what manifest.json plus the apple-mobile-web-app-capable meta tags (see
+// every page's <head>) are for: installed to the home screen, iOS launches
+// the page in its own fullscreen chrome without ever touching this API.
+// This is the Android Chrome / other-touch-browser path: ask for
+// fullscreen the moment the player actually touches the screen, so the
+// address bar doesn't eat into the play area for anyone who didn't
+// install it.
+function requestGameFullscreen() {
+  const el = document.documentElement;
+  const request = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!request) return;
+  try {
+    const result = request.call(el);
+    if (result && result.catch) result.catch(() => {});
+  } catch (e) {
+    // Ignore — fullscreen is a nice-to-have, never worth failing over.
+  }
+}
+
+if (isTouchDevice) {
+  document.addEventListener("touchstart", requestGameFullscreen, { once: true });
+}
+
+// Screen Wake Lock — without this, a phone left untouched for its normal
+// screen-timeout (reading level text, lining up a jump, no taps for a
+// stretch) dims and locks mid-run. Re-requested every time the tab
+// becomes visible again because the browser silently releases the lock
+// whenever it's backgrounded (switching apps, locking the phone manually,
+// the pause menu's Settings link navigating away) and never restores it
+// on its own.
+let wakeLock = null;
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+  } catch (e) {
+    // Denied (e.g. low battery mode) or unsupported in this context —
+    // there's no fallback, just don't crash over it.
+  }
+}
+requestWakeLock();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") requestWakeLock();
+});
+
 // Level state
 let textOpacity = 1;
 let textFadeStartTime = null;
@@ -222,6 +278,20 @@ let tutorialTipShownAt = 0;
 // manual browser refresh" convenience — normal level-to-level progress
 // happens in-page via advanceToNextLevel() and never touches this read.
 let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+
+// The level's actual spawn point, captured once per level load (see
+// resetLevelState()) *after* applyLevelVerticalLayout() has shifted the
+// authored (100, 300) start position to match wherever it centered this
+// level on this viewport. resetPlayer()'s "no checkpoint reached yet"
+// fallback needs these, not the literal (100, 300) — otherwise, on a
+// viewport short enough for that shift to be more than trivial (a phone
+// in landscape is exactly this — see docs/gameplay.md), dying before the
+// first checkpoint respawns the player into empty air at the *unshifted*
+// coordinates, with no ground anywhere near them: an unrecoverable "fall
+// forever, hit the off-screen death check, respawn into the same empty
+// air" loop.
+let levelStartX = 100;
+let levelStartY = 300;
 
 // Player setup — shape/color now comes from the equipped skin (see
 // drawPlayer()), so there's nothing skin-related to set up here.
@@ -353,6 +423,13 @@ function resetLevelState() {
   tutorialTipOpacity = 0;
 
   applyLevelVerticalLayout();
+
+  // Capture the *actual* spawn point after the shift above, for
+  // resetPlayer()'s no-checkpoint-yet fallback — see levelStartX/Y's
+  // declaration for why the literal (100, 300) this function set player.x/y
+  // to a moment ago isn't the right thing to respawn into.
+  levelStartX = player.x;
+  levelStartY = player.y;
 
   // Snap (don't smoothly lerp) the camera to the new level's start — this
   // runs while the screen is fully black mid-transition, so a lerp would
@@ -1355,8 +1432,8 @@ function resetPlayer() {
     player.x = lastCheckpoint.x;
     player.y = lastCheckpoint.y - 30;
   } else {
-    player.x = 100;
-    player.y = 300;
+    player.x = levelStartX;
+    player.y = levelStartY;
   }
   player.dx = 0;
   player.dy = 0;
@@ -1366,6 +1443,22 @@ function resetPlayer() {
   // registers as a fresh first jump, not a double jump.
   wasGrounded = true;
   riddenPlatform = null; // respawning off of whatever they died on/near
+
+  // Snap (don't smoothly lerp) the camera to the respawn point — same
+  // reasoning as resetLevelState()'s snap on a level load. This is a
+  // teleport, not physical movement, and the checkpoint can be far from
+  // wherever the player just died (a long fall, a death deep into a level
+  // before reaching any checkpoint). Left to ease normally, the ceiling
+  // clamp and the "fell off the bottom of the screen" check right below
+  // this call in updatePlayer() both still read the *previous* frame's
+  // camera position, which — measured against the just-teleported player —
+  // can itself look like "off the bottom of the screen," triggering
+  // resetPlayer() again immediately, and again the next frame, for as long
+  // as the camera takes to ease the whole distance back: a death loop the
+  // player can't act their way out of, since every attempt starts by
+  // re-dying before the level has even scrolled back into view.
+  cameraOffsetX = player.x - viewportWidth / 2;
+  cameraOffsetY = player.y - viewportHeight / 2;
 }
 
 // -------------------------------------------------------------

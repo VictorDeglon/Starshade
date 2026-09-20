@@ -7,6 +7,16 @@
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#050012" />
+    <!-- Installed-to-home-screen fullscreen (see docs/gameplay.md's Mobile
+         section) — iOS Safari ignores manifest.json's display mode
+         entirely and instead needs these Apple-specific tags on every
+         page for "Add to Home Screen" to launch without browser chrome. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Starshade" />
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Almendra+Display&family=Staatliches&display=swap"
       rel="stylesheet"

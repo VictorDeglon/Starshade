@@ -392,6 +392,54 @@ browser. Everything in `game.js` still works in logical/CSS pixels
 `canvas.height` — see the comment at the top of the file) so none of the
 gameplay math needed to change.
 
+### Fullscreen and staying installed
+
+Two separate mechanisms, because no single API covers every mobile
+browser:
+
+- **`manifest.json`** plus `apple-mobile-web-app-capable`/
+  `mobile-web-app-capable`/`apple-mobile-web-app-status-bar-style` meta
+  tags on *every* page (not just `game.html` — iOS re-checks these per
+  page, so a page missing them drops back into normal Safari chrome mid-
+  navigation) is what makes "Add to Home Screen" launch without browser
+  chrome at all. This is the only real fullscreen path on iOS Safari,
+  which has never supported the Fullscreen API for anything but a
+  `<video>` element.
+- **The Fullscreen API**, requested on the player's first `touchstart` in
+  `game.js` (`requestGameFullscreen()`, gated on `(pointer: coarse)` so a
+  mouse-driven desktop player is never prompted), covers Android Chrome
+  and other touch browsers that do support it, for anyone playing from a
+  normal browser tab rather than an installed icon.
+
+Both fail silently (a `.catch(() => {})`/try-catch) if unsupported or
+denied — fullscreen is a nice-to-have, never worth erroring over.
+
+### Keeping the screen awake
+
+`game.js` requests a Screen Wake Lock (`navigator.wakeLock.request
+("screen")`) on load and again every time `visibilitychange` fires with
+the tab visible — the browser silently releases any held lock the moment
+a tab is backgrounded (switching apps, manually locking the phone,
+navigating to Settings from the pause menu and back), and never
+re-acquires it on its own. Without this, a phone left untouched for its
+normal screen-timeout while lining up a jump or reading level text dims
+and locks mid-run. Missing `navigator.wakeLock` (older/unsupported
+browsers) or a denied request (e.g. low-power mode) both fail silently —
+there's no fallback, it just doesn't hold the lock.
+
+### Pause/game-complete menus on a short viewport
+
+`.menu-panel` (the actual card inside the full-screen `.menu` backdrop —
+used for the pause menu and the "You beat Starshade!" screen) caps itself
+at `max-height: 100%` with `overflow-y: auto`, and shrinks its padding/
+heading/button sizing under `@media (max-height: 420px)`. Without this, a
+short landscape phone (this page's forced orientation — see above) could
+be shorter than the panel's default content height, and since `.menu` is
+a `justify-content: center` flexbox with `body { overflow: hidden }`, the
+overflow wasn't just visually clipped — the part sticking out past the
+top or bottom (often the heading, or the last button, e.g. "Quit to
+Menu") was genuinely unreachable, not just off-screen.
+
 ## First-playthrough tutorial tips
 
 `level1.js` defines `window.tutorialTips`, a list of `{x, text}` pairs —

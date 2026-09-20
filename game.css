@@ -31,6 +31,12 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
+  /* Keeps the panel itself clear of a notch/Dynamic Island or the
+     home-indicator bar in forced landscape play, same reasoning as the
+     touch controls below. */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   color: #fff;
@@ -51,6 +57,15 @@ canvas {
   border-radius: 20px;
   padding: 40px 50px;
   min-width: 280px;
+  box-sizing: border-box;
+  /* A phone in landscape (the only orientation this page allows — see
+     .rotate-prompt below) can be shorter than this panel's content at its
+     default size. Without a cap + scroll, the panel simply overflows
+     .menu's centered flex box, and with body's overflow: hidden the part
+     sticking out top/bottom (often the heading, or the last button) is
+     genuinely unreachable — not just visually clipped, but un-clickable. */
+  max-height: 100%;
+  overflow-y: auto;
   box-shadow: 0 0 30px rgba(77, 63, 145, 0.7);
   text-align: center;
 }
@@ -78,6 +93,28 @@ canvas {
   font-weight: bold;
   animation: pulse 2.5s infinite;
   transition: background-color 0.3s ease, transform 0.2s;
+}
+
+/* On a genuinely short landscape phone, shrink the panel's own chrome
+   first — smaller heading, tighter padding/margins on every button —
+   so most devices never need the scroll above at all; it's the fallback
+   for whatever's still too tall after this. */
+@media screen and (max-height: 420px) {
+  .menu-panel {
+    padding: 18px 28px;
+  }
+
+  .menu h1 {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+  }
+
+  .menu-button {
+    padding: 8px 20px;
+    font-size: 1.05rem;
+    margin: 6px auto;
+    width: 190px;
+  }
 }
 
 .menu-button:hover {
