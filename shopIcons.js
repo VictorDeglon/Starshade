@@ -81,6 +81,10 @@ const ICON_GLYPHS = {
   visor: '<path d="M4 10a8 8 0 0 1 16 0"/><path d="M4 10h16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2z"/>',
   horns: '<path d="M8 12c-2-3-1-7 1-9-1 3 0 6 2 7"/><path d="M16 12c2-3 1-7-1-9 1 3 0 6-2 7"/>',
   auraRing: '<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2" opacity="0.6"/>',
+  tail: '<path d="M11 13c3 0 7 1 8 5-3 1-6 0-7-3"/><path d="M19 18c1 1 1 3-1 4"/>',
+  mask: '<path d="M2 9c3-2.5 7-3.5 10-3.5s7 1 10 3.5c-1 3.5-4.5 6-10 6S3 12.5 2 9z"/><circle cx="8" cy="9.5" r="1.3" fill="currentColor"/><circle cx="16" cy="9.5" r="1.3" fill="currentColor"/>',
+  spikes: '<path d="M4 13 6 3l2 7 2-9 2 9 2-9 2 7 2-9 2 10"/>',
+  scarf: '<path d="M3 9c5 2.5 13 2.5 18 0"/><path d="M14 9c1.5 4 0.5 9-2 11"/><path d="M9 9c-1 2.5-0.5 5 1 6"/>',
 };
 
 const RARITY_HEX = {

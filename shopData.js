@@ -631,4 +631,8 @@ const STARSHADE_ACCESSORIES = [
   { id: "accessory-visor", name: "Visor", icon: "visor" },
   { id: "accessory-horns", name: "Horns", icon: "horns" },
   { id: "accessory-aura", name: "Aura Ring", icon: "auraRing" },
+  { id: "accessory-tail", name: "Tail", icon: "tail" },
+  { id: "accessory-mask", name: "Mask", icon: "mask" },
+  { id: "accessory-spikes", name: "Spikes", icon: "spikes" },
+  { id: "accessory-scarf", name: "Scarf", icon: "scarf" },
 ];

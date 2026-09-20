@@ -1216,6 +1216,9 @@ function advanceToNextLevel() {
   if (!leveldiedThisAttempt) StarshadeEconomy.recordDeathlessCompletion();
   if (!usedExtraJumpThisAttempt) StarshadeEconomy.recordNoDoubleJumpCompletion();
   StarshadeAchievements.checkAndNotify();
+  if (window.StarshadeShop && typeof StarshadeShop.checkCustomizationUnlockNotify === "function") {
+    StarshadeShop.checkCustomizationUnlockNotify();
+  }
 
   currentLevel++;
   localStorage.setItem("savedLevel", String(currentLevel));
@@ -2183,11 +2186,23 @@ function drawPlayer() {
 // player, not as another rotating part of it.
 function drawSkinAccessory(skin) {
   const halfH = player.height / 2;
-  const glow = skin.glow || skin.fill || "#a042d3";
+  const fillColor = skin.accessoryColor || skin.glow || skin.fill || "#a042d3";
+  const size = skin.accessorySize || 1;
   ctx.save();
   ctx.translate(player.x - cameraOffsetX, player.y - cameraOffsetY);
+  // Mirrors drawPlayer()'s own portal-suck transform (see updatePortalSuck())
+  // so the accessory shrinks and spins into the portal together with the
+  // base shape, instead of being left behind at full size while the shape
+  // shrinks — this is the only rotation applied here; ordinary in-air
+  // roll/tumble intentionally leaves accessories upright (see comment
+  // above drawSkinAccessory's call site).
+  if (isPortalSucking) {
+    ctx.rotate(portalSpinAngle);
+    ctx.scale(squashX, squashY);
+  }
+  ctx.scale(size, size);
   ctx.strokeStyle = skin.stroke || "#5d1a91";
-  ctx.fillStyle = glow;
+  ctx.fillStyle = fillColor;
   ctx.lineWidth = 2;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -2259,6 +2274,64 @@ function drawSkinAccessory(skin) {
     ctx.beginPath();
     ctx.arc(0, 0, (halfH + 8) * pulse, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  } else if (skin.accessory === "accessory-tail") {
+    // Curls out from the lower-back corner, drifting opposite the
+    // player's own facing lean so it reads as trailing behind motion.
+    const dir = player.dx < 0 ? -1 : 1;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(-dir * halfH * 0.4, halfH * 0.5);
+    ctx.quadraticCurveTo(-dir * (halfH + 6), halfH + 2, -dir * (halfH + 2), halfH + 12);
+    ctx.quadraticCurveTo(-dir * (halfH - 2), halfH + 6, -dir * halfH * 0.3, halfH * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  } else if (skin.accessory === "accessory-mask") {
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.beginPath();
+    ctx.moveTo(-10, -3);
+    ctx.quadraticCurveTo(0, -8, 10, -3);
+    ctx.quadraticCurveTo(10, 3, 0, 4);
+    ctx.quadraticCurveTo(-10, 3, -10, -3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = skin.stroke || "#5d1a91";
+    ctx.beginPath();
+    ctx.arc(-4.5, -1, 1.3, 0, Math.PI * 2);
+    ctx.arc(4.5, -1, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else if (skin.accessory === "accessory-spikes") {
+    const top = -halfH - 2;
+    ctx.beginPath();
+    [-9, -4.5, 0, 4.5, 9].forEach((x, i) => {
+      const height = i % 2 === 0 ? 8 : 11;
+      ctx.moveTo(x - 2, top);
+      ctx.lineTo(x, top - height);
+      ctx.lineTo(x + 2, top);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (skin.accessory === "accessory-scarf") {
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-9, -2);
+    ctx.quadraticCurveTo(0, 3, 9, -2);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(6, 1);
+    ctx.quadraticCurveTo(10, 8, 6, 14);
+    ctx.quadraticCurveTo(4, 9, 5, 3);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 

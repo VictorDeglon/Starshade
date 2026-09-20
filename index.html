@@ -457,7 +457,7 @@
           <section class="shop-tab-panel" data-panel="skins">
             <div class="shop-subtabs" id="skins-subtabs">
               <button class="shop-subtab active" data-subtab="gallery">Gallery</button>
-              <button class="shop-subtab" data-subtab="custom">Custom Builder</button>
+              <button class="shop-subtab" data-subtab="custom">Custom Builder<span class="shop-subtab-lock-icon" aria-hidden="true"></span></button>
             </div>
 
             <div class="shop-subtab-panel" data-subpanel="gallery">
@@ -500,6 +500,14 @@
                   <div class="builder-field">
                     <label>Accessory</label>
                     <div class="builder-swatch-row builder-accessory-row" id="builder-accessory-row"></div>
+                  </div>
+                  <div class="builder-field">
+                    <label for="builder-accessory-color">Accessory Color</label>
+                    <input type="color" id="builder-accessory-color" value="#a042d3" />
+                  </div>
+                  <div class="builder-field">
+                    <label for="builder-accessory-size">Accessory Size</label>
+                    <input type="range" id="builder-accessory-size" min="0.75" max="1.5" step="0.05" value="1" />
                   </div>
                   <div class="builder-field builder-field-inline">
                     <label for="builder-trail">Particle Trail</label>

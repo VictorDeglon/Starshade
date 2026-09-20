@@ -891,6 +891,13 @@ const StarshadeEconomy = (() => {
   const EQUIPPED_KEY = "starshadeEquippedSkin";
   const UNLOCKED_KEY = "starshadeUnlockedSkins";
   const COMPLETED_LEVELS_KEY = "starshadeCompletedLevels";
+  const CUSTOMIZATION_UNLOCK_NOTIFIED_KEY = "starshadeCustomizationUnlockNotified";
+  // The Skins tab (buying premade skins) has been open from the very start
+  // of the game with no level gate of its own, so "5 levels after skins
+  // unlock" is level 1 + 5. Whichever of that or level 20 comes first gates
+  // the Custom Builder specifically — premade skins are unaffected.
+  const SKINS_UNLOCK_LEVEL = 1;
+  const CUSTOMIZATION_UNLOCK_LEVEL = Math.min(20, SKINS_UNLOCK_LEVEL + 5);
   const GAME_COMPLETED_KEY = "starshadeGameCompleted";
   // Lifetime totals — separate from the spendable `starshadeCoins` balance
   // (which goes down when you buy a skin) and from game.js's in-session
@@ -1281,6 +1288,8 @@ const StarshadeEconomy = (() => {
       outlineWidth: config.outlineWidth || 3,
       glowPulse: !!config.glowPulse,
       accessory: config.accessory || "accessory-none",
+      accessoryColor: config.accessoryColor || config.glow || config.fill,
+      accessorySize: config.accessorySize || 1,
       custom: true,
     };
     const existingIndex = skins.findIndex((s) => s.id === id);
@@ -1376,6 +1385,25 @@ const StarshadeEconomy = (() => {
     return reward;
   }
 
+  // "Highest level reached" isn't tracked directly — completed levels are
+  // the only per-level record kept (see getCompletedLevels()), so the
+  // highest reached is one past the highest completed (or level 1 if none
+  // completed yet). Mirrors levels.js's highestUnlockedLevel() without
+  // depending on it, since that file loads after this one.
+  function isCustomizationUnlocked() {
+    const completed = getCompletedLevels();
+    const highestReached = completed.length ? Math.max(...completed) + 1 : 1;
+    return highestReached >= CUSTOMIZATION_UNLOCK_LEVEL;
+  }
+
+  function wasCustomizationUnlockNotified() {
+    return localStorage.getItem(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY) === "true";
+  }
+
+  function markCustomizationUnlockNotified() {
+    localStorage.setItem(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY, "true");
+  }
+
   function isGameCompleted() {
     return localStorage.getItem(GAME_COMPLETED_KEY) === "true";
   }
@@ -1446,5 +1474,9 @@ const StarshadeEconomy = (() => {
     getCustomSkins,
     saveCustomSkin,
     deleteCustomSkin,
+    CUSTOMIZATION_UNLOCK_LEVEL,
+    isCustomizationUnlocked,
+    wasCustomizationUnlockNotified,
+    markCustomizationUnlockNotified,
   };
 })();
