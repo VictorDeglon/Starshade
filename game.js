@@ -1372,6 +1372,15 @@ function drawPlayer() {
     const inset = (halfW - lineWidth / 2) / halfW;
     ctx.save();
     ctx.rotate(triangleSpinAngle); // sometimes tumbles in the air
+    // The default miter join spikes a stroked corner out past its actual
+    // path vertex — harmless at the square's 90° corners (the spike
+    // exactly cancels the inset above) but at the triangle's much more
+    // acute corners the same miter math spikes several px past the
+    // vertex, poking outside the collision box. A round join's max
+    // protrusion is a fixed lineWidth/2 in any direction regardless of
+    // the angle, which is exactly what the inset above was computed to
+    // leave room for.
+    ctx.lineJoin = "round";
     ctx.beginPath();
     ctx.moveTo(0, -halfH * inset);
     ctx.lineTo(halfW * inset, halfH * inset);
