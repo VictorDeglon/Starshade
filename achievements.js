@@ -35,6 +35,8 @@ function renderAchievements() {
     const rarityColor = (ACHIEVEMENT_RARITY_COLORS[achievement.rarity] || ACHIEVEMENT_RARITY_COLORS.common).ring;
     const rewardLine = achievement.grantsSkin
       ? `<div class="achievement-card-reward">Reward: a signature skin</div>`
+      : achievement.grantsCoins
+      ? `<div class="achievement-card-reward">Reward: +${achievement.grantsCoins} coins</div>`
       : "";
     body.innerHTML = `
       <p class="achievement-card-name">${achievement.name}</p>

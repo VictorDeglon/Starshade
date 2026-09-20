@@ -83,10 +83,13 @@
   text-overflow: ellipsis;
 }
 
-@media (pointer: coarse) and (orientation: landscape) {
+@media (pointer: coarse) and (hover: none) and (orientation: landscape) {
   /* Forced-landscape game.html: keep clear of the pause button (top-left,
      doesn't collide) and don't run so wide it fights the coin toast,
-     which shares this same corner. */
+     which shares this same corner. (hover: none) keeps this to genuine
+     touch devices — see game.css's .touch-controls for why (pointer:
+     coarse) alone isn't enough (a touchscreen laptop with a mouse/
+     trackpad also reports coarse). */
   #achievement-popup-stack {
     top: calc(76px + env(safe-area-inset-top, 0px));
   }

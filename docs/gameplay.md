@@ -166,6 +166,40 @@ a star/cloud lands, not which cell it's in) for the same reason — there's
 no single, fixed world-space "top of the sky" to anchor to once the
 camera can scroll vertically without limit.
 
+## Neon-themed levels: a wholesale visual reskin
+
+A level opts out of the nebula backdrop above entirely with
+`window.levelTheme = "neon"` (currently only level 50, "The Neon Rift" —
+see [Named branch levels](#the-100-levels--a-deliberate-difficulty-curve-across-three-chapters)).
+`resetLevelState()` reads it into `currentLevelTheme`, reset to `null` on
+every `loadLevel()` so a themed level can never leak its look into the
+next, ordinary one.
+
+- **`drawBackground()`** branches to `drawNeonBackground()` instead: a
+  flat near-black fill (no gradient, no planets/clouds) plus
+  `drawStarLayer()` called twice — once at full brightness, once again at
+  a smaller cell size and dimmer/smaller stars (`denseVariant`) — for a
+  deeper, more crowded "empty night sky" than the ordinary backdrop's
+  progress-gated star layer ever shows, entirely independent of
+  `sceneProgress`.
+- **Platforms, deadly platforms, and spikes** each check
+  `currentLevelTheme === "neon"` in their draw function and switch to a
+  near-black fill with a bright, saturated stroke *and* a real
+  `ctx.shadowBlur` glow (a new optional `glow` argument on
+  `drawInsetRect()`) — cyan for solid platforms, magenta-red for deadly
+  ones — instead of the violet-indigo/crimson-magenta palette and
+  plating/hazard-stripe texture patterns every other level uses. Against a
+  pure black backdrop, a shadow blur reads as "lit from within" in a way a
+  flat fill never could.
+- Ghost/melt/bounce/conveyor platforms and the player keep their normal
+  look — their colors (bright yellow, deepening orange, cyan-green, amber)
+  already read clearly against black without a reskin, and the player's
+  look comes from the equipped skin regardless of level.
+
+This is a code-only reskin (canvas fills/strokes/gradients/shadows), not a
+new image asset — the same approach any other level's visuals use, just
+with a different palette and a different (simpler) backdrop.
+
 ## Particles
 
 `spawnParticles(x, y, count, options)` in `game.js` adds plain objects to
@@ -220,6 +254,48 @@ they're still there — which is also why `resolveAxis()`'s
 (`Math.abs(platformDelta)`), not a fixed couple of px: the old fixed
 value was enough for the original 12 hand-authored levels' slower
 platforms, but not for the faster ones the generator can produce.
+
+**Deadly platforms can move too.** `deadlyPlatforms` entries accept the
+exact same `moveAxis`/`moveRange`/`moveSpeed`/`movePhase` fields as a
+moving solid platform — `updateMoverList()` (the function
+`updateMovingPlatforms()` now delegates to for both arrays) animates them
+identically, and the deadly-overlap check in `updatePlayer()` reads back
+`platformX()`/`platformY()` rather than the static `x`/`y` fields, so a
+moving decoy actually kills where it's drawn. Levels 26+ use this for
+**crisscrossing red decoys**: a red twin spawned alongside some ordinary
+moving platforms, oscillating on the opposite axis so their sweeps visibly
+cross — the "which one is safe to land on?" trick — see
+`.claude/gen-levels.js`'s Pass 3. Always a freestanding hazard next to the
+path, never something a gap's base feasibility depends on, and kept clear
+of every checkpoint by a safe margin at generation time.
+
+## Bounce pads and conveyors
+
+Two more platform types beyond moving/ghost/melt, introduced starting at
+level 26:
+
+- **Bounce pads** (`bounce: true`, optional `bounceStrength`, default
+  `BOUNCE_STRENGTH = -18` in `game.js`) launch the player hard on contact
+  instead of letting them come to rest — checked right alongside the
+  existing `bouncy`-skin-ability landing logic in `updatePlayer()`, using
+  the same `incomingDy`-gated "just landed" moment. Drawn cyan-green with
+  an upward chevron so the launch direction reads at a glance
+  (`drawBouncePlatforms()`). A level's guaranteed path never depends on
+  reaching one — they always sit on an already-reachable step, so they only
+  ever open up a faster/higher *optional* route, the same way an optional
+  ghost platform never gates the base path.
+- **Conveyor platforms** (`conveyor: true`, `conveyorSpeed` px/tick) push
+  the player horizontally for as long as they're actually standing on one,
+  applied right after `resolveAxis('y')` resolves grounding for the frame —
+  on top of whatever movement keys are held, not instead of them, so
+  walking against one can still (slowly) fight it. Drawn amber with a
+  scrolling arrow-stripe pattern in the push direction
+  (`drawConveyorPlatforms()`).
+
+Both are decided in the same Pass 2 lottery as moving/ghost/melt in
+`.claude/gen-levels.js` (see `bounceShare`/`conveyorShare`), which is also
+why that script normalizes the four shares to leave headroom for plain
+movers — see the comment on `shareTotal` there.
 
 ## World objects (defined per-level in `levelN.js`)
 
@@ -285,7 +361,9 @@ a `StarshadeEconomy` object backed by `localStorage`:
 
 - **Coins**: 75 for a level's first-ever completion (replaying an
   already-completed level doesn't pay out again), plus a 1000 bonus for
-  beating all 25.
+  beating all 100 (`isGameCompleted()`/`setGameCompleted()` just react to
+  "no next `levelN.js` exists," not a hardcoded count — see
+  [Adding a level](#adding-a-level)).
 - **Skins** unlock four ways: `free` (the starting square), `coins` (buy
   once you can afford it), `completion` (beat the game once), or
   `achievement` (a specific achievement grants it — see Achievements
@@ -390,30 +468,71 @@ Achievements below.
   as a locked skin's preview) — reachable from the main menu and the
   pause menu.
 
-## The 25 levels — a deliberate difficulty curve
+## The 100 levels — a deliberate difficulty curve across three chapters
 
 Levels 1-2 are intentionally the easiest in the game (single-jump gaps
 only, sparse hazards, no moving platforms in level 1) — a deliberate
 gentle on-ramp. From level 3 on, difficulty climbs steadily: moving
 platforms grow more numerous and faster, hazard density rises, and
 double-jump-required gaps become more frequent, through level 12's
-original finale and on into 13-25. Every gap and checkpoint across all 25
+original finale and on into 13-25. Every gap and checkpoint across all 100
 is verified safe by the two audit scripts described in
 [Adding a level](#adding-a-level).
 
 Level 1 is hand-authored (see its own tutorial-tips section below).
-Levels 2-25 are procedurally generated — `.claude/gen-levels.js` builds
+Levels 2-100 are procedurally generated — `.claude/gen-levels.js` builds
 each one from the exact same physics the audits check (the same
 single/double-jump feasibility simulation), so every gap is verified
 achievable *as it's placed*, not hand-tuned and hoped safe. Platform size
 (width **and** height — a real platformer's boxes aren't all the same
 stamped slab), spike size, spike clusters (2-4 side by side instead of
-one), and moving/ghost/melt/decoy density all scale up with level number;
-see the comment at the top of that script for the exact ramp, and
-[Adding a level](#adding-a-level) for how to regenerate or extend it.
-Level names beyond 1 (in `levels.js`, for the level map) are just flavor
-text — the generator doesn't theme a level around its name the way the
-original hand-authored 2-12 did.
+one), and moving/ghost/melt/bounce/conveyor/decoy density all scale up
+with level number; see the comment at the top of that script for the
+exact ramp, and [Adding a level](#adding-a-level) for how to regenerate or
+extend it.
+
+The generator organizes difficulty into three named tiers rather than one
+flat ramp (`TIERS`/`BLOCK_A`/`BLOCK_B`/`tierForLevel()` in
+`.claude/gen-levels.js`):
+
+- **1-25** — the original hand/ramp-tuned levels (unchanged by this
+  script's current version — see its header comment).
+- **26-75** (`BLOCK_A`) — a new chapter that picks up above where 25 left
+  off (its difficulty floor starts at `t = 0.85`, not `0`) and climbs to a
+  noticeably harder ceiling by 75. Same rollercoaster climb/dip shape as
+  1-25.
+- **76-100** (`BLOCK_B`) — the hardest, final stretch: mostly-*upward*
+  "vertical" climbs instead of a rollercoaster (`climbBias` in
+  `placeStep()`, made possible by the vertical camera scroll — see above),
+  sparser checkpoints (`harderCheckpoints` widens the breather interval to
+  6-8 steps instead of 4-5 — more consecutive hard jumps between safe
+  rests, though a reached checkpoint is exactly as audited-safe as any
+  other), and up to 3 mandatory ghost gates per level instead of 2.
+
+**Named branch levels.** A handful of levels (`BONUS_LEVELS` in
+`.claude/gen-levels.js`, `BONUS_LEVEL_NUMBERS` in `levels.js` — the two
+sets must stay in sync) are built around one mechanic turned up far past
+its normal share, rather than being another numbered rung on the ladder:
+
+| # | Name | Focus |
+|---|---|---|
+| 35 | Skyline Interlude | Conveyor belts (`conveyorShare` forced to 0.6) — a brisk, fast-moving breather rather than a difficulty spike (`t` capped at 1.05). |
+| 50 | The Neon Rift | `window.levelTheme = "neon"` — see [Neon-themed levels](#neon-themed-levels-a-wholesale-visual-reskin) below. Bounce-pad heavy, difficulty capped for a showpiece feel rather than a hard level. |
+| 65 | Crossfire Causeway | Crisscrossing red decoys (`crisscrossChance` forced to 0.85) — the mechanic showcase for the moving-deadly-platform trick above. |
+| 82 | The Vertical Vein | A pure vertical climb even by block-B standards — `vertical`/`harderCheckpoints` forced on with extra steps and a raised mandatory-gate floor. |
+| 95 | Mirror's End | A finale gauntlet combining crisscross decoys, bounce pads, conveyors, and a raised mandatory-gate floor, pushed toward its tier's difficulty ceiling. |
+
+On the level map (`levels.js`), a branch level is drawn off to one side of
+the main winding path (a gold diamond node connected by a dashed spur —
+see `BONUS_BRANCH_OFFSET`/`.tree-path-bonus` in `levels.css`) and shows its
+real name instead of "Level N," including **in-game** — the one exception
+to the rule below that only the level map shows flavor names.
+
+Level names for ordinary (non-branch) levels beyond 1 (in `levels.js`, for
+the level map) are just flavor text — `window.levelText` still reads
+"Level N" in-game for these, the same as it always has; the generator
+doesn't theme an ordinary level around its name the way the original
+hand-authored 2-12 did.
 
 | # | Name | Length | Moving | Ghost | Melt | Spikes |
 |---|---|---|---|---|---|---|
@@ -446,7 +565,94 @@ original hand-authored 2-12 did.
 A "Ghost" or "Melt" count includes both the mandatory-gate platforms (see
 below) and ordinary/optional ones — `audit-gaps.js`'s "IMPOSSIBLE"
 results (one per mandatory gate) are the way to tell which levels have a
-true gate, not this count.
+true gate, not this count. The same caveat applies to the 26-100 table
+below, which adds "Bounce"/"Conveyor" (see
+[Bounce pads and conveyors](#bounce-pads-and-conveyors)) and "Crisscross"
+(moving deadly decoys — see [Moving platforms](#moving-platforms)) columns:
+
+| # | Name | Length | Moving | Ghost | Melt | Bounce | Conveyor | Spikes | Crisscross |
+|---|---|---|---|---|---|---|---|---|---|
+| 26 | Comet's Wake | 12309px | 3 | 5 | 1 | 1 | 3 | 11 | 1 |
+| 27 | Fractured Skyline | 12149px | 3 | 6 | 1 | 0 | 1 | 13 | 1 |
+| 28 | The Drifting Vault | 12394px | 2 | 4 | 2 | 2 | 3 | 6 | 0 |
+| 29 | Ashen Causeway | 12006px | 1 | 6 | 3 | 1 | 1 | 7 | 1 |
+| 30 | Hollow Meridian | 12364px | 3 | 5 | 4 | 2 | 1 | 14 | 1 |
+| 31 | The Silent Reach | 11628px | 4 | 2 | 4 | 3 | 0 | 5 | 2 |
+| 32 | Ember Threshold | 12197px | 6 | 1 | 4 | 2 | 2 | 8 | 4 |
+| 33 | Wraithlight Span | 12501px | 3 | 4 | 5 | 1 | 2 | 5 | 1 |
+| 34 | The Cinder Steps | 12091px | 3 | 5 | 2 | 0 | 1 | 8 | 0 |
+| 35 | Skyline Interlude | 12066px | 4 | 6 | 0 | 1 | 9 | 1 | 0 |
+| 36 | Obsidian Furrow | 12343px | 4 | 4 | 2 | 1 | 2 | 5 | 3 |
+| 37 | The Widening Dark | 12273px | 6 | 6 | 3 | 0 | 1 | 7 | 2 |
+| 38 | Starcross Gauntlet | 13773px | 3 | 5 | 5 | 3 | 0 | 6 | 0 |
+| 39 | Molten Parapet | 12911px | 5 | 1 | 3 | 0 | 2 | 14 | 2 |
+| 40 | The Hush Between | 13186px | 2 | 7 | 2 | 1 | 3 | 11 | 0 |
+| 41 | Ravenfall Reach | 11795px | 1 | 5 | 8 | 1 | 3 | 8 | 1 |
+| 42 | The Splintered Vault | 13076px | 4 | 3 | 7 | 1 | 2 | 12 | 2 |
+| 43 | Duskbound Causeway | 13706px | 2 | 6 | 3 | 2 | 0 | 10 | 0 |
+| 44 | The Umbral Stair | 13364px | 5 | 3 | 2 | 1 | 3 | 12 | 2 |
+| 45 | Cindermarch | 13697px | 4 | 2 | 6 | 4 | 0 | 8 | 1 |
+| 46 | The Glass Divide | 13412px | 3 | 4 | 3 | 2 | 1 | 13 | 2 |
+| 47 | Starless Culvert | 13019px | 8 | 2 | 3 | 0 | 1 | 8 | 3 |
+| 48 | The Withering Span | 14011px | 3 | 5 | 3 | 3 | 1 | 13 | 2 |
+| 49 | Ashen Zenith | 14603px | 2 | 6 | 2 | 1 | 1 | 20 | 0 |
+| 50 | The Neon Rift | 14455px | 2 | 2 | 5 | 3 | 2 | 15 | 0 |
+| 51 | The Fractured Choir | 13658px | 1 | 4 | 4 | 3 | 4 | 11 | 1 |
+| 52 | Voidlight Traverse | 13461px | 2 | 3 | 10 | 1 | 3 | 6 | 0 |
+| 53 | The Ember Maze | 14589px | 1 | 5 | 3 | 3 | 4 | 13 | 0 |
+| 54 | Graven Skyway | 13962px | 3 | 4 | 4 | 4 | 2 | 7 | 0 |
+| 55 | The Hollow Ascent | 14495px | 8 | 4 | 6 | 2 | 1 | 4 | 3 |
+| 56 | Starwake Perimeter | 13877px | 5 | 4 | 8 | 1 | 2 | 11 | 1 |
+| 57 | The Splitting Dark | 14060px | 3 | 7 | 5 | 1 | 4 | 6 | 1 |
+| 58 | Cinderfall Vault | 13773px | 3 | 3 | 3 | 6 | 3 | 6 | 2 |
+| 59 | The Widow's Ledge | 13459px | 6 | 3 | 6 | 3 | 2 | 6 | 4 |
+| 60 | Umbral Gauntlet | 14315px | 4 | 5 | 6 | 2 | 1 | 7 | 2 |
+| 61 | The Drowned Sky | 14364px | 3 | 9 | 7 | 1 | 1 | 5 | 1 |
+| 62 | Ashfall Perimeter | 14156px | 4 | 5 | 6 | 4 | 2 | 4 | 3 |
+| 63 | The Ember Choir | 15429px | 2 | 6 | 5 | 5 | 2 | 10 | 1 |
+| 64 | Nightglass Span | 14572px | 3 | 5 | 7 | 6 | 1 | 4 | 3 |
+| 65 | Crossfire Causeway | 14918px | 5 | 8 | 6 | 1 | 2 | 7 | 4 |
+| 66 | The Faultline Reach | 14693px | 1 | 6 | 6 | 2 | 5 | 12 | 0 |
+| 67 | Starbound Furrow | 14918px | 2 | 11 | 4 | 3 | 1 | 14 | 1 |
+| 68 | The Whispering Vault | 13952px | 3 | 5 | 6 | 2 | 4 | 11 | 1 |
+| 69 | Molten Meridian | 16790px | 7 | 4 | 6 | 1 | 1 | 13 | 4 |
+| 70 | The Cracked Horizon | 14258px | 4 | 6 | 6 | 2 | 2 | 13 | 3 |
+| 71 | Ravenous Span | 14936px | 2 | 5 | 5 | 5 | 3 | 11 | 2 |
+| 72 | The Deep Cinder | 15047px | 5 | 7 | 5 | 3 | 0 | 12 | 3 |
+| 73 | Starfall Reprise | 14694px | 5 | 6 | 5 | 2 | 2 | 11 | 2 |
+| 74 | The Last Ember | 14528px | 4 | 7 | 3 | 4 | 4 | 7 | 3 |
+| 75 | Starshade's Ascension | 16031px | 5 | 3 | 5 | 3 | 2 | 19 | 3 |
+| 76 | The Vertical Ledge | 19529px | 4 | 3 | 8 | 5 | 4 | 21 | 2 |
+| 77 | Skybreak Chasm | 19238px | 7 | 5 | 9 | 3 | 1 | 16 | 5 |
+| 78 | The Climbing Dark | 20053px | 9 | 1 | 5 | 0 | 5 | 22 | 4 |
+| 79 | Cindertower Reach | 19264px | 5 | 3 | 7 | 5 | 1 | 26 | 3 |
+| 80 | The Wraith Stair | 19843px | 7 | 2 | 9 | 1 | 5 | 22 | 5 |
+| 81 | Ashen Spire | 21391px | 5 | 3 | 10 | 3 | 4 | 13 | 1 |
+| 82 | The Vertical Vein | 23156px | 6 | 4 | 8 | 6 | 3 | 17 | 4 |
+| 83 | The Fracturing Sky | 20221px | 7 | 4 | 3 | 6 | 4 | 16 | 2 |
+| 84 | Starwell Descent | 19353px | 6 | 5 | 5 | 6 | 3 | 13 | 4 |
+| 85 | The Molten Stair | 20110px | 5 | 2 | 6 | 4 | 4 | 23 | 5 |
+| 86 | Umbral Spire | 20766px | 7 | 4 | 8 | 1 | 5 | 18 | 1 |
+| 87 | The Hollow Zenith | 20011px | 4 | 5 | 6 | 3 | 3 | 22 | 4 |
+| 88 | Starcross Spire | 20411px | 4 | 5 | 8 | 5 | 3 | 16 | 2 |
+| 89 | The Widening Vault | 19950px | 4 | 1 | 6 | 3 | 5 | 24 | 1 |
+| 90 | Cinderspire Reach | 20242px | 6 | 3 | 7 | 6 | 5 | 14 | 3 |
+| 91 | The Faultline Ascent | 22241px | 4 | 2 | 8 | 8 | 2 | 14 | 1 |
+| 92 | Nightglass Spire | 22514px | 4 | 5 | 7 | 4 | 3 | 21 | 2 |
+| 93 | The Drowned Zenith | 18486px | 4 | 3 | 5 | 4 | 4 | 17 | 2 |
+| 94 | Starfall Spire | 22327px | 9 | 4 | 8 | 3 | 3 | 16 | 9 |
+| 95 | Mirror's End | 19050px | 9 | 4 | 12 | 3 | 3 | 10 | 7 |
+| 96 | The Final Cinder | 20497px | 9 | 5 | 2 | 6 | 2 | 21 | 4 |
+| 97 | Starshade's Trial | 20536px | 2 | 4 | 9 | 6 | 4 | 18 | 2 |
+| 98 | The Last Ascent | 20547px | 4 | 3 | 11 | 6 | 3 | 22 | 3 |
+| 99 | The Abyssal Spire | 20370px | 9 | 5 | 7 | 5 | 2 | 12 | 6 |
+| 100 | Starshade's Eternity | 20166px | 9 | 6 | 6 | 5 | 2 | 22 | 1 |
+
+Note the length and vertical-climb jump starting at 76 (block B, see
+above) — those levels sprawl far more vertically than 1-75 do, which is
+only legible now that the camera scrolls vertically (see the top of this
+document); block A (26-75) keeps the same rollercoaster climb/dip band
+1-25 always used.
 
 ## Ghost and melt platforms
 
@@ -806,14 +1012,17 @@ plus `Escape`) via Settings in the pause menu — which returns to the game
 in progress afterward (`settings.html?from=pause`) instead of dropping you
 back at the main menu.
 
-Reaching level 25's final checkpoint (there's no `level26.js`) triggers the
-"You beat Starshade!" screen instead of trying to load a level that doesn't
-exist — see
+Reaching level 100's final checkpoint (there's no `level101.js`) triggers
+the "You beat Starshade!" screen instead of trying to load a level that
+doesn't exist — see
 [architecture.md](architecture.md#level-loading--the-one-thing-to-know-before-touching-gamejs).
+This check is purely "does the next `levelN.js` fail to load," so it
+scales automatically whenever more levels are added — nothing hardcodes
+100 as the last one.
 
 ## Adding a level
 
-Two ways to add `level26.js` and beyond:
+Two ways to add `level101.js` and beyond:
 
 - **By hand**, like level 1: follow the pattern in the existing files —
   assign `window.platforms`, `window.deadlyPlatforms`, `window.spikes`,
@@ -822,10 +1031,20 @@ Two ways to add `level26.js` and beyond:
   distinction matters). The camera now scrolls vertically to follow the
   player (see above), so `y` values are no longer confined to one
   screen-height band — a level can climb or drop well beyond it.
-- **Generated**, like levels 2-25: `node .claude/gen-levels.js . 26 26`
+- **Generated**, like levels 2-100: `node .claude/gen-levels.js . 101 101`
   (or a wider range to regenerate/extend a whole block at once — see the
   usage comment at the top of that script). Every gap it places is
   checked against the same physics as the audits below as it's generated.
+  A level past 100 falls into whichever of `BLOCK_A`/`BLOCK_B` its number
+  satisfies in `tierForLevel()` — extend that function with a new tier
+  (or a third block) rather than stretching `BLOCK_B`'s range indefinitely
+  if the game grows past 100.
+- **New level names** go in two places that must stay in sync:
+  `NEW_LEVEL_NAMES` in `.claude/gen-levels.js` (used for the header
+  comment and, for a bonus level, the actual in-game `levelText`) and
+  `LEVEL_NAMES` in `levels.js` (used for the level map). A new branch/bonus
+  level also needs an entry in both `BONUS_LEVELS` (gen-levels.js) and
+  `BONUS_LEVEL_NUMBERS` (levels.js).
 
 Either way, then run both audit scripts from the project root — they're the actual
 mechanism used to design and verify every level above, not just a
@@ -843,7 +1062,10 @@ node .claude/audit-checkpoints.js  # flags any checkpoint whose respawn
 Both simulate the real per-frame physics (`gravity`/`jumpStrength`/
 `horizontalSpeed`) and the real `resetPlayer()` respawn logic rather than
 eyeballing pixel distances — every gap and every checkpoint in the current
-25 levels passes both (any "IMPOSSIBLE" gaps `audit-gaps.js` reports are
+100 levels passes both (any "IMPOSSIBLE" gaps `audit-gaps.js` reports are
 deliberate — each is bridged by a mandatory ghost platform, which is
 intentionally excluded from that check; see
-[Ghost and melt platforms](#ghost-and-melt-platforms) above).
+[Ghost and melt platforms](#ghost-and-melt-platforms) above). Both scripts
+detect the current level count by probing for `levelN.js` files rather
+than a hardcoded loop bound, so they never need editing just because more
+levels were added.

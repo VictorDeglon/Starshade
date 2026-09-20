@@ -311,13 +311,19 @@ canvas {
 
 /* Hidden by default — shown only on actual touch devices (a mouse-driven
    laptop with a narrow window shouldn't suddenly grow on-screen buttons).
-   (pointer: coarse) is true for touchscreens and false for mice/trackpads,
-   including on a resized desktop browser window. */
+   (pointer: coarse) alone isn't enough — a touchscreen laptop/2-in-1 with
+   a mouse or trackpad also attached reports coarse too (the hardware
+   exists) even though a mouse/trackpad is its actual primary input,
+   which showed up as on-screen touch buttons appearing on a regular
+   desktop setup. (hover: none) is what's actually specific to "the
+   primary pointer can't hover" — false whenever a mouse/trackpad is the
+   primary pointer regardless of what touch hardware also exists —
+   matching game.js's isTouchDevice check. */
 .touch-controls {
   display: none;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse) and (hover: none) {
   .touch-controls {
     display: block;
   }
@@ -382,13 +388,18 @@ canvas {
 }
 
 /* Portrait on a touch device: block play instead of rendering a sideways
-   platformer. `pointer: coarse` keeps this from ever showing on a narrow
-   desktop browser window (which has no orientation to rotate). */
+   platformer. `pointer: coarse` alone isn't enough here either (see
+   .touch-controls above) — a touchscreen laptop with a portrait-ish
+   browser window and a mouse/trackpad as its actual primary input would
+   otherwise get this full-screen "rotate your device" block stuck over
+   everything, pause menu included, on a desktop that has no orientation
+   to rotate at all. Requiring (hover: none) too keeps this to genuine
+   handheld touch devices. */
 .rotate-prompt {
   display: none;
 }
 
-@media (pointer: coarse) and (orientation: portrait) {
+@media (pointer: coarse) and (hover: none) and (orientation: portrait) {
   .rotate-prompt {
     display: flex;
     position: fixed;

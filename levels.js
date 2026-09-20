@@ -41,8 +41,92 @@ const LEVEL_NAMES = [
   "Eclipse Corridor",
   "The Abyssal Climb",
   "Starshade's Zenith",
+  // 26-100: continues in .claude/gen-levels.js's NEW_LEVEL_NAMES — the two
+  // lists have to stay in sync (that script generates the level files,
+  // this one only labels them on the map), see docs/gameplay.md.
+  "Comet's Wake",
+  "Fractured Skyline",
+  "The Drifting Vault",
+  "Ashen Causeway",
+  "Hollow Meridian",
+  "The Silent Reach",
+  "Ember Threshold",
+  "Wraithlight Span",
+  "The Cinder Steps",
+  "Skyline Interlude",
+  "Obsidian Furrow",
+  "The Widening Dark",
+  "Starcross Gauntlet",
+  "Molten Parapet",
+  "The Hush Between",
+  "Ravenfall Reach",
+  "The Splintered Vault",
+  "Duskbound Causeway",
+  "The Umbral Stair",
+  "Cindermarch",
+  "The Glass Divide",
+  "Starless Culvert",
+  "The Withering Span",
+  "Ashen Zenith",
+  "The Neon Rift",
+  "The Fractured Choir",
+  "Voidlight Traverse",
+  "The Ember Maze",
+  "Graven Skyway",
+  "The Hollow Ascent",
+  "Starwake Perimeter",
+  "The Splitting Dark",
+  "Cinderfall Vault",
+  "The Widow's Ledge",
+  "Umbral Gauntlet",
+  "The Drowned Sky",
+  "Ashfall Perimeter",
+  "The Ember Choir",
+  "Nightglass Span",
+  "Crossfire Causeway",
+  "The Faultline Reach",
+  "Starbound Furrow",
+  "The Whispering Vault",
+  "Molten Meridian",
+  "The Cracked Horizon",
+  "Ravenous Span",
+  "The Deep Cinder",
+  "Starfall Reprise",
+  "The Last Ember",
+  "Starshade's Ascension",
+  "The Vertical Ledge",
+  "Skybreak Chasm",
+  "The Climbing Dark",
+  "Cindertower Reach",
+  "The Wraith Stair",
+  "Ashen Spire",
+  "The Vertical Vein",
+  "The Fracturing Sky",
+  "Starwell Descent",
+  "The Molten Stair",
+  "Umbral Spire",
+  "The Hollow Zenith",
+  "Starcross Spire",
+  "The Widening Vault",
+  "Cinderspire Reach",
+  "The Faultline Ascent",
+  "Nightglass Spire",
+  "The Drowned Zenith",
+  "Starfall Spire",
+  "Mirror's End",
+  "The Final Cinder",
+  "Starshade's Trial",
+  "The Last Ascent",
+  "The Abyssal Spire",
+  "Starshade's Eternity",
 ];
 const TOTAL_LEVELS = LEVEL_NAMES.length;
+
+// Named "branch" levels (see BONUS_LEVELS in .claude/gen-levels.js — the
+// level numbers here must match that script's) — rendered as a spur off
+// the main path instead of another rung on it (see computeNodePositions()
+// and the "bonus" path/node below).
+const BONUS_LEVEL_NUMBERS = new Set([35, 50, 65, 82, 95]);
 
 function updateCoinBalance() {
   document.getElementById("coin-balance").textContent =
@@ -66,22 +150,44 @@ function highestUnlockedLevel() {
 const SPACING_Y = 128;
 const TOP_PAD = 30;
 
+// Bonus/branch levels (BONUS_LEVEL_NUMBERS) get pushed further out to
+// whichever side they're already leaning, so they visibly poke out from
+// the main winding path — `onPathX` (what the plain sine wave would have
+// put there) is kept separately so the main path line itself stays smooth
+// and undistorted; only the node and a short spur line (see renderLevels())
+// use the offset `x`.
+const BONUS_BRANCH_OFFSET = 70;
+
 function computeNodePositions(width) {
   const centerX = width / 2;
   const amplitude = Math.max(40, Math.min(160, width / 2 - 60));
   const positions = [];
   for (let n = 1; n <= TOTAL_LEVELS; n++) {
+    const onPathX = centerX + Math.sin((n - 1) * 0.85) * amplitude;
+    const y = TOP_PAD + (n - 1) * SPACING_Y;
+    const isBonus = BONUS_LEVEL_NUMBERS.has(n);
+    const side = onPathX >= centerX ? 1 : -1;
     positions.push({
-      x: centerX + Math.sin((n - 1) * 0.85) * amplitude,
-      y: TOP_PAD + (n - 1) * SPACING_Y,
+      x: isBonus ? onPathX + side * BONUS_BRANCH_OFFSET : onPathX,
+      onPathX,
+      y,
+      isBonus,
     });
   }
   return positions;
 }
 
-function pathString(positions, indices) {
+// `useOnPath` draws through each node's undistorted on-path position
+// (see computeNodePositions()) rather than its actual (possibly
+// branch-offset) one — used for the main winding path so a bonus node
+// off to one side doesn't kink the whole trail toward it.
+function pathString(positions, indices, useOnPath) {
   return indices
-    .map((i, k) => `${k === 0 ? "M" : "L"}${positions[i].x},${positions[i].y}`)
+    .map((i, k) => {
+      const p = positions[i];
+      const x = useOnPath ? p.onPathX : p.x;
+      return `${k === 0 ? "M" : "L"}${x},${p.y}`;
+    })
     .join(" ");
 }
 
@@ -107,9 +213,11 @@ function renderLevels() {
   const svgNS = "http://www.w3.org/2000/svg";
   const allIndices = positions.map((_, i) => i);
 
-  // The full path, dashed and dim — "where the trail goes."
+  // The full path, dashed and dim — "where the trail goes." Drawn through
+  // every node's on-path position (see pathString()) so branch/bonus
+  // nodes, offset to one side, don't kink the main trail toward them.
   const fullPath = document.createElementNS(svgNS, "path");
-  fullPath.setAttribute("d", pathString(positions, allIndices));
+  fullPath.setAttribute("d", pathString(positions, allIndices, true));
   fullPath.setAttribute("class", "tree-path tree-path-full");
   svg.appendChild(fullPath);
 
@@ -121,10 +229,21 @@ function renderLevels() {
   if (litThrough > 1 || maxCompleted > 0) {
     const litIndices = allIndices.slice(0, litThrough);
     const litPath = document.createElementNS(svgNS, "path");
-    litPath.setAttribute("d", pathString(positions, litIndices));
+    litPath.setAttribute("d", pathString(positions, litIndices, true));
     litPath.setAttribute("class", "tree-path tree-path-lit");
     svg.appendChild(litPath);
   }
+
+  // A short gold spur from each bonus node's on-path spot out to where it
+  // actually sits — the visual "this is a detour" cue that pairs with the
+  // diamond shape/gold color in levels.css.
+  positions.forEach((pos) => {
+    if (!pos.isBonus) return;
+    const spur = document.createElementNS(svgNS, "path");
+    spur.setAttribute("d", `M${pos.onPathX},${pos.y} L${pos.x},${pos.y}`);
+    spur.setAttribute("class", "tree-path tree-path-bonus");
+    svg.appendChild(spur);
+  });
 
   positions.forEach((pos, idx) => {
     const n = idx + 1;
@@ -134,6 +253,7 @@ function renderLevels() {
 
     const node = document.createElement("button");
     node.className = "level-node";
+    if (pos.isBonus) node.classList.add("bonus");
     if (isCompleted) node.classList.add("completed");
     else if (isCurrent) node.classList.add("current");
     if (!isUnlocked) node.classList.add("locked");
@@ -141,9 +261,15 @@ function renderLevels() {
     node.style.top = `${pos.y}px`;
 
     const circleContent = isCompleted ? "&#9733;" : isUnlocked ? String(n) : "&#128274;";
+    // Bonus/branch nodes show their real name on its own, not prefixed
+    // with a number — the whole point is that they read as a named
+    // destination, not another rung on the ladder (see BONUS_LEVEL_NUMBERS
+    // above). The glyph is wrapped in its own span so levels.css can
+    // counter-rotate it back upright inside the diamond-rotated circle.
+    const label = pos.isBonus ? LEVEL_NAMES[n - 1] : `${n}. ${LEVEL_NAMES[n - 1]}`;
     node.innerHTML = `
-      <span class="level-node-circle">${circleContent}</span>
-      <span class="level-node-name">${n}. ${LEVEL_NAMES[n - 1]}</span>
+      <span class="level-node-circle"><span class="level-node-circle-glyph">${circleContent}</span></span>
+      <span class="level-node-name">${label}</span>
     `;
 
     if (isUnlocked) {

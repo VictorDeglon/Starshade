@@ -70,8 +70,13 @@ function canClearDouble(dx, riseNeeded) {
   return allDoublePaths.some((p) => canClearPath(p, dx, riseNeeded));
 }
 
+// Scales automatically as more levels are added — no hardcoded "25" to
+// remember to bump every time the level count grows.
+let maxLevel = 1;
+while (fs.existsSync(path.join(__dirname, "..", `level${maxLevel + 1}.js`))) maxLevel++;
+
 const results = [];
-for (let n = 1; n <= 25; n++) {
+for (let n = 1; n <= maxLevel; n++) {
   const level = loadLevel(n);
   // Ghost platforms (see game.js's updateGhostPlatforms()) are only
   // sometimes solid, so the level must be completable without ever relying
@@ -115,7 +120,7 @@ for (let n = 1; n <= 25; n++) {
 }
 
 const impossible = results.filter((r) => r.verdict.startsWith("IMPOSSIBLE"));
-console.log(`Checked all 25 levels.`);
+console.log(`Checked all ${maxLevel} levels.`);
 console.log(
   `${impossible.length} IMPOSSIBLE gap(s), ${results.length - impossible.length} double-jump-required gap(s) (informational).\n`
 );

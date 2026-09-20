@@ -98,6 +98,19 @@ body {
   filter: drop-shadow(0 0 6px rgba(50, 205, 50, 0.6));
 }
 
+/* Bonus/branch levels (see BONUS_LEVELS in levels.js) sit off to one side
+   of the main path rather than on it — a spur, drawn separately so it
+   never gets mistaken for "how far you've come" the way the main lit path
+   does. Gold rather than the main path's purple/green so it reads as a
+   detour, not a continuation. */
+.tree-path-bonus {
+  stroke: #ffcf4d;
+  stroke-width: 3;
+  stroke-dasharray: 6 8;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 5px rgba(255, 207, 77, 0.5));
+}
+
 .level-node {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -149,6 +162,54 @@ body {
   border-color: #32cd32;
   box-shadow: 0 0 14px rgba(50, 205, 50, 0.4);
   color: #d6ffd6;
+}
+
+/* Bonus/branch levels (see BONUS_LEVELS in levels.js) — gold instead of
+   the ordinary violet/green/blue palette, and a diamond silhouette (a
+   square rotated 45°, with the label counter-rotated back upright) so
+   they read as a distinct kind of node at a glance, not just another
+   numbered rung with a fancier name. */
+.level-node.bonus .level-node-circle {
+  border-radius: 12px;
+  transform: rotate(45deg) scale(0.88);
+  margin-bottom: 6px;
+  border-color: #ffcf4d;
+  box-shadow: 0 0 16px rgba(255, 207, 77, 0.45);
+}
+
+.level-node.bonus .level-node-circle-glyph {
+  transform: rotate(-45deg);
+  display: inline-block;
+}
+
+.level-node.bonus:hover:not(.locked) .level-node-circle {
+  transform: rotate(45deg) scale(0.97);
+  box-shadow: 0 0 24px rgba(255, 207, 77, 0.75);
+}
+
+.level-node.bonus.current .level-node-circle {
+  border-color: #ffe58a;
+  animation: node-pulse-bonus 2s ease-in-out infinite;
+}
+
+.level-node.bonus.completed .level-node-circle {
+  border-color: #ffd873;
+  color: #fff3cf;
+}
+
+@keyframes node-pulse-bonus {
+  0%, 100% { box-shadow: 0 0 16px rgba(255, 207, 77, 0.55); }
+  50% { box-shadow: 0 0 28px rgba(255, 207, 77, 0.9); }
+}
+
+.level-node.bonus .level-node-name {
+  color: #ffe58a;
+  font-style: italic;
+}
+
+.level-node.bonus.locked .level-node-name {
+  color: #6c6395;
+  font-style: normal;
 }
 
 .level-node.locked {

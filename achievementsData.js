@@ -17,6 +17,12 @@
 //   grantsSkin  — optional skinsData.js id: the moment this achievement
 //                 unlocks, that skin is granted via StarshadeEconomy.
 //                 grantSkin() (see skinsData.js's 'achievement' unlockType)
+//   grantsCoins — optional number: the moment this achievement unlocks,
+//                 that many bonus coins are added via StarshadeEconomy.
+//                 addCoins() — used on the easier (common/rare) entries
+//                 as a small extra reward, distinct from grantsSkin which
+//                 is reserved for the five legendary/mythic signature
+//                 skins below
 //   check(stats) — pure function over collectStats()'s snapshot; no side
 //                 effects, so it's safe to call every time checkAll() runs
 const STARSHADE_ACHIEVEMENTS = [
@@ -67,6 +73,129 @@ const STARSHADE_ACHIEVEMENTS = [
   // first would make it permanently unreachable.
   { id: "bounce-king", name: "Bounce King", description: "Own every other skin in the game", rarity: "mythic", icon: "trophy",
     grantsSkin: "nebula-bouncer", check: (s) => s.unlockedSkinCount >= s.totalSkinCount - 1 },
+
+  // ---------------------------------------------------------------
+  // Per-level completions filling in the levels the original six
+  // milestones (1/6/13/19/24) skipped — rarity climbs with the level
+  // number, same as the game's own difficulty curve. Common/rare ones
+  // also pay a small coin bonus; epic and up are just bragging rights,
+  // matching the existing milestones above.
+  // ---------------------------------------------------------------
+  { id: "second-step", name: "Second Step", description: "Complete Level 2", rarity: "common", icon: "flag",
+    grantsCoins: 25, check: (s) => s.completedLevels.includes(2) },
+  { id: "getting-traction", name: "Getting Traction", description: "Complete Level 3", rarity: "common", icon: "flag",
+    grantsCoins: 25, check: (s) => s.completedLevels.includes(3) },
+  { id: "fourth-wall", name: "Fourth Wall", description: "Complete Level 4", rarity: "common", icon: "flag",
+    grantsCoins: 25, check: (s) => s.completedLevels.includes(4) },
+  { id: "high-five", name: "High Five", description: "Complete Level 5", rarity: "common", icon: "flag",
+    grantsCoins: 25, check: (s) => s.completedLevels.includes(5) },
+  { id: "lucky-seven", name: "Lucky Seven", description: "Complete Level 7", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(7) },
+  { id: "figure-eight", name: "Figure Eight", description: "Complete Level 8", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(8) },
+  { id: "cloud-nine", name: "Cloud Nine", description: "Complete Level 9", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(9) },
+  { id: "perfect-ten", name: "Perfect Ten", description: "Complete Level 10", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(10) },
+  { id: "eleven-and-climbing", name: "Eleven and Climbing", description: "Complete Level 11", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(11) },
+  { id: "dozen-down", name: "Dozen Down", description: "Complete Level 12", rarity: "rare", icon: "flag",
+    grantsCoins: 60, check: (s) => s.completedLevels.includes(12) },
+  { id: "fourteen-forward", name: "Fourteen Forward", description: "Complete Level 14", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(14) },
+  { id: "fifteen-foothold", name: "Fifteen Foothold", description: "Complete Level 15", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(15) },
+  { id: "sweet-sixteen", name: "Sweet Sixteen", description: "Complete Level 16", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(16) },
+  { id: "seventeen-and-soaring", name: "Seventeen and Soaring", description: "Complete Level 17", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(17) },
+  { id: "eighteen-ascending", name: "Eighteen Ascending", description: "Complete Level 18", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(18) },
+  { id: "twenty-and-tenacious", name: "Twenty and Tenacious", description: "Complete Level 20", rarity: "legendary", icon: "flag",
+    check: (s) => s.completedLevels.includes(20) },
+  { id: "twenty-one-nerves-of-steel", name: "Nerves of Steel", description: "Complete Level 21", rarity: "legendary", icon: "flag",
+    check: (s) => s.completedLevels.includes(21) },
+  { id: "twenty-two-trials", name: "Twenty-Two Trials", description: "Complete Level 22", rarity: "legendary", icon: "flag",
+    check: (s) => s.completedLevels.includes(22) },
+  { id: "twenty-three-skyward", name: "Skyward Bound", description: "Complete Level 23", rarity: "legendary", icon: "flag",
+    check: (s) => s.completedLevels.includes(23) },
+  { id: "final-ascent", name: "Final Ascent", description: "Complete Level 25", rarity: "mythic", icon: "flag",
+    check: (s) => s.completedLevels.includes(25) },
+
+  // ---------------------------------------------------------------
+  // More coin-total milestones, filling the gaps between the original
+  // 100/1,000/5,000/10,000 thresholds and pushing well past them.
+  // ---------------------------------------------------------------
+  { id: "loose-change", name: "Loose Change", description: "Earn 250 coins total", rarity: "common", icon: "coin",
+    grantsCoins: 25, check: (s) => s.totalCoinsEarned >= 250 },
+  { id: "piggy-bank", name: "Piggy Bank", description: "Earn 500 coins total", rarity: "common", icon: "coin",
+    grantsCoins: 25, check: (s) => s.totalCoinsEarned >= 500 },
+  { id: "savings-streak", name: "Savings Streak", description: "Earn 750 coins total", rarity: "common", icon: "coin",
+    grantsCoins: 25, check: (s) => s.totalCoinsEarned >= 750 },
+  { id: "treasure-trove", name: "Treasure Trove", description: "Earn 1,500 coins total", rarity: "rare", icon: "coin",
+    grantsCoins: 60, check: (s) => s.totalCoinsEarned >= 1500 },
+  { id: "coin-connoisseur", name: "Coin Connoisseur", description: "Earn 2,000 coins total", rarity: "rare", icon: "coin",
+    grantsCoins: 60, check: (s) => s.totalCoinsEarned >= 2000 },
+  { id: "vault-builder", name: "Vault Builder", description: "Earn 3,000 coins total", rarity: "rare", icon: "coin",
+    grantsCoins: 60, check: (s) => s.totalCoinsEarned >= 3000 },
+  { id: "gold-rush", name: "Gold Rush", description: "Earn 4,000 coins total", rarity: "epic", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 4000 },
+  { id: "coin-baron", name: "Coin Baron", description: "Earn 6,000 coins total", rarity: "epic", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 6000 },
+  { id: "fortune-seeker", name: "Fortune Seeker", description: "Earn 7,500 coins total", rarity: "epic", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 7500 },
+  { id: "riches-untold", name: "Riches Untold", description: "Earn 8,500 coins total", rarity: "epic", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 8500 },
+  { id: "coin-tycoon", name: "Coin Tycoon", description: "Earn 12,000 coins total", rarity: "legendary", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 12000 },
+  { id: "midas-touch", name: "Midas Touch", description: "Earn 15,000 coins total", rarity: "legendary", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 15000 },
+  { id: "coin-emperor", name: "Coin Emperor", description: "Earn 20,000 coins total", rarity: "legendary", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 20000 },
+  { id: "galactic-fortune", name: "Galactic Fortune", description: "Earn 30,000 coins total", rarity: "legendary", icon: "coin",
+    check: (s) => s.totalCoinsEarned >= 30000 },
+
+  // ---------------------------------------------------------------
+  // More skin-collection milestones, filling the gaps between the
+  // original 2/10/25/30 thresholds (and the mythic "own them all").
+  // ---------------------------------------------------------------
+  { id: "getting-dressed", name: "Getting Dressed", description: "Unlock 5 skins", rarity: "common", icon: "mask",
+    grantsCoins: 25, check: (s) => s.unlockedSkinCount >= 5 },
+  { id: "wardrobe-growing", name: "Wardrobe Growing", description: "Unlock 15 skins", rarity: "rare", icon: "mask",
+    grantsCoins: 60, check: (s) => s.unlockedSkinCount >= 15 },
+  { id: "trendsetter", name: "Trendsetter", description: "Unlock 20 skins", rarity: "rare", icon: "mask",
+    grantsCoins: 60, check: (s) => s.unlockedSkinCount >= 20 },
+  { id: "closet-full", name: "Closet Full", description: "Unlock 35 skins", rarity: "epic", icon: "mask",
+    check: (s) => s.unlockedSkinCount >= 35 },
+  { id: "style-collector", name: "Style Collector", description: "Unlock 40 skins", rarity: "epic", icon: "mask",
+    check: (s) => s.unlockedSkinCount >= 40 },
+  { id: "runway-ready", name: "Runway Ready", description: "Unlock 45 skins", rarity: "legendary", icon: "mask",
+    check: (s) => s.unlockedSkinCount >= 45 },
+  { id: "icon-status", name: "Icon Status", description: "Unlock 50 skins", rarity: "legendary", icon: "mask",
+    check: (s) => s.unlockedSkinCount >= 50 },
+  { id: "nearly-everything", name: "Nearly Everything", description: "Unlock 60 skins", rarity: "mythic", icon: "mask",
+    check: (s) => s.unlockedSkinCount >= 60 },
+
+  // ---------------------------------------------------------------
+  // More death-count milestones, filling the gaps between the original
+  // 1/25/100/200 thresholds and pushing well past them.
+  // ---------------------------------------------------------------
+  { id: "rough-start", name: "Rough Start", description: "Die 5 times total", rarity: "common", icon: "skull",
+    grantsCoins: 25, check: (s) => s.totalDeaths >= 5 },
+  { id: "getting-the-hang-of-dying", name: "Getting the Hang of Dying", description: "Die 10 times total", rarity: "common", icon: "skull",
+    grantsCoins: 25, check: (s) => s.totalDeaths >= 10 },
+  { id: "frequent-flyer", name: "Frequent Flyer", description: "Die 50 times total", rarity: "rare", icon: "skull",
+    grantsCoins: 60, check: (s) => s.totalDeaths >= 50 },
+  { id: "bounce-back", name: "Bounce Back", description: "Die 75 times total", rarity: "rare", icon: "skull",
+    grantsCoins: 60, check: (s) => s.totalDeaths >= 75 },
+  { id: "glutton-for-punishment", name: "Glutton for Punishment", description: "Die 150 times total", rarity: "epic", icon: "skull",
+    check: (s) => s.totalDeaths >= 150 },
+  { id: "nine-lives-and-counting", name: "Nine Lives and Counting", description: "Die 300 times total", rarity: "epic", icon: "skull",
+    check: (s) => s.totalDeaths >= 300 },
+  { id: "death-defiant", name: "Death Defiant", description: "Die 500 times total", rarity: "legendary", icon: "skull",
+    check: (s) => s.totalDeaths >= 500 },
+  { id: "immortal-grind", name: "Immortal Grind", description: "Die 750 times total", rarity: "mythic", icon: "skull",
+    check: (s) => s.totalDeaths >= 750 },
 ];
 
 const StarshadeAchievements = (() => {
@@ -111,6 +240,7 @@ const StarshadeAchievements = (() => {
       if (!ach.check(stats)) return;
       unlocked.push(ach.id);
       if (ach.grantsSkin) StarshadeEconomy.grantSkin(ach.grantsSkin);
+      if (ach.grantsCoins) StarshadeEconomy.addCoins(ach.grantsCoins);
       newlyUnlocked.push(ach);
     });
     if (newlyUnlocked.length) {
