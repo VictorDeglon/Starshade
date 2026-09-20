@@ -31,7 +31,7 @@ canvas {
 }
 
 /* Menu shell — every overlay (main menu, pause, settings, levels,
-   achievements, profile, shop, contact) shares this .menu/.menu-panel/
+   achievements, profile, shop) shares this .menu/.menu-panel/
    .menu-button base. Deliberately translucent/glassy rather than an
    opaque box: the whole point of .galaxy-bg (and, once gameplay is
    running, the live canvas behind it) is that it shows through here —
@@ -284,6 +284,11 @@ canvas {
   padding-top: max(16px, env(safe-area-inset-top, 0px));
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   background: rgba(6, 4, 20, 0.4);
+  /* Sized to fit any realistic device without this ever kicking in (see
+     the breakpoint below) — but a safety net, not the plan: an
+     unreachable clipped button on some viewport this wasn't tuned for
+     is worse than an occasional scroll. */
+  overflow-y: auto;
 }
 
 .hub-hero {
@@ -315,8 +320,17 @@ canvas {
    the same grid as the others (which also, with only 4-5 secondary
    items left after Settings moved to the corner gear, made the grid
    itself lopsided — one wide item plus a leftover column). */
-.hub-primary-row {
-  width: min(100%, 560px);
+/* Both rows share the exact same bound (720px) — the previous mismatch
+   (primary row capped at 560px, grid at 900px) put the Play button's
+   edges noticeably inside the row of buttons below it, which read as
+   lopsided rather than "one deliberately bigger thing above a tidy
+   row." Buttons in the grid stop growing past 160px each and the row
+   centers instead of stretching to fill, so on a wide desktop window
+   the whole thing stays a compact, centered block instead of a few
+   buttons stretched thin across the full width. */
+.hub-primary-row,
+.hub-grid {
+  width: min(100%, 720px);
   max-width: 94vw;
   padding: 0 4px;
 }
@@ -325,9 +339,6 @@ canvas {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: clamp(10px, 1.6vh, 18px);
-  width: min(100%, 900px);
-  max-width: 94vw;
-  padding: 0 4px;
 }
 
 .hub-button {
@@ -1116,23 +1127,6 @@ canvas {
   color: #9C97C4;
   margin: 2px 0 0;
   font-family: 'Space Grotesk', sans-serif;
-}
-
-/* -------------------------------------------------------------
-   CONTACT OVERLAY (embedded contact.html content) — contact.css supplies
-   the form's own look (.contact-section/.contact-form/etc.); this just
-   fits that panel inside the shared .menu-panel shell.
-   ------------------------------------------------------------- */
-#contactOverlay .contact-panel {
-  width: auto;
-  padding: 0;
-  background: none;
-  border: none;
-  box-shadow: none;
-}
-
-#contactOverlay .contact-section {
-  margin: 0 0 16px;
 }
 
 /* -------------------------------------------------------------

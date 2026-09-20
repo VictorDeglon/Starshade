@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="achievements.css" />
     <link rel="stylesheet" href="profile.css" />
     <link rel="stylesheet" href="shop.css" />
-    <link rel="stylesheet" href="contact.css" />
     <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
@@ -180,10 +179,6 @@
         <button class="hub-button" id="main-menu-achievements-button">
           <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H17 V9 A5 5 0 0 1 7 9 Z M7 5 H4 A3 3 0 0 0 7 9 M17 5 H20 A3 3 0 0 1 17 9 M12 14 V18 M9 18 H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Achievements</span>
-        </button>
-        <button class="hub-button" id="main-menu-contact-button">
-          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6 H20 V18 H4 Z M4 6 L12 13 L20 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Contact</span>
         </button>
       </div>
     </div>
@@ -364,19 +359,26 @@
       <button class="overlay-close-x" data-closes="profile-back-button" aria-label="Close profile">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
-      <div class="menu-panel">
+      <div class="menu-panel profile-panel">
         <h1>Profile</h1>
-        <div class="profile-identity">
-          <div class="profile-skin-swatch" id="profile-skin-swatch"></div>
-          <div class="profile-name" id="profile-name">Explorer</div>
-        </div>
-        <div class="profile-journey">
-          <div class="profile-journey-label" id="profile-journey-label">Level 1 of 100</div>
-          <div class="profile-journey-bar">
-            <div class="profile-journey-fill" id="profile-journey-fill"></div>
+        <!-- Side-by-side instead of one long stacked column — a real
+             landscape phone (mobile play's only orientation) is short
+             enough that identity + journey + a stat grid all stacked
+             vertically ran past the visible screen entirely, well
+             before the Back button. -->
+        <div class="profile-body">
+          <div class="profile-identity">
+            <div class="profile-skin-swatch" id="profile-skin-swatch"></div>
+            <div class="profile-name" id="profile-name">Explorer</div>
+            <div class="profile-journey">
+              <div class="profile-journey-label" id="profile-journey-label">Level 1 of 100</div>
+              <div class="profile-journey-bar">
+                <div class="profile-journey-fill" id="profile-journey-fill"></div>
+              </div>
+            </div>
           </div>
+          <div class="profile-stat-grid" id="profile-stat-grid"></div>
         </div>
-        <div class="profile-stat-grid" id="profile-stat-grid"></div>
         <button class="menu-button" id="profile-back-button">Back</button>
       </div>
     </div>
@@ -482,59 +484,6 @@
         </div>
 
         <button class="menu-button" id="shop-back-button">Back</button>
-      </div>
-    </div>
-
-    <!-- Contact overlay — opened from the main menu. -->
-    <div id="contactOverlay" class="menu hidden">
-      <button class="overlay-close-x" data-closes="contact-back-button" aria-label="Close contact">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-      <div class="menu-panel contact-panel">
-        <div class="contact-section">
-          <h2>Contact Form</h2>
-          <form class="contact-form">
-            <div class="form-group">
-              <label for="name">Your Name:</label>
-              <input type="text" id="name" name="name" placeholder="Enter your name" />
-            </div>
-            <div class="form-group">
-              <label for="email">Your Email:</label>
-              <input type="email" id="email" name="email" placeholder="Enter your email" />
-            </div>
-            <div class="form-group">
-              <label for="problem">What problems have you faced?</label>
-              <textarea id="problem" name="problem" rows="4" placeholder="Describe the issue"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="suggestions">Any suggestions for improvement?</label>
-              <textarea id="suggestions" name="suggestions" rows="3" placeholder="Share your ideas"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="rate-experience">How would you rate your experience ( 1 - 10 )?</label>
-              <input type="number" id="rate-experience" name="rate-experience" min="1" max="10" />
-            </div>
-            <div class="form-group">
-              <label for="issues-resolved">Have you had issues resolved before?</label>
-              <select id="issues-resolved" name="issues-resolved">
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="additional-comments">Additional comments or feedback:</label>
-              <textarea id="additional-comments" name="additional-comments" rows="4" placeholder="Anything else you want to share?"></textarea>
-            </div>
-            <div class="form-group">
-              <button type="submit" class="submit-button">Submit</button>
-            </div>
-          </form>
-          <div class="contact-info">
-            <h3>Developer Contact Info</h3>
-            <p>victor.deglon@gmail.com</p>
-          </div>
-        </div>
-        <button class="menu-button" id="contact-back-button">Back</button>
       </div>
     </div>
 

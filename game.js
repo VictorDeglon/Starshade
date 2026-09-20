@@ -1044,8 +1044,8 @@ document
 // -------------------------------------------------------------
 // PAUSE MENU + MAIN MENU + every full-screen overlay
 // -------------------------------------------------------------
-// Settings, the Level Map, Achievements, Profile, the Shop, and Contact
-// all open as overlays *on top of* whichever root screen was showing —
+// Settings, the Level Map, Achievements, Profile, and the Shop all open
+// as overlays *on top of* whichever root screen was showing —
 // the pause menu mid-run, or the main menu — rather than navigating to a
 // separate page. Every one of those overlays' own scripts is also loaded
 // here (each wrapped in its own IIFE — see their top comments) and drives
@@ -1062,7 +1062,6 @@ const SUB_OVERLAY_IDS = [
   "achievementsOverlay",
   "profileOverlay",
   "shopOverlay",
-  "contactOverlay",
 ];
 // Which root menu a sub-overlay should return to when it closes — set by
 // openSubOverlay() below at the moment it's opened, since a sub-overlay
@@ -1149,14 +1148,6 @@ function closeShopOverlay() {
 }
 window.closeShopOverlay = closeShopOverlay;
 
-function openContactOverlay() {
-  openSubOverlay("contactOverlay");
-}
-function closeContactOverlay() {
-  closeSubOverlays();
-}
-window.closeContactOverlay = closeContactOverlay;
-
 // Pauses gameplay (if a run is in progress) and shows the main menu.
 // Replaces what used to be "Quit to Menu"'s real navigation back to
 // index.html — there's only one page left, so quitting to the menu is
@@ -1236,9 +1227,7 @@ document.getElementById("main-menu-levels-button").addEventListener("click", ope
 document.getElementById("main-menu-shop-button").addEventListener("click", openShopOverlay);
 document.getElementById("main-menu-achievements-button").addEventListener("click", openAchievementsOverlay);
 document.getElementById("main-menu-settings-button").addEventListener("click", openSettingsOverlay);
-document.getElementById("main-menu-contact-button").addEventListener("click", openContactOverlay);
 document.getElementById("shop-back-button").addEventListener("click", closeShopOverlay);
-document.getElementById("contact-back-button").addEventListener("click", closeContactOverlay);
 
 // -------------------------------------------------------------
 // COIN TOAST

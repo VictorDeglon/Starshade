@@ -6,26 +6,40 @@
    pause-menu overlays, so this doesn't read as a bolted-on new UI.
    ------------------------------------------------------------- */
 
-#profileOverlay .menu-panel {
-  width: 480px;
+.profile-panel {
+  width: 640px;
   max-width: 92vw;
 }
 
 #profileOverlay h1 {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
   color: #F7F4FF;
   font-family: "Orbitron", sans-serif;
   font-weight: 800;
   text-shadow: 0 0 20px rgba(168, 120, 255, 0.7), 0 0 40px rgba(139, 92, 246, 0.35);
-  margin: 0 0 20px;
+  margin: 0 0 14px;
+}
+
+/* Identity (left) + stat grid (right), side by side, instead of one long
+   stacked column — see index.html's comment: on a real landscape phone
+   (the only orientation mobile play shows this in), the stacked version
+   ran well past the bottom of the screen before ever reaching the stat
+   grid or the Back button. */
+.profile-body {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  text-align: left;
 }
 
 .profile-identity {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 8px;
+  text-align: center;
+  width: 150px;
 }
 
 .profile-skin-swatch {
@@ -56,14 +70,14 @@
 }
 
 .profile-journey {
-  margin-bottom: 24px;
+  width: 100%;
 }
 
 .profile-journey-label {
   font-family: "Space Grotesk", sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #9C97C4;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .profile-journey-bar {
@@ -84,34 +98,30 @@
 }
 
 .profile-stat-grid {
+  flex: 1;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  min-width: 0;
 }
 
 .profile-stat-card {
-  padding: 14px 10px;
+  padding: 10px 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 16px;
+  border-radius: 14px;
 }
 
 .profile-stat-value {
   font-family: "Orbitron", sans-serif;
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1rem;
+  white-space: nowrap;
   color: #F7F4FF;
 }
 
 .profile-stat-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: #8B86B3;
   margin-top: 2px;
-}
-
-@media screen and (max-width: 500px) {
-  .profile-stat-grid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
