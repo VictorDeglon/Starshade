@@ -200,30 +200,53 @@ let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
 
-// Zooms the whole world view out a little while the player is airborne
-// (a jump, a fall, riding a moving platform off an edge) and back to
-// normal the instant they land — seeing more of the level around you
-// while you're in the air, where you most need to spot the platform
-// you're aiming for, without needing a hard cap on jump height or a
-// bigger, more disorienting jump-instant zoom.
+// Zooms the whole world view out a little during a real, dangerous fall
+// (see the fall-speed-proportional openAmount in updatePlayer()) and back
+// to normal on landing — seeing more of the level around you while you're
+// falling fast, where you most need to spot the platform you're aiming
+// for, without needing a hard cap on jump height or a bigger, more
+// disorienting jump-instant zoom. Proportional to actual fall speed
+// rather than a flat "airborne y/n" toggle specifically so an ordinary
+// jump — which never builds up much more than jumpStrength's own downward
+// speed before landing — stays right at 0 effect: earlier versions of
+// this snapped to the zoomed-out target the instant the player left the
+// ground at all, which made a routine hop look and feel different from
+// how the game always played, the actual problem players had with it.
 let cameraZoom = 1;
 const CAMERA_ZOOM_GROUNDED = 1;
-const CAMERA_ZOOM_AIRBORNE = 0.88;
+const CAMERA_ZOOM_OPEN_RANGE = 0.14; // how far zoom drops at full "openAmount"
 const CAMERA_ZOOM_SMOOTHING = 0.06;
 
 // Where the player sits vertically on screen, as a fraction of
-// viewportHeight from the top — 0.5 is dead-center. Grounded, that's the
-// normal "centered" framing; airborne, it eases up to a smaller fraction
-// (the player sits higher up on screen), which hands most of the freed-up
-// space at the bottom to whatever's below them — exactly the area they
-// need to actually see to land safely, which a purely-centered camera
-// (or a uniform zoom-out alone) doesn't prioritize. This is the "mid-zone"
-// framing: never so extreme that the character themselves scrolls off the
-// top, just enough that the landing zone stops being an afterthought.
+// viewportHeight from the top — 0.5 is dead-center. At rest that's the
+// normal "centered" framing; during a fast fall it eases toward a smaller
+// fraction (the player sits higher up on screen), which hands most of the
+// freed-up space at the bottom to whatever's below them — exactly the
+// area they need to actually see to land safely, which a purely-centered
+// camera (or the zoom above alone) doesn't prioritize. Driven by the same
+// openAmount as the zoom above, so it shares the same "never during a
+// normal jump" guarantee.
 let cameraVerticalAnchor = 0.5;
 const CAMERA_ANCHOR_GROUNDED = 0.5;
-const CAMERA_ANCHOR_AIRBORNE = 0.36;
+const CAMERA_ANCHOR_OPEN_RANGE = 0.14; // how far the anchor rises at full "openAmount"
 const CAMERA_ANCHOR_SMOOTHING = 0.05;
+
+// The player.dy range (px/tick) that "openAmount" ramps across — below
+// the low end (comfortably above what a normal jump's arc ever reaches,
+// see the constants' own comments above) there's no effect at all; at/
+// above the high end, the zoom/anchor shift above are at their maximum.
+const CAMERA_OPEN_FALL_SPEED_MIN = 13;
+const CAMERA_OPEN_FALL_SPEED_MAX = 24;
+
+// How far the camera leans in the direction the player is actually
+// moving (see the cameraTargetX adjustment in updatePlayer()) — a classic
+// platformer "look-ahead" camera trick for a more open field of view in
+// front of the player without touching zoom at all. Small on purpose:
+// horizontalSpeed (and DASH_SPEED, faster still) are the only values dx
+// ever takes since this game has no acceleration, so this is really a
+// fixed lean while moving vs. not, smoothed into place by the existing
+// camera easing rather than a snap.
+const CAMERA_LOOKAHEAD_FACTOR = 14;
 
 // Screen shake (triggered on death)
 let shakeTime = 0;
@@ -2520,6 +2543,15 @@ function updatePlayer(dtScale) {
   let cameraTargetX = player.x;
   let cameraTargetY = player.y;
 
+  // Look-ahead: bias the horizontal target a little in whichever direction
+  // the player is actually moving (including mid-dash, which is a lot
+  // faster) — a classic platformer camera trick for a more open field of
+  // view without changing the zoom at all. horizontalSpeed is fixed (this
+  // game has no acceleration), so dx is always one of a small set of
+  // values, and the existing camera easing below smooths the shift into a
+  // gentle lean rather than a snap the instant you start walking.
+  cameraTargetX += player.dx * CAMERA_LOOKAHEAD_FACTOR;
+
   // Riding a moving platform carries the player by the platform's own
   // live oscillation every frame (see the carry step above) — if the
   // camera tracked the player's raw position, it would faithfully chase
@@ -2552,18 +2584,29 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetX - cameraOffsetX) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
-  // The airborne mid-zone framing/zoom-out (below) is touch-only — it was
-  // built to fix "hard to see where I'm landing" on a small phone screen,
-  // but on an already-large laptop/desktop viewport the extra zoom and
-  // framing shift just made a normal jump feel different than it always
-  // has, without solving a problem that mostly exists on a phone in the
-  // first place. Desktop keeps the plain, always-centered, unzoomed
-  // camera jumping has had from the start; touch devices keep both.
-  const airborneFramingActive = isTouchDevice && !grounded;
+  // Continuous, fall-speed-proportional "opening up" — replaces a flat
+  // grounded/airborne toggle that used to snap to a fixed zoomed-out
+  // target the instant the player left the ground at all, which was the
+  // actual problem with it (an ordinary hop looked and felt different
+  // from how the game always played, not the idea of opening the view up
+  // during a real fall). `openAmount` stays at exactly 0 through a normal
+  // single/double jump — gravity only builds `player.dy` up to roughly
+  // jumpStrength's own magnitude (12) over the course of a jump that
+  // started and lands at similar heights — and only ramps up during a
+  // fall that's actually long enough to be dangerous (a bottomless-feeling
+  // drop, a level built around a long fall), which is exactly when seeing
+  // more of what's below is actually useful. Applies on desktop and touch
+  // alike now that it can't misfire on routine jumps the way the old
+  // binary version did.
+  const fallSpeed = Math.max(0, player.dy);
+  const openAmount = Math.max(
+    0,
+    Math.min(1, (fallSpeed - CAMERA_OPEN_FALL_SPEED_MIN) / (CAMERA_OPEN_FALL_SPEED_MAX - CAMERA_OPEN_FALL_SPEED_MIN))
+  );
 
   // Ease the vertical anchor first — it's part of this frame's Y target
   // below, not just a cosmetic value read later.
-  const targetAnchor = airborneFramingActive ? CAMERA_ANCHOR_AIRBORNE : CAMERA_ANCHOR_GROUNDED;
+  const targetAnchor = CAMERA_ANCHOR_GROUNDED - openAmount * CAMERA_ANCHOR_OPEN_RANGE;
   cameraVerticalAnchor +=
     (targetAnchor - cameraVerticalAnchor) *
     (1 - Math.pow(1 - CAMERA_ANCHOR_SMOOTHING, dtScale));
@@ -2572,15 +2615,15 @@ function updatePlayer(dtScale) {
   // than one screen's worth of height (a tall climb, a long drop) instead
   // of every platform needing to stay within a single fixed on-screen
   // band (see applyLevelVerticalLayout()/docs/gameplay.md). Anchored at
-  // cameraVerticalAnchor rather than a flat 0.5 so the "mid-zone" framing
-  // above can shift more of the screen toward whatever's below the player
-  // while they're airborne.
+  // cameraVerticalAnchor rather than a flat 0.5 so the "opening up" above
+  // can shift more of the screen toward whatever's below the player
+  // during a real fall.
   const targetCameraOffsetY = cameraTargetY - viewportHeight * cameraVerticalAnchor;
   cameraOffsetY +=
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
-  const targetCameraZoom = airborneFramingActive ? CAMERA_ZOOM_AIRBORNE : CAMERA_ZOOM_GROUNDED;
+  const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * CAMERA_ZOOM_OPEN_RANGE;
   cameraZoom +=
     (targetCameraZoom - cameraZoom) *
     (1 - Math.pow(1 - CAMERA_ZOOM_SMOOTHING, dtScale));

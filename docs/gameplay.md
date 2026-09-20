@@ -775,40 +775,55 @@ purpose: nothing is drawn for it, it's a boundary, not a platform. This is
 what stops a double jump from being chained to soar above the intended
 platforms and skip past hazards below.
 
-Both of the below (`cameraZoom` and `cameraVerticalAnchor`) are gated on
-`airborneFramingActive` (`isTouchDevice && !grounded`) — touch-only. They
-were built to fix "hard to see where I'm landing" on a small phone
-screen, but on an already-large laptop/desktop viewport the extra zoom
-and framing shift just made an ordinary jump feel different from how it
-always has, without solving a problem that's mostly phone-specific in the
-first place. Desktop keeps the plain, always-centered, unzoomed camera
-jumping has had from the start (both values just stay at their grounded
-defaults the whole time); touch devices get both.
+`cameraZoom` and `cameraVerticalAnchor` (also in `updatePlayer()`) open
+the view up during a genuinely fast fall — proportional to actual fall
+speed (`player.dy`, via `openAmount`), not a flat grounded/airborne
+toggle. An earlier version snapped straight to a fixed zoomed-out target
+the instant the player left the ground *at all*, which made an ordinary
+jump look and feel different from how the game always played (`player.dy`
+only ever reaches roughly `jumpStrength`'s own magnitude, ~12, during a
+normal jump that lands near where it started) — the actual complaint was
+about that snap, not the idea of opening the view up during a real fall.
+`CAMERA_OPEN_FALL_SPEED_MIN`/`_MAX` (13/24) bracket the ramp: below 13,
+`openAmount` is exactly 0 and neither value moves from its resting
+default, comfortably above what a normal jump's arc ever produces; at/
+above 24 (a long, dangerous-feeling drop), both are at their maximum.
+Applies identically on desktop and touch now that it can't misfire on a
+routine jump the way the old binary version did.
 
-`cameraZoom` (also in `updatePlayer()`) eases the whole world view out to
-88% while airborne (`grounded` false) and back to 100% the instant the
-player lands, applied as a scale around the screen's center in `draw()` —
-seeing a bit more of the level around you while you're in the air, where
-you most need to spot the platform you're aiming for, without needing a
-hard cap on jump height. Applied only to the world layer (platforms,
-hazards, checkpoints, particles, the player); the level-name text and
-tutorial tips stay screen-space so they don't shrink or drift on every
-jump. Both `resetLevelState()` and `resetPlayer()` snap it straight back
-to 1 rather than letting it ease from wherever it was — same reasoning as
-snapping `cameraOffsetX`/`cameraOffsetY` on a teleport (see above): dying
-mid-air shouldn't leave the very next respawn's view zoomed out.
+`cameraZoom` eases from 100% down to as low as 86% (`CAMERA_ZOOM_OPEN_
+RANGE`, 0.14) as `openAmount` climbs, applied as a scale around the
+screen's center in `draw()` — seeing more of the level around you during
+a fall that's actually dangerous, without needing a hard cap on jump
+height. Applied only to the world layer (platforms, hazards, checkpoints,
+particles, the player); the level-name text and tutorial tips stay
+screen-space so they don't shrink or drift. `resetLevelState()` and
+`resetPlayer()` snap it straight back to 1 rather than letting it ease
+from wherever it was — same reasoning as snapping `cameraOffsetX`/
+`cameraOffsetY` on a teleport (see above): dying mid-fall shouldn't leave
+the very next respawn's view zoomed out.
 
-`cameraVerticalAnchor` eases alongside it — where the player sits
-vertically on screen, as a fraction of `viewportHeight` from the top.
-Grounded, that's a flat 0.5 (dead-center, the original framing); airborne,
-it eases up to 0.36, which hands most of the freed-up screen space to
-whatever's *below* the player instead of splitting it evenly above and
-below them. A purely centered camera (or the zoom above on its own)
-doesn't prioritize that space, but it's exactly what you need visible to
-judge a landing — this is the actual "can I see where I'm about to land"
-fix, with the zoom as a complementary "see more overall" one. Never so
-extreme that the character scrolls off the top; both snap back to 0.5
-alongside `cameraZoom`'s reset to 1.
+`cameraVerticalAnchor` eases alongside it, from the same `openAmount` —
+where the player sits vertically on screen, as a fraction of
+`viewportHeight` from the top. At rest that's a flat 0.5 (dead-center,
+the original framing); during a fast fall it eases down to as low as 0.36
+(`CAMERA_ANCHOR_OPEN_RANGE`, 0.14), which hands most of the freed-up
+screen space to whatever's *below* the player instead of splitting it
+evenly above and below them. A purely centered camera (or the zoom above
+on its own) doesn't prioritize that space, but it's exactly what you need
+visible to judge a landing — this is the actual "can I see where I'm
+about to land" fix, with the zoom as a complementary "see more overall"
+one. Never so extreme that the character scrolls off the top; both snap
+back to their resting defaults alongside `cameraZoom`'s reset to 1.
+
+**Look-ahead**: `cameraTargetX` also leans by `player.dx *
+CAMERA_LOOKAHEAD_FACTOR` (14) — a classic platformer camera trick, biasing
+the view a little in whichever direction the player is actually moving
+(including mid-dash, which leans further since `DASH_SPEED` is higher)
+for a more open field of view ahead of them, independent of the zoom/
+anchor above. `horizontalSpeed` is fixed (no acceleration in this game),
+so `dx` only ever takes a small set of values — this reads as a gentle,
+camera-eased lean while moving vs. standing still, not a snap.
 
 ## Riding a moving platform without the level appearing to swim
 
@@ -868,14 +883,23 @@ doesn't converge faster just because it's taking more, smaller steps.
 
 `game.html` includes an on-screen d-pad (bottom-left) and jump button
 (bottom-right) — `.touch-controls` in `game.css`, shown only under
-`(pointer: coarse)` so a resized desktop browser window never grows them.
-The buttons feed a `touchState` object that `anyPressed()` in `game.js`
-OR's in alongside the rebindable keyboard bindings (touch isn't "a key,"
-so it can't be one of the user's rebindable ones); the jump button calls
-`tryJump()` directly and always works, regardless of the Click/Tap to
-Jump setting (that setting is about clicking anywhere, not this dedicated
-button). Portrait on a touch device shows a "rotate to landscape" prompt
-instead of rendering a sideways platformer (`(pointer: coarse) and
+`(pointer: coarse) and (hover: none)` so a resized desktop browser window
+never grows them. `(pointer: coarse)` alone isn't enough: a touchscreen
+laptop/2-in-1 with a mouse or trackpad also attached reports coarse too
+(the hardware exists), even though a mouse/trackpad is its actual primary
+input — which showed up as on-screen touch controls, and separately a
+full-screen "rotate your device" prompt, appearing on a completely normal
+desktop setup. `(hover: none)` is what's actually specific to "the
+primary pointer can't hover," matching `game.js`'s own `isTouchDevice`
+check (`window.matchMedia("(pointer: coarse) and (hover: none)")`) so the
+two never disagree about what counts as "touch." The buttons feed a
+`touchState` object that `anyPressed()` in `game.js` OR's in alongside the
+rebindable keyboard bindings (touch isn't "a key," so it can't be one of
+the user's rebindable ones); the jump button calls `tryJump()` directly
+and always works, regardless of the Click/Tap to Jump setting (that
+setting is about clicking anywhere, not this dedicated button). Portrait
+on a touch device shows a "rotate to landscape" prompt instead of
+rendering a sideways platformer (`(pointer: coarse) and (hover: none) and
 (orientation: portrait)` — pure CSS, no JS needed).
 
 Tap anywhere on the open play area (not just the jump button) to jump: the
@@ -935,10 +959,12 @@ browser:
   which has never supported the Fullscreen API for anything but a
   `<video>` element.
 - **The Fullscreen API**, requested on the player's first `touchstart` in
-  `game.js` (`requestGameFullscreen()`, gated on `(pointer: coarse)` so a
-  mouse-driven desktop player is never prompted), covers Android Chrome
-  and other touch browsers that do support it, for anyone playing from a
-  normal browser tab rather than an installed icon.
+  `game.js` (`requestGameFullscreen()`, gated on `isTouchDevice` — see the
+  Mobile section above for why that's `(pointer: coarse) and
+  (hover: none)`, not `(pointer: coarse)` alone — so a mouse-driven
+  desktop player, touchscreen laptop or not, is never prompted), covers
+  Android Chrome and other touch browsers that do support it, for anyone
+  playing from a normal browser tab rather than an installed icon.
 
 Both fail silently (a `.catch(() => {})`/try-catch) if unsupported or
 denied — fullscreen is a nice-to-have, never worth erroring over.
