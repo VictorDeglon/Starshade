@@ -3807,11 +3807,19 @@ function updatePlayer(dtScale) {
   // smoothing below, so it's a real "camera pulls back" the moment you
   // leave the ground rather than a snap, and settles right back to normal
   // the instant you land.
-  // Raised to 1 (full open) — mobile now pulls back to its maximum zoom-out
-  // for the *entire* time the player is airborne, not just most of the
-  // way there, so both the player and enough of the level to actually aim
-  // a landing stay in frame on every single jump, not only a real fall.
-  const MOBILE_AIRBORNE_OPEN_AMOUNT = 1;
+  // A moderate floor (not the full 1), not a pin — the point is to zoom
+  // out and back in AS NECESSARY, not to sit at maximum zoom-out for the
+  // entire time the player's feet are off the ground regardless of
+  // whether that jump actually needs it. MOBILE_AIRBORNE_OPEN_AMOUNT is a
+  // baseline safety margin for a small/landscape-locked viewport (even a
+  // routine hop's ascent can carry the target off-screen — see below),
+  // and fallOpenAmount is layered on top of it via Math.max(): a trivial
+  // hop opens only to the floor, while an actually fast/dangerous fall
+  // still ramps further out, all the way to full, exactly like desktop
+  // does. Landing always eases openAmount straight back to 0 either way
+  // (grounded skips this whole branch), so "zoom back in" is never stuck
+  // open longer than the airborne moment that opened it.
+  const MOBILE_AIRBORNE_OPEN_AMOUNT = 0.55;
   const MOBILE_ZOOM_OPEN_RANGE = 0.42;
   const MOBILE_ANCHOR_OPEN_RANGE = 0.34;
   const fallSpeed = Math.max(0, player.dy);
