@@ -39,10 +39,22 @@
          allows through. -->
     <div id="touchControls" class="touch-controls">
       <div class="touch-dpad">
-        <button id="touch-left" class="touch-button" aria-label="Move left">&#9664;</button>
-        <button id="touch-right" class="touch-button" aria-label="Move right">&#9654;</button>
+        <button id="touch-left" class="touch-button" aria-label="Move left">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+            <path d="M15 4 L7 12 L15 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button id="touch-right" class="touch-button" aria-label="Move right">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+            <path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </div>
-      <button id="touch-jump" class="touch-button touch-jump" aria-label="Jump">&#9650;</button>
+      <button id="touch-jump" class="touch-button touch-jump" aria-label="Jump">
+        <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+          <path d="M4 16 L12 6 L20 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
     </div>
 
     <!-- Mobile is side-scrolling, so portrait doesn't work — this blocks

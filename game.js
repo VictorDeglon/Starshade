@@ -36,6 +36,16 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
+// True on an actual touchscreen (phones/tablets), false for a mouse-driven
+// desktop browser even if the window is resized narrow — same test
+// game.css uses to decide whether to show the on-screen touch controls at
+// all. Declared this early because DIFFICULTY_SETTINGS below needs it:
+// touch input is inherently less precise than a mouse/keyboard (no
+// pixel-perfect pointer, fingers occlude what they're touching), so touch
+// play gets a bit more forgiveness baked in rather than expecting phone
+// players to match desktop precision.
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+
 // Game settings
 const gravity = 0.5;
 const jumpStrength = -12;
@@ -63,6 +73,17 @@ const difficultySettings =
   DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
   DIFFICULTY_SETTINGS.normal;
 
+// Extra forgiveness added only on a touchscreen — a finger can't land as
+// precisely as a mouse pointer, and it physically covers the thing it's
+// touching, so the same checkpoint radius/spike hitbox that feels fair
+// with a mouse feels needlessly punishing with a thumb. Added on top of
+// (not replacing) the difficulty setting and the death-streak leniency
+// below, so Easy+touch is the most forgiving combination and Hard+desktop
+// is unaffected by any of this.
+const TOUCH_INPUT_BONUS = isTouchDevice
+  ? { checkpointRadius: 10, spikeForgiveness: 5 }
+  : { checkpointRadius: 0, spikeForgiveness: 0 };
+
 // Accessibility/preference toggles set on the Settings page (see
 // settings.js) — both default to on so existing behavior doesn't change
 // for anyone who's never touched these.
@@ -88,6 +109,17 @@ function leniencyLevel() {
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
+
+// Zooms the whole world view out a little while the player is airborne
+// (a jump, a fall, riding a moving platform off an edge) and back to
+// normal the instant they land — seeing more of the level around you
+// while you're in the air, where you most need to spot the platform
+// you're aiming for, without needing a hard cap on jump height or a
+// bigger, more disorienting jump-instant zoom.
+let cameraZoom = 1;
+const CAMERA_ZOOM_GROUNDED = 1;
+const CAMERA_ZOOM_AIRBORNE = 0.88;
+const CAMERA_ZOOM_SMOOTHING = 0.06;
 
 // Screen shake (triggered on death)
 let shakeTime = 0;
@@ -206,11 +238,10 @@ document.addEventListener("keydown", startAudioOnInteraction);
 // -------------------------------------------------------------
 // MOBILE: fullscreen + keep-awake
 // -------------------------------------------------------------
-// Only on touch devices — a mouse-driven desktop player never asked to
-// have their browser chrome hijacked. (pointer: coarse) is the same test
-// game.css uses to decide whether to show the on-screen touch controls at
-// all.
-const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+// isTouchDevice is declared near the top of the file (DIFFICULTY_SETTINGS
+// needs it too) — fullscreen is only requested on touch devices, since a
+// mouse-driven desktop player never asked to have their browser chrome
+// hijacked.
 
 // The Fullscreen API needs a direct user gesture to succeed, and iOS
 // Safari doesn't support it at all for anything but a <video> — that's
@@ -235,6 +266,15 @@ function requestGameFullscreen() {
 
 if (isTouchDevice) {
   document.addEventListener("touchstart", requestGameFullscreen, { once: true });
+}
+
+// Haptic feedback on jump/death/checkpoint — navigator.vibrate() only
+// exists on Android Chrome and a handful of other touch browsers (iOS
+// Safari has never implemented it at all), and only inside a real touch
+// session, never a mouse-driven desktop tab. Wrapped so every call site
+// below can fire-and-forget without its own feature check.
+function vibrateHaptic(pattern) {
+  if (isTouchDevice && navigator.vibrate) navigator.vibrate(pattern);
 }
 
 // Screen Wake Lock — without this, a phone left untouched for its normal
@@ -339,6 +379,52 @@ function loadKeyBindings() {
 const keyBindings = loadKeyBindings();
 const isBound = (action, key) => keyBindings[action].includes(key);
 
+// -------------------------------------------------------------
+// CHECKPOINT PROGRESS (resume exactly where you left off)
+// -------------------------------------------------------------
+// `savedLevel` (see currentLevel above) only remembers *which level* to
+// resume into — reloading the page, or coming back to a level via the
+// Level Map after picking it up later, always restarted that level from
+// its very first platform even if the last session had already reached
+// its third checkpoint. This remembers the furthest checkpoint *index*
+// reached per level (not full checkpoint objects — those are re-created
+// fresh from that level's own script every load, see loadLevel() — just
+// which one to fast-forward past), keyed by level number so every level's
+// progress is independent and a level never played yet simply has none.
+const CHECKPOINT_PROGRESS_KEY = "checkpointProgress";
+
+function loadAllCheckpointProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHECKPOINT_PROGRESS_KEY));
+    if (saved && typeof saved === "object") return saved;
+  } catch (e) {
+    // ignore malformed data
+  }
+  return {};
+}
+
+function saveCheckpointProgress(levelNumber, index) {
+  const all = loadAllCheckpointProgress();
+  // Checkpoints are reached in order during normal play, but take the max
+  // defensively rather than assuming — never want a stray write to move
+  // a saved resume point backwards.
+  if (!(levelNumber in all) || index > all[levelNumber]) {
+    all[levelNumber] = index;
+    try {
+      localStorage.setItem(CHECKPOINT_PROGRESS_KEY, JSON.stringify(all));
+    } catch (e) {
+      // Storage full/unavailable — resuming from the level start instead
+      // of losing progress entirely isn't worth crashing over.
+    }
+  }
+}
+
+function loadCheckpointProgress(levelNumber) {
+  const all = loadAllCheckpointProgress();
+  const index = all[levelNumber];
+  return typeof index === "number" ? index : -1;
+}
+
 // Touch d-pad state (see the #touch-left/#touch-right listeners below) —
 // a separate flag rather than synthesizing key events, since key bindings
 // are user-rebindable and a touch button isn't "a key" at all.
@@ -421,6 +507,7 @@ function resetLevelState() {
   riddenPlatform = null;
   squashX = 1;
   squashY = 1;
+  cameraZoom = 1;
   shakeTime = 0;
   levelFrameCount = 0;
   particles = [];
@@ -445,16 +532,30 @@ function resetLevelState() {
   levelStartX = player.x;
   levelStartY = player.y;
 
+  if (typeof checkpoints !== "undefined") {
+    checkpoints.forEach((c) => (c.reached = false));
+
+    // Resume exactly where this level was last left off, not its very
+    // first platform — see CHECKPOINT_PROGRESS_KEY's declaration. Marks
+    // every checkpoint up to (and including) the saved one as already
+    // reached — matters for the *last* checkpoint specifically, since a
+    // save mid-way through a level should never come back already
+    // fading into the next one — and spawns the player there exactly the
+    // way a mid-level death respawn already does (see resetPlayer()).
+    const savedIndex = loadCheckpointProgress(currentLevel);
+    if (savedIndex >= 0 && savedIndex < checkpoints.length) {
+      for (let i = 0; i <= savedIndex; i++) checkpoints[i].reached = true;
+      player.x = checkpoints[savedIndex].x;
+      player.y = checkpoints[savedIndex].y - 30;
+    }
+  }
+
   // Snap (don't smoothly lerp) the camera to the new level's start — this
   // runs while the screen is fully black mid-transition, so a lerp would
   // just be wasted motion nobody sees, and skipping it means the fade-in
   // never has to "catch up" to the player.
   cameraOffsetX = player.x - viewportWidth / 2;
   cameraOffsetY = player.y - viewportHeight / 2;
-
-  if (typeof checkpoints !== "undefined") {
-    checkpoints.forEach((c) => (c.reached = false));
-  }
 }
 
 // Gives a level's opening view a nice frame: shifts every y (platforms,
@@ -678,7 +779,13 @@ function drawStarLayer() {
   forEachVisibleCell(STAR_CELL, STAR_PARALLAX, (cx, cy, camX, camY) => {
     for (let i = 0; i < STARS_PER_CELL; i++) {
       const rx = hash01(cx, cy, i * 4 + 1);
-      const ry = hash01(cx, cy, i * 4 + 2);
+      // Raised to a power > 1 skews the result toward 0 — stars cluster
+      // toward the top of each cell rather than spreading evenly, so the
+      // sky overall reads as "stars up top" instead of uniformly speckled
+      // (there's no single, camera-independent "top of the level" once
+      // the view can scroll vertically — see drawCloudLayer()'s matching
+      // bottom-bias for the same reasoning from the other direction).
+      const ry = Math.pow(hash01(cx, cy, i * 4 + 2), 1.8);
       const rsize = hash01(cx, cy, i * 4 + 3);
       const rphase = hash01(cx, cy, i * 4 + 4);
       const screenX = cx * STAR_CELL + rx * STAR_CELL - camX;
@@ -695,31 +802,45 @@ function drawStarLayer() {
 }
 
 // Mid layer: soft, blurred-looking blobs (a plain radial gradient, cheaper
-// than a canvas blur filter — this has to stay fast on mobile) that read
-// as puffy white clouds early on and are gradually recolored toward
-// purple/pink nebula wisps as the backdrop climbs — the same shapes doing
-// double duty rather than swapping to a wholly different asset partway
-// through the game.
-const CLOUD_COLOR_LOW = [235, 240, 250];
+// than a canvas blur filter — this has to stay fast on mobile). Muted
+// slate-blue/violet "night cloud" tones rather than bright white — this
+// is always a night sky (see the sky gradient), so a pure-white cloud read
+// as oddly bright against it — gradually recoloring toward purple/pink
+// nebula wisps as the backdrop climbs; the same shapes doing double duty
+// rather than swapping to a wholly different asset partway through.
+const CLOUD_COLOR_LOW = [108, 118, 156];
 const CLOUD_COLOR_HIGH = [150, 100, 220];
 
 function drawCloudLayer() {
   const color = lerpColor(CLOUD_COLOR_LOW, CLOUD_COLOR_HIGH, sceneProgress);
-  const baseAlpha = lerp(0.32, 0.22, sceneProgress);
+  const baseAlpha = lerp(0.22, 0.16, sceneProgress);
   forEachVisibleCell(CLOUD_CELL, CLOUD_PARALLAX, (cx, cy, camX, camY) => {
     if (hash01(cx, cy, 90) > 0.55) return; // sparse — not every cell gets one
     const rx = hash01(cx, cy, 1);
-    const ry = hash01(cx, cy, 2);
+    // Skewed toward 1 (the bottom of the cell) — the mirror image of the
+    // star layer's top bias above, so clouds read as "low in the sky"
+    // without needing a single fixed world-space "bottom" to anchor to.
+    const ry = 1 - Math.pow(hash01(cx, cy, 2), 1.8);
     const rw = hash01(cx, cy, 3);
+    // A per-cloud brightness/squash jitter so a whole field of these
+    // doesn't look like one shape copy-pasted everywhere — some read as
+    // nearly round "puffs," others as flatter, wider ovals.
+    const brightness = 0.8 + hash01(cx, cy, 4) * 0.4;
+    const squash = 0.4 + hash01(cx, cy, 5) * 0.4;
+    const c = [
+      Math.min(255, Math.round(color[0] * brightness)),
+      Math.min(255, Math.round(color[1] * brightness)),
+      Math.min(255, Math.round(color[2] * brightness)),
+    ];
     const screenX = cx * CLOUD_CELL + rx * CLOUD_CELL - camX;
     const screenY = cy * CLOUD_CELL + ry * CLOUD_CELL - camY;
     const w = 130 + rw * 130;
     ctx.save();
     ctx.translate(screenX, screenY);
-    ctx.scale(1, 0.45);
+    ctx.scale(1, squash);
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
-    grad.addColorStop(0, `rgba(${color[0]},${color[1]},${color[2]},${baseAlpha})`);
-    grad.addColorStop(1, `rgba(${color[0]},${color[1]},${color[2]},0)`);
+    grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${baseAlpha})`);
+    grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(0, 0, w, 0, Math.PI * 2);
@@ -1460,11 +1581,15 @@ function updatePlayer(dtScale) {
   checkpoints.forEach((checkpoint, index) => {
     if (
       Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) <
-        difficultySettings.checkpointRadius + leniencyLevel() * 3 &&
+        difficultySettings.checkpointRadius +
+          leniencyLevel() * 3 +
+          TOUCH_INPUT_BONUS.checkpointRadius &&
       !checkpoint.reached
     ) {
       checkpoint.reached = true;
       checkpoint.reachedAt = Date.now();
+      saveCheckpointProgress(currentLevel, index);
+      vibrateHaptic(15);
       consecutiveDeaths = 0; // real progress — the rubber-banding resets
       spawnParticles(checkpoint.x, checkpoint.y, 14, {
         colors: ["rgba(50,255,50,0.9)", "rgba(180,255,180,0.9)", "#fff"],
@@ -1486,8 +1611,9 @@ function updatePlayer(dtScale) {
 
   // Spikes — inset the effective hitbox by a couple of px once
   // leniencyLevel() kicks in, same rubber-banding as the checkpoint radius
-  // and landing forgiveness above.
-  const spikeForgiveness = leniencyLevel() * 1.5;
+  // and landing forgiveness above, plus a flat bonus on touch (see
+  // TOUCH_INPUT_BONUS).
+  const spikeForgiveness = leniencyLevel() * 1.5 + TOUCH_INPUT_BONUS.spikeForgiveness;
   spikes.forEach((spike) => {
     const spikeTipY = spike.y - spike.size + spikeForgiveness;
     if (
@@ -1536,6 +1662,11 @@ function updatePlayer(dtScale) {
   cameraOffsetY +=
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
+
+  const targetCameraZoom = grounded ? CAMERA_ZOOM_GROUNDED : CAMERA_ZOOM_AIRBORNE;
+  cameraZoom +=
+    (targetCameraZoom - cameraZoom) *
+    (1 - Math.pow(1 - CAMERA_ZOOM_SMOOTHING, dtScale));
 
   // Ease the landing squash back to a normal 1:1 scale.
   const squashEase = 1 - Math.pow(0.8, dtScale);
@@ -1620,6 +1751,7 @@ function resetPlayer() {
   shakeTime = 15;
   shakeMagnitude = 6;
   consecutiveDeaths++;
+  vibrateHaptic([30, 40, 30]);
 
   // Give every melt platform back — dying and retrying a section shouldn't
   // permanently lose a platform a later attempt still needs to cross.
@@ -1655,6 +1787,7 @@ function resetPlayer() {
   // registers as a fresh first jump, not a double jump.
   wasGrounded = true;
   riddenPlatform = null; // respawning off of whatever they died on/near
+  cameraZoom = 1; // dying mid-air shouldn't leave the view zoomed out on respawn
 
   // Snap (don't smoothly lerp) the camera to the respawn point — same
   // reasoning as resetLevelState()'s snap on a level load. This is a
@@ -1721,6 +1854,13 @@ function draw(dtScale) {
   }
 
   if (typeof platforms !== "undefined") {
+    // Zoom the world content only — not the level-name/tutorial-tip text
+    // below, which stay screen-space so they don't shrink or drift every
+    // time cameraZoom eases in and out on a jump.
+    ctx.save();
+    ctx.translate(viewportWidth / 2, viewportHeight / 2);
+    ctx.scale(cameraZoom, cameraZoom);
+    ctx.translate(-viewportWidth / 2, -viewportHeight / 2);
     drawPlatforms();
     drawGhostPlatforms();
     drawMeltPlatforms();
@@ -1728,8 +1868,10 @@ function draw(dtScale) {
     drawCheckpoints();
     drawParticles();
     drawPlayer();
-    drawLevelText();
     drawDeadlyPlatforms();
+    ctx.restore();
+
+    drawLevelText();
     drawTutorialTip();
   }
 
@@ -1803,6 +1945,7 @@ function tryJump() {
   squashX = 0.7;
   squashY = 1.3;
   spawnJumpDust();
+  vibrateHaptic(10);
 
   // A triangle skin only tumbles some of the time — "can rotate in the
   // air sometimes," not a spin on every single jump.
@@ -1815,6 +1958,30 @@ function tryJump() {
 canvas.addEventListener("click", () => {
   if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
 });
+
+// Tap anywhere on the open play area to jump, on touch devices — a real
+// touchstart listener rather than relying on the "click" above, which on
+// mobile only fires after a synthesized delay following touchend, and
+// which many mobile browsers cancel outright if the finger drifts even a
+// couple of px between touchstart/touchend (easy to trigger by accident
+// while airborne). This makes tap-to-jump register the instant a finger
+// lands, with none of that flakiness — genuinely "tap anywhere," not just
+// the two dedicated buttons. preventDefault() here also suppresses the
+// browser's own synthetic "click" afterward, so this can never
+// double-trigger a jump together with the listener above. Only ever
+// receives touches that land on the open canvas in the first place — the
+// d-pad/jump buttons are separate, higher-stacked elements, so a touch
+// on one of those never reaches this handler at all — and, since every
+// touch point dispatches its own independent event, this coexists fine
+// with a finger already held on those buttons (movement + jump at once).
+canvas.addEventListener(
+  "touchstart",
+  (e) => {
+    if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
+    e.preventDefault();
+  },
+  { passive: false }
+);
 
 // -------------------------------------------------------------
 // TOUCH CONTROLS (mobile)
