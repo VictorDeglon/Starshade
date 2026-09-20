@@ -1224,11 +1224,6 @@ function drawBackground() {
 // -------------------------------------------------------------
 // DRAWING
 // -------------------------------------------------------------
-// Drawn slightly larger than the hitbox so skins read as chunkier without
-// touching player.width/height or any collision math (same reasoning as the
-// per-shape flourishes above) — purely a render-time scale applied below.
-const PLAYER_VISUAL_SCALE = 1.2;
-
 function drawPlayer() {
   const skin = StarshadeEconomy.getEquippedSkin();
   const halfW = player.width / 2;
@@ -1242,7 +1237,7 @@ function drawPlayer() {
   // compounds with whichever one the equipped skin already does, rather
   // than needing a separate spin effect written per shape.
   if (isPortalSucking) ctx.rotate(portalSpinAngle);
-  ctx.scale(squashX * PLAYER_VISUAL_SCALE, squashY * PLAYER_VISUAL_SCALE);
+  ctx.scale(squashX, squashY);
 
   if (skin.shape === "image" && skin.image) {
     drawImageSkin(skin, halfW, lineWidth);
