@@ -1767,10 +1767,21 @@ function drawSkinArt(skin, x, y, w, h) {
   const img = getSkinImage(skin.art);
   if (!(img.complete && img.naturalWidth > 0)) return;
   if (skin.animated) {
-    ctx.filter = `hue-rotate(${((Date.now() / 5000) * 360) % 360}deg)`;
+    // A slow rigid spin, not a color cycle — matches shop.css's `skin-spin`
+    // keyframes (same 5s period) so the shop preview and the equipped
+    // in-game player move in lockstep. Compounds with whichever per-shape
+    // motion the caller already applied (a circle's speed-based roll, a
+    // triangle's occasional airborne tumble) rather than replacing it —
+    // harmless since it's just another rotation around the same center,
+    // and it's the only motion a square `art` skin ever gets at rest.
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(((Date.now() / 5000) * Math.PI * 2) % (Math.PI * 2));
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, x, y, w, h);
   }
-  ctx.drawImage(img, x, y, w, h);
-  ctx.filter = "none";
 }
 
 function drawPlayer() {

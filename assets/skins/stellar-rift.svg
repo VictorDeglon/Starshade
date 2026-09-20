@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Stellar Rift skin art (epic, circle). A jagged star-shaped tear
+       with light spilling from the cracks — fixed pink palette matching
+       the skin's own established hue (hsl(320, ...)). -->
+  <defs>
+    <radialGradient id="sr-bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="hsl(320, 60%, 22%)" />
+      <stop offset="100%" stop-color="hsl(320, 70%, 8%)" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#sr-bg)" />
+  <path d="M24 12 L27 21 L36 20 L29 26 L33 35 L24 29 L15 35 L19 26 L12 20 L21 21 Z"
+        fill="hsl(320, 90%, 82%)" stroke="#fff0f8" stroke-width="1" opacity="0.95" />
+  <path d="M24 24 L27 21 M24 24 L29 26 M24 24 L19 26 M24 24 L21 21"
+        stroke="#fff8fc" stroke-width="0.8" opacity="0.7" />
+</svg>

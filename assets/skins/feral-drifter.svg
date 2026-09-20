@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Feral Drifter skin art (epic, triangle). Three feral claw-slash
+       marks torn across the shard — fixed magenta palette matching the
+       skin's own established hue (hsl(284, ...)). -->
+  <defs>
+    <linearGradient id="fd-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="hsl(284, 85%, 85%)" />
+      <stop offset="55%" stop-color="hsl(284, 85%, 55%)" />
+      <stop offset="100%" stop-color="hsl(284, 70%, 16%)" />
+    </linearGradient>
+  </defs>
+  <polygon points="24,3 45,45 3,45" fill="url(#fd-bg)" />
+  <g stroke="#fff0ff" stroke-width="2.4" stroke-linecap="round" opacity="0.9">
+    <path d="M14 18 L22 40" />
+    <path d="M20 15 L29 42" />
+    <path d="M26 14 L36 38" />
+  </g>
+  <g stroke="hsl(284, 70%, 20%)" stroke-width="0.8" opacity="0.5">
+    <path d="M14 18 L22 40" />
+    <path d="M20 15 L29 42" />
+    <path d="M26 14 L36 38" />
+  </g>
+</svg>

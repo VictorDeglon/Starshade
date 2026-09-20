@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Stellar Shard skin art (epic, circle). A crystalline star-shard
+       cluster — fixed teal-green palette matching the skin's own
+       established hue (hsl(144, ...)). -->
+  <defs>
+    <radialGradient id="ssh-bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="hsl(144, 85%, 82%)" />
+      <stop offset="60%" stop-color="hsl(144, 80%, 48%)" />
+      <stop offset="100%" stop-color="hsl(144, 70%, 14%)" />
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#ssh-bg)" />
+  <polygon points="24,10 29,22 24,34 19,22" fill="#effff6" stroke="#0f5c38" stroke-width="1" />
+  <polygon points="12,20 18,24 12,28 8,24" fill="#c8ffe4" opacity="0.85" />
+  <polygon points="36,20 40,24 36,28 32,24" fill="#c8ffe4" opacity="0.85" />
+</svg>

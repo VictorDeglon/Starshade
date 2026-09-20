@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Comet skin art (epic, triangle). A simpler, single-streak take on
+       the comet motif than Comet Runner's square (a distinct composition,
+       not a recolor) — fixed orange palette matching the skin's own
+       established hue. -->
+  <defs>
+    <linearGradient id="ct-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffe0b8" />
+      <stop offset="55%" stop-color="#ff9d3d" />
+      <stop offset="100%" stop-color="#5c2e00" />
+    </linearGradient>
+    <linearGradient id="ct-tail" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff6e6" />
+      <stop offset="100%" stop-color="#ff9d3d" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <polygon points="24,3 45,45 3,45" fill="url(#ct-bg)" />
+  <path d="M33 12 L16 34" stroke="url(#ct-tail)" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <path d="M36 17 L22 36" stroke="url(#ct-tail)" stroke-width="3.5" stroke-linecap="round" opacity="0.6" />
+  <circle cx="33" cy="12" r="4.4" fill="#fffaf0" />
+</svg>

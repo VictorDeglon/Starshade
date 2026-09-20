@@ -24,10 +24,12 @@
 //
 // `trail: true` makes game.js spawn a continuous particle trail behind
 // the player while moving/airborne (see spawnParticles() call sites).
-// `animated: true` is a hint for the shop UI (shop.css) to apply a CSS
-// hue-rotate animation to that skin's preview — game.js mirrors the exact
-// same hue-rotate (via ctx.filter) on the in-game player when `art` is
-// set, so the two stay visually consistent.
+// `animated: true` is a hint for the shop UI (shop.css's `skin-spin`) to
+// apply a slow rigid rotation to that skin's preview — deliberately a
+// spin, not a color cycle (skins stick to one fixed palette; see `art`/
+// `preview` below). game.js's drawSkinArt() mirrors the exact same
+// rotation, same 5s period, on the in-game player when `art` is set, so
+// the two stay visually consistent.
 //
 // `art` is an optional SVG asset path (assets/skins/) layered inside the
 // skin's own `shape` silhouette instead of a flat `fill` color — unlike
@@ -47,6 +49,16 @@
 //   'slippery'   — eases toward speed and keeps coasting instead of
 //                  stopping instantly (harder to control precisely)
 //   'bouncy'     — rebounds a bit on landing instead of coming to rest
+// No skin below sets `ability` — every one of these five is also its own
+// independently-purchasable Skill in the Shop (shopData.js's
+// STARSHADE_ABILITIES). A skin used to be able to bundle one for free
+// (comet-runner/skyward-herald/wallcrawler-wisp/glacial-drifter/
+// nebula-bouncer each did), but that meant unlocking the *cosmetic* also
+// handed over something players were separately asked to spend coins on —
+// skins are cosmetic-only now; buy the matching Skill instead. The field
+// (and StarshadeEconomy.getEquippedSkin().ability, and the physics checks
+// that read it) stay fully supported, in case a future skin ever
+// legitimately warrants a bundled perk again.
 const STARSHADE_SKINS = [
   {
     id: "square-default",
@@ -118,6 +130,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 1250,
+    art: "assets/skins/golden-glider.svg",
+    animated: true,
     preview:
       "radial-gradient(circle at 35% 30%, #fff6d8, #ffcf4d 45%, #6b4c00 100%)",
     glow: "rgba(255, 207, 77, 0.55)",
@@ -131,6 +145,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 1500,
+    art: "assets/skins/azure-phantom.svg",
+    animated: true,
     preview:
       "radial-gradient(circle at 35% 30%, #e4f7ff, #4fb3e0 45%, #0c2e4a 100%)",
     glow: "rgba(79, 179, 224, 0.55)",
@@ -144,6 +160,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 2000,
+    art: "assets/skins/comet.svg",
+    animated: true,
     trail: true,
     preview:
       "radial-gradient(circle at 35% 30%, #fff2e0, #ff9d3d 45%, #7a2f00 100%)",
@@ -158,6 +176,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 2500,
+    art: "assets/skins/void-walker.svg",
+    animated: true,
     trail: true,
     preview:
       "radial-gradient(circle at 35% 30%, #cdeaff, #2a6f9e 45%, #041018 100%)",
@@ -172,6 +192,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "completion",
     achievement: 'Achievement: "Silent Walker"',
+    art: "assets/skins/shadow-stalker.svg",
+    animated: true,
     preview:
       "radial-gradient(circle at 35% 30%, #4a3b6b, #1a0f2e 55%, #050208 100%)",
     glow: "rgba(106, 66, 179, 0.5)",
@@ -185,6 +207,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "completion",
     achievement: 'Achievement: "Conqueror of Shadows"',
+    art: "assets/skins/obsidian-wraith.svg",
+    animated: true,
     trail: true,
     preview:
       "radial-gradient(circle at 35% 30%, #6a2fa0, #1a0a2e 55%, #000000 100%)",
@@ -211,6 +235,7 @@ const STARSHADE_SKINS = [
     shape: "square",
     unlockType: "completion",
     achievement: 'Achievement: "True Ending"',
+    art: "assets/skins/starshade-prime.svg",
     trail: true,
     animated: true,
     preview:
@@ -646,6 +671,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 2485,
+    art: "assets/skins/radiant-ember.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(246, 85%, 88%, 1), hsla(246, 90%, 62%, 1) 45%, hsla(246, 70%, 16%, 1) 100%)",
     glow: "hsla(246, 90%, 65%, 0.6)",
@@ -659,6 +686,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 2664,
+    art: "assets/skins/quantum-shard.svg",
+    animated: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(177, 85%, 88%, 1), hsla(177, 90%, 62%, 1) 45%, hsla(177, 70%, 16%, 1) 100%)",
     glow: "hsla(177, 90%, 65%, 0.6)",
     fill: "hsla(177, 85%, 60%, 0.85)",
@@ -671,6 +700,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 2768,
+    art: "assets/skins/arcane-reaver.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(211, 85%, 88%, 1), hsla(211, 90%, 62%, 1) 45%, hsla(211, 70%, 16%, 1) 100%)",
     glow: "hsla(211, 90%, 65%, 0.6)",
@@ -684,6 +715,8 @@ const STARSHADE_SKINS = [
     shape: "square",
     unlockType: "coins",
     cost: 2799,
+    art: "assets/skins/crystal-seeker.svg",
+    animated: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(30, 85%, 88%, 1), hsla(30, 90%, 62%, 1) 45%, hsla(30, 70%, 16%, 1) 100%)",
     glow: "hsla(30, 90%, 65%, 0.6)",
     fill: "hsla(30, 85%, 60%, 0.85)",
@@ -696,6 +729,8 @@ const STARSHADE_SKINS = [
     shape: "square",
     unlockType: "coins",
     cost: 2180,
+    art: "assets/skins/lunar-wanderer.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(133, 85%, 88%, 1), hsla(133, 90%, 62%, 1) 45%, hsla(133, 70%, 16%, 1) 100%)",
     glow: "hsla(133, 90%, 65%, 0.6)",
@@ -709,6 +744,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 2069,
+    art: "assets/skins/feral-drifter.svg",
+    animated: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(284, 85%, 88%, 1), hsla(284, 90%, 62%, 1) 45%, hsla(284, 70%, 16%, 1) 100%)",
     glow: "hsla(284, 90%, 65%, 0.6)",
     fill: "hsla(284, 85%, 60%, 0.85)",
@@ -721,6 +758,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 2039,
+    art: "assets/skins/stellar-rift.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(320, 85%, 88%, 1), hsla(320, 90%, 62%, 1) 45%, hsla(320, 70%, 16%, 1) 100%)",
     glow: "hsla(320, 90%, 65%, 0.6)",
@@ -734,6 +773,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 2403,
+    art: "assets/skins/stellar-shard.svg",
+    animated: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(144, 85%, 88%, 1), hsla(144, 90%, 62%, 1) 45%, hsla(144, 70%, 16%, 1) 100%)",
     glow: "hsla(144, 90%, 65%, 0.6)",
     fill: "hsla(144, 85%, 60%, 0.85)",
@@ -746,6 +787,8 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "coins",
     cost: 2901,
+    art: "assets/skins/rogue-seeker.svg",
+    animated: true,
     trail: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(58, 85%, 88%, 1), hsla(58, 90%, 62%, 1) 45%, hsla(58, 70%, 16%, 1) 100%)",
     glow: "hsla(58, 90%, 65%, 0.6)",
@@ -759,6 +802,8 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "coins",
     cost: 2186,
+    art: "assets/skins/blazing-warden.svg",
+    animated: true,
     preview: "radial-gradient(circle at 35% 30%, hsla(266, 85%, 88%, 1), hsla(266, 90%, 62%, 1) 45%, hsla(266, 70%, 16%, 1) 100%)",
     glow: "hsla(266, 90%, 65%, 0.6)",
     fill: "hsla(266, 85%, 60%, 0.85)",
@@ -771,7 +816,6 @@ const STARSHADE_SKINS = [
     shape: "square",
     unlockType: "achievement",
     achievement: "Achievement: \"Speed Demon\"",
-    ability: "dash",
     art: "assets/skins/comet-runner.svg",
     animated: true,
     trail: true,
@@ -787,7 +831,6 @@ const STARSHADE_SKINS = [
     shape: "square",
     unlockType: "achievement",
     achievement: "Achievement: \"Sky Conqueror\"",
-    ability: "tripleJump",
     art: "assets/skins/skyward-herald.svg",
     animated: true,
     trail: true,
@@ -803,7 +846,6 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "achievement",
     achievement: "Achievement: \"Cling Master\"",
-    ability: "sticky",
     art: "assets/skins/wallcrawler-wisp.svg",
     animated: true,
     trail: true,
@@ -819,7 +861,6 @@ const STARSHADE_SKINS = [
     shape: "triangle",
     unlockType: "achievement",
     achievement: "Achievement: \"Ice Cold\"",
-    ability: "slippery",
     art: "assets/skins/glacial-drifter.svg",
     animated: true,
     trail: true,
@@ -835,7 +876,6 @@ const STARSHADE_SKINS = [
     shape: "circle",
     unlockType: "achievement",
     achievement: "Achievement: \"Bounce King\"",
-    ability: "bouncy",
     art: "assets/skins/nebula-bouncer.svg",
     trail: true,
     animated: true,
