@@ -506,6 +506,18 @@ to 1 rather than letting it ease from wherever it was — same reasoning as
 snapping `cameraOffsetX`/`cameraOffsetY` on a teleport (see above): dying
 mid-air shouldn't leave the very next respawn's view zoomed out.
 
+`cameraVerticalAnchor` eases alongside it — where the player sits
+vertically on screen, as a fraction of `viewportHeight` from the top.
+Grounded, that's a flat 0.5 (dead-center, the original framing); airborne,
+it eases up to 0.36, which hands most of the freed-up screen space to
+whatever's *below* the player instead of splitting it evenly above and
+below them. A purely centered camera (or the zoom above on its own)
+doesn't prioritize that space, but it's exactly what you need visible to
+judge a landing — this is the actual "can I see where I'm about to land"
+fix, with the zoom as a complementary "see more overall" one. Never so
+extreme that the character scrolls off the top; both snap back to 0.5
+alongside `cameraZoom`'s reset to 1.
+
 ## Riding a moving platform without the level appearing to swim
 
 Standing on a moving platform carries the player by its live oscillation
@@ -654,12 +666,42 @@ there's no fallback, it just doesn't hold the lock.
 
 ### Haptics
 
-`vibrateHaptic()` wraps `navigator.vibrate()` — jump, death, and reaching
-a checkpoint each fire a short, distinct pattern (jump: a single quick
-pulse; death: three short pulses; checkpoint: a single slightly longer
-one). Only on an actual touchscreen with the API present — iOS Safari has
-never implemented `navigator.vibrate()` at all, so this silently does
-nothing there rather than throwing.
+`vibrateHaptic()` wraps `navigator.vibrate()` — jump, death, reaching an
+ordinary checkpoint, and reaching a level's *final* checkpoint each fire a
+short, distinct pattern: jump is a single quick pulse; death is three
+short pulses; an ordinary checkpoint is one slightly longer pulse; the
+final checkpoint is that same pulse followed by a rising double-pulse
+into one long buzz, distinct from an ordinary checkpoint for the one
+moment that actually ends a level. Only on an actual touchscreen with the
+API present — iOS Safari has never implemented `navigator.vibrate()` at
+all, so this silently does nothing there rather than throwing.
+
+### The portal-suck animation
+
+Touching a level's *final* checkpoint doesn't fade to black immediately —
+`isPortalSucking`/`updatePortalSuck()` play a short (~0.55s) canned
+animation first: the player eases (accelerating, not constant-speed) from
+wherever they are into the checkpoint's exact position, shrinking toward
+nothing (`squashX`/`squashY`) and spinning (`portalSpinAngle`, applied in
+`drawPlayer()` before the shape's own per-skin rotation, so it compounds
+with a circle's roll or a triangle's tumble rather than replacing it),
+with particles converging *inward* toward the player instead of the
+normal outward burst (`spawnConvergingParticles()` — spawned scattered in
+a ring around the target with velocity aimed back at it, since the
+existing `spawnParticles()` can only radiate outward from one point).
+Colors are drawn from the equipped skin's `fill`/`glow`, so the effect
+reads at least a little differently per skin without a wholly separate
+system per one.
+
+This runs in `update()` in place of normal `updatePlayer()` — there's
+nothing left for input to do once the level is complete, and the camera
+is deliberately left exactly where it was (not still trying to track the
+animated position) so the world reads as holding still while the player
+gets pulled in. Once `portalSuckProgress` reaches 1, it hands off to
+exactly the fade-to-black/`advanceToNextLevel()` sequence that used to
+start immediately on touching the checkpoint. `tryJump()`, `setPaused()`,
+and the touch-anywhere-to-jump handler all bail out while it's playing,
+same as they already did for `isFading`.
 
 ### Pause/game-complete menus on a short viewport
 
