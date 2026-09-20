@@ -12,10 +12,6 @@
 // scripts' (see their own top comments for why that matters on a page
 // where every script shares one global scope).
 (function () {
-  let currentSkinIndex = 0;
-
-  const track = document.getElementById("showcase-track");
-  const dotsContainer = document.getElementById("dots");
   const coinBalanceEl = document.getElementById("shop-coin-balance");
 
   const RARITY_COLORS = {
@@ -36,8 +32,15 @@
   // used) reading STARSHADE_SKINS directly; custom skins live in their own
   // sub-tab below instead of mixed into this list.
   // -----------------------------------------------------------
-  function applySkinShape(el, skin) {
-    el.className = "skin-preview";
+  // baseClass defaults to "skin-preview" (the custom-builder's own big
+  // preview swatch) — the skins grid below passes "shop-item-swatch"
+  // instead so this doesn't stomp the grid-card sizing/border that class
+  // provides; el.className is reset to exactly baseClass either way
+  // since this can run more than once on the same element as its shape
+  // changes (the builder preview) and stale shape-* classes shouldn't
+  // accumulate.
+  function applySkinShape(el, skin, baseClass) {
+    el.className = baseClass || "skin-preview";
     el.style.clipPath = "";
     el.style.borderRadius = "";
     el.style.animation = "";
@@ -73,94 +76,93 @@
     return skin.achievement || "Beat the game to unlock";
   }
 
-  function renderSkin(index) {
-    const skin = STARSHADE_SKINS[index];
-    const unlocked = StarshadeEconomy.isUnlocked(skin);
-    const equipped = StarshadeEconomy.getEquippedSkinId() === skin.id;
+  // Grid instead of the old one-at-a-time carousel (renderSkin()/
+  // goToSkin()/dots) — 63 skins is enough that "one visible, click an
+  // arrow 62 times to see them all" was the actual problem being fixed
+  // here, not just a style pass. Reuses the exact same .shop-item-card
+  // shape renderGenericGrid() below uses for Particles/Skills/Power-Ups,
+  // swapping in applySkinShape() for the swatch (skins need their real
+  // square/circle/triangle/image shape, not a plain circle) so all four
+  // tabs read as one consistent grid instead of skins being the odd one
+  // out.
+  const skinsGridEl = document.getElementById("skins-grid");
+
+  function renderSkinsGrid() {
+    if (!skinsGridEl) return;
+    const equippedId = StarshadeEconomy.getEquippedSkinId();
     const coins = StarshadeEconomy.getCoins();
-    const canAfford = skin.unlockType === "coins" && coins >= skin.cost;
 
-    track.innerHTML = "";
-    const card = document.createElement("div");
-    card.className = "skin-card";
-    card.style.setProperty("--glow", skin.glow || "rgba(160,66,211,0.5)");
+    skinsGridEl.innerHTML = "";
+    STARSHADE_SKINS.forEach((skin) => {
+      const unlocked = StarshadeEconomy.isUnlocked(skin);
+      const equipped = unlocked && equippedId === skin.id;
+      const canAfford = skin.unlockType === "coins" && coins >= skin.cost;
+      const rarityColor = RARITY_COLORS[skin.rarity] || RARITY_COLORS.common;
 
-    const preview = document.createElement("div");
-    applySkinShape(preview, skin);
-    if (!unlocked) {
-      preview.classList.add("locked");
-      const lockBadge = document.createElement("div");
-      lockBadge.className = "skin-lock-badge";
-      lockBadge.innerHTML = LOCK_ICON_SVG;
-      preview.appendChild(lockBadge);
-    }
+      const card = document.createElement("div");
+      card.className = "shop-item-card";
+      card.style.setProperty("--glow", skin.glow || rarityColor);
 
-    const info = document.createElement("div");
-    info.className = "skin-info";
-    const rarityColor = RARITY_COLORS[skin.rarity] || RARITY_COLORS.common;
-    const rarityLabel = skin.rarity
-      ? `<span class="rarity-badge" style="--rarity-color: ${rarityColor}">${skin.rarity}</span>`
-      : "";
-    info.innerHTML = `<h2>${skin.name}</h2>${rarityLabel}<p><span class="coins">${describeUnlock(skin, unlocked)}</span></p>`;
+      const swatch = document.createElement("div");
+      applySkinShape(swatch, skin, "shop-item-swatch");
+      if (!unlocked) swatch.classList.add("locked");
+      if (!unlocked) {
+        const lockBadge = document.createElement("div");
+        lockBadge.className = "skin-lock-badge";
+        lockBadge.innerHTML = LOCK_ICON_SVG;
+        swatch.appendChild(lockBadge);
+      }
+      card.appendChild(swatch);
 
-    const actionButton = document.createElement("button");
-    actionButton.className = "shop-action-button";
-    if (equipped) {
-      actionButton.textContent = "Equipped";
-      actionButton.disabled = true;
-    } else if (unlocked) {
-      actionButton.textContent = "Equip";
-      actionButton.addEventListener("click", () => {
-        StarshadeEconomy.setEquippedSkinId(skin.id);
-        renderSkin(currentSkinIndex);
-        renderSavedCustomSkins();
-      });
-    } else if (skin.unlockType === "coins") {
-      actionButton.textContent = canAfford ? "Buy" : "Not enough coins";
-      actionButton.disabled = !canAfford;
-      actionButton.addEventListener("click", () => {
-        if (StarshadeEconomy.unlockWithCoins(skin)) {
-          updateCoinBalance();
-          if (window.StarshadeAchievements) StarshadeAchievements.checkAndNotify();
-          renderSkin(currentSkinIndex);
-        }
-      });
-    } else {
-      actionButton.textContent = "Locked";
-      actionButton.disabled = true;
-    }
+      const h3 = document.createElement("h3");
+      h3.textContent = skin.name;
+      card.appendChild(h3);
 
-    card.appendChild(preview);
-    card.appendChild(info);
-    card.appendChild(actionButton);
-    track.appendChild(card);
+      if (skin.rarity) {
+        const badge = document.createElement("span");
+        badge.className = "rarity-badge";
+        badge.style.setProperty("--rarity-color", rarityColor);
+        badge.textContent = skin.rarity;
+        card.appendChild(badge);
+      }
 
-    card.classList.remove("enter");
-    requestAnimationFrame(() => card.classList.add("enter"));
+      const desc = document.createElement("p");
+      desc.className = "shop-item-desc";
+      desc.innerHTML = `<span class="coins">${describeUnlock(skin, unlocked)}</span>`;
+      card.appendChild(desc);
 
-    renderDots(index);
+      const actionButton = document.createElement("button");
+      actionButton.className = "shop-action-button";
+      if (equipped) {
+        actionButton.textContent = "Equipped";
+        actionButton.disabled = true;
+      } else if (unlocked) {
+        actionButton.textContent = "Equip";
+        actionButton.addEventListener("click", () => {
+          StarshadeEconomy.setEquippedSkinId(skin.id);
+          renderSkinsGrid();
+          renderSavedCustomSkins();
+        });
+      } else if (skin.unlockType === "coins") {
+        actionButton.textContent = canAfford ? `Buy — ${skin.cost}` : "Not enough coins";
+        actionButton.disabled = !canAfford;
+        actionButton.addEventListener("click", () => {
+          if (StarshadeEconomy.unlockWithCoins(skin)) {
+            updateCoinBalance();
+            if (window.StarshadeAchievements) StarshadeAchievements.checkAndNotify();
+            renderSkinsGrid();
+          }
+        });
+      } else {
+        actionButton.textContent = "Locked";
+        actionButton.disabled = true;
+      }
+      card.appendChild(actionButton);
+      skinsGridEl.appendChild(card);
+    });
+
     updateCoinBalance();
   }
-
-  function renderDots(activeIndex) {
-    dotsContainer.innerHTML = "";
-    STARSHADE_SKINS.forEach((skin, index) => {
-      const dot = document.createElement("button");
-      dot.className = "dot" + (index === activeIndex ? " active" : "");
-      if (StarshadeEconomy.isUnlocked(skin)) dot.classList.add("owned");
-      dot.setAttribute("aria-label", `Show ${skin.name}`);
-      dot.addEventListener("click", () => goToSkin(index));
-      dotsContainer.appendChild(dot);
-    });
-  }
-
-  function goToSkin(index) {
-    currentSkinIndex = (index + STARSHADE_SKINS.length) % STARSHADE_SKINS.length;
-    renderSkin(currentSkinIndex);
-  }
-
-  document.getElementById("prev-button").addEventListener("click", () => goToSkin(currentSkinIndex - 1));
-  document.getElementById("next-button").addEventListener("click", () => goToSkin(currentSkinIndex + 1));
 
   // -----------------------------------------------------------
   // GENERIC GRID — Particles / Skills / Power-Ups tabs. All three share
@@ -319,7 +321,7 @@
           StarshadeEconomy.setEquippedSkinId(skin.id);
         }
         renderSavedCustomSkins();
-        renderSkin(currentSkinIndex);
+        renderSkinsGrid();
       });
       list.appendChild(chip);
     });
@@ -363,9 +365,7 @@
   // this may be the first render this page load), so nothing here is
   // trusted to still be fresh.
   function renderShopOverlay() {
-    const equippedIndex = STARSHADE_SKINS.findIndex((s) => s.id === StarshadeEconomy.getEquippedSkinId());
-    currentSkinIndex = equippedIndex >= 0 ? equippedIndex : 0;
-    renderSkin(currentSkinIndex);
+    renderSkinsGrid();
     renderGenericGrid("particle");
     renderGenericGrid("ability");
     renderGenericGrid("powerup");

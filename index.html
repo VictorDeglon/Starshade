@@ -153,6 +153,9 @@
          narrower window gets two, but nothing here is ever tall enough
          to need `.menu-panel`'s old overflow-y scroll fallback. -->
     <div id="mainMenuOverlay" class="menu hub-screen">
+      <button class="hub-gear-button" id="main-menu-settings-button" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
       <div class="hub-hero">
         <img src="starshade.png" alt="" class="logo" aria-hidden="true" />
         <h1>Starshade</h1>
@@ -176,10 +179,6 @@
           <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H17 V9 A5 5 0 0 1 7 9 Z M7 5 H4 A3 3 0 0 0 7 9 M17 5 H20 A3 3 0 0 1 17 9 M12 14 V18 M9 18 H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Achievements</span>
         </button>
-        <button class="hub-button" id="main-menu-settings-button">
-          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span>Settings</span>
-        </button>
         <button class="hub-button" id="main-menu-contact-button">
           <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6 H20 V18 H4 Z M4 6 L12 13 L20 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Contact</span>
@@ -189,6 +188,9 @@
 
     <!-- Pause menu (Esc to toggle) -->
     <div id="pauseMenu" class="menu hub-screen hidden">
+      <button class="hub-gear-button" id="pause-settings-button" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
       <div class="hub-hero hub-hero-compact">
         <h1>Paused</h1>
       </div>
@@ -213,10 +215,6 @@
           <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 20 C4 15.5 7.5 13 12 13 C16.5 13 20 15.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <span>Profile</span>
         </button>
-        <button id="pause-settings-button" class="hub-button">
-          <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M18.4 5.6 L17 7 M7 17 L5.6 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span>Settings</span>
-        </button>
         <button id="pause-main-menu-button" class="hub-button">
           <svg class="hub-button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 L12 4 L20 11 M6 10 V20 H18 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Main Menu</span>
@@ -235,6 +233,9 @@
 
     <!-- Settings overlay — opened from the pause menu or main menu. -->
     <div id="settingsOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="back-button" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel settings-panel">
         <h1>Settings</h1>
 
@@ -319,6 +320,9 @@
 
     <!-- Level Map overlay — opened from the pause menu or main menu. -->
     <div id="levelMapOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="level-map-back-button" aria-label="Close level map">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel">
         <h1>Level Map</h1>
         <div class="coin-balance" id="coin-balance">0 Coins</div>
@@ -332,6 +336,9 @@
 
     <!-- Achievements overlay — opened from the pause menu or main menu. -->
     <div id="achievementsOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="achievements-back-button" aria-label="Close achievements">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel">
         <h1>Achievements</h1>
         <div class="achievements-progress" id="achievements-progress">0 / 0 unlocked</div>
@@ -350,6 +357,9 @@
          previously each only visible on a separate page, into one place —
          see profile.js. -->
     <div id="profileOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="profile-back-button" aria-label="Close profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel">
         <h1>Profile</h1>
         <div class="profile-identity">
@@ -374,15 +384,32 @@
          alongside skinsData.js's existing skin catalog).
          ------------------------------------------------------------- -->
     <div id="shopOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="shop-back-button" aria-label="Close shop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel shop-panel">
-        <h1>Shop</h1>
-        <div class="coin-balance" id="shop-coin-balance">0 Coins</div>
+        <div class="shop-header">
+          <h1>Shop</h1>
+          <div class="coin-balance" id="shop-coin-balance">0 Coins</div>
+        </div>
 
         <div class="shop-tabs" id="shop-tabs" role="tablist">
-          <button class="shop-tab" data-tab="skins" role="tab" aria-selected="true">Skins</button>
-          <button class="shop-tab" data-tab="particles" role="tab" aria-selected="false">Particles</button>
-          <button class="shop-tab" data-tab="abilities" role="tab" aria-selected="false">Skills</button>
-          <button class="shop-tab" data-tab="powerups" role="tab" aria-selected="false">Power-Ups</button>
+          <button class="shop-tab" data-tab="skins" role="tab" aria-selected="true">
+            <svg class="shop-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 20 C4 15.5 7.5 13 12 13 C16.5 13 20 15.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span>Skins</span>
+          </button>
+          <button class="shop-tab" data-tab="particles" role="tab" aria-selected="false">
+            <svg class="shop-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="7" r="2" fill="currentColor"/><circle cx="17" cy="9" r="1.6" fill="currentColor"/><circle cx="10" cy="17" r="2.2" fill="currentColor"/><circle cx="18" cy="18" r="1.4" fill="currentColor"/></svg>
+            <span>Particles</span>
+          </button>
+          <button class="shop-tab" data-tab="abilities" role="tab" aria-selected="false">
+            <svg class="shop-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/></svg>
+            <span>Skills</span>
+          </button>
+          <button class="shop-tab" data-tab="powerups" role="tab" aria-selected="false">
+            <svg class="shop-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8 V16 M9 10 A2 2 0 0 1 12 8.5 A2 2 0 0 1 15 10 C15 12 12 12 12 12 C12 12 9 12.5 9 14.5 A2 2 0 0 0 12 16 A2 2 0 0 0 15 14.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <span>Power-Ups</span>
+          </button>
         </div>
 
         <div class="shop-tab-panels">
@@ -393,14 +420,7 @@
             </div>
 
             <div class="shop-subtab-panel" data-subpanel="gallery">
-              <main class="carousel" id="carousel">
-                <button class="carousel-arrow" id="prev-button" aria-label="Previous skin">&#10094;</button>
-                <div class="showcase">
-                  <div class="showcase-track" id="showcase-track"></div>
-                </div>
-                <button class="carousel-arrow" id="next-button" aria-label="Next skin">&#10095;</button>
-              </main>
-              <div class="dots" id="dots"></div>
+              <div class="shop-grid" id="skins-grid"></div>
             </div>
 
             <div class="shop-subtab-panel hidden" data-subpanel="custom">
@@ -463,6 +483,9 @@
 
     <!-- Contact overlay — opened from the main menu. -->
     <div id="contactOverlay" class="menu hidden">
+      <button class="overlay-close-x" data-closes="contact-back-button" aria-label="Close contact">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="menu-panel contact-panel">
         <div class="contact-section">
           <h2>Contact Form</h2>
@@ -535,5 +558,6 @@
     <script src="achievements.js"></script>
     <script src="shop.js"></script>
     <script src="profile.js"></script>
+    <script src="overlay-nav.js"></script>
   </body>
 </html>

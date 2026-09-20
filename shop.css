@@ -23,6 +23,10 @@
 
 .shop-tab {
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 10px 14px;
   border: 1.5px solid rgba(197, 178, 255, 0.35);
   background: rgba(255, 255, 255, 0.03);
@@ -34,6 +38,12 @@
   font-size: 0.9rem;
   transition: background-color 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
   white-space: nowrap;
+}
+
+.shop-tab-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
 }
 
 .shop-tab:hover {
@@ -55,11 +65,12 @@
 /* ---- Generic item grid (Particles/Skills/Power-Ups tabs) ---- */
 .shop-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   padding: 6px 2px 4px;
   max-height: 46vh;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .shop-item-card {
@@ -75,10 +86,41 @@
 }
 
 .shop-item-swatch {
+  position: relative;
   width: 64px;
   height: 64px;
   border-radius: 50%;
+  background-size: cover;
+  background-position: center;
   box-shadow: 0 0 22px var(--glow, rgba(139, 92, 246, 0.5));
+}
+
+/* Skins-grid swatches only — applySkinShape() (shop.js) sets these on
+   .shop-item-swatch instead of .skin-preview so the skins tab's cards
+   read as the exact same grid/card component every other shop tab uses,
+   not a visually different one-off. Mirrors .skin-preview.shape-* below. */
+.shop-item-swatch.shape-circle {
+  border-radius: 50%;
+}
+
+.shop-item-swatch.shape-square {
+  border-radius: 12px;
+}
+
+.shop-item-swatch.shape-triangle {
+  border-radius: 0;
+  background-color: transparent !important;
+  clip-path: polygon(50% 4%, 96% 96%, 4% 96%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 18px var(--glow, rgba(139, 92, 246, 0.5)));
+}
+
+.shop-item-swatch.shape-animated {
+  animation: skin-spin 5s linear infinite;
+}
+
+.shop-item-swatch.locked {
+  filter: grayscale(0.5) brightness(0.75);
 }
 
 .shop-item-card h3 {
@@ -441,32 +483,46 @@
 }
 
 /* -------------------------------------------------------------
-   DESKTOP / TABLET — spread out, more room
+   DESKTOP / TABLET — spread out, more room. Every grid track below uses
+   minmax(0, ...) rather than a bare 1fr/160px: a plain 1fr track won't
+   shrink past its content's min-content width, so a wide grid of cards
+   (or a long tab label) could push the whole panel wider than its own
+   max-width and overflow the viewport — this is what was actually
+   happening before (title/coins overlapping AND the panel running off
+   the right edge on anything but a very wide window).
    ------------------------------------------------------------- */
 .layout-desktop #shopOverlay .shop-panel {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
   grid-template-areas:
-    "title title"
-    "tabs  panels";
+    "header header"
+    "tabs   panels";
   column-gap: 24px;
   text-align: left;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-.layout-desktop #shopOverlay h1,
-.layout-desktop #shopOverlay .coin-balance {
-  grid-area: title;
-  text-align: center;
+.shop-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
 .layout-desktop .shop-tabs {
   grid-area: tabs;
   flex-direction: column;
   align-self: start;
+  min-width: 0;
 }
 
 .layout-desktop .shop-tab-panels {
   grid-area: panels;
+  min-width: 0;
 }
 
 .layout-desktop #shopOverlay .menu-button {
@@ -474,17 +530,8 @@
 }
 
 .layout-desktop .shop-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   max-height: 50vh;
-}
-
-.layout-desktop .showcase {
-  max-width: 420px;
-}
-
-.layout-desktop .skin-preview {
-  width: 220px;
-  height: 220px;
 }
 
 /* -------------------------------------------------------------
@@ -508,11 +555,10 @@
   padding: 8px 12px;
 }
 
-/* Mobile play is landscape-only (see the rotate-prompt gate) — the phone
-   never actually shows this in portrait, so 2 columns spends the real
-   available width instead of leaving half the panel empty. */
+/* 2 columns is already the base .shop-grid default (mobile play is
+   landscape-only, so there's always width to spend on it) — this only
+   needs to shrink the height budget for mobile's smaller panel. */
 .layout-mobile .shop-grid {
-  grid-template-columns: repeat(2, 1fr);
   max-height: 38vh;
 }
 

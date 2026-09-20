@@ -66,6 +66,81 @@ canvas {
   pointer-events: none;
 }
 
+/* Persistent close button — every overlay whose panel can scroll gets one
+   of these. Deliberately a DOM sibling of .menu-panel (a direct child of
+   .menu — see index.html), never nested inside it: .menu-panel is the
+   thing that scrolls (overflow-y: auto), so an absolutely-positioned
+   descendant of it scrolls away with the rest of the content too, which
+   is exactly the "have to scroll to find Back" problem this exists to
+   fix. Positioned against .menu instead, which never scrolls, so this
+   stays put regardless of how long the panel's content is. */
+.overlay-close-x {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(20, 10, 45, 0.55);
+  backdrop-filter: blur(6px);
+  color: #C9C2E8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.overlay-close-x svg {
+  width: 16px;
+  height: 16px;
+}
+
+.overlay-close-x:hover {
+  background: rgba(139, 92, 246, 0.28);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);
+  color: #F7F4FF;
+  transform: scale(1.08);
+}
+
+/* Settings, demoted from a full hub-grid tile to a quiet top-right gear —
+   it's a utility, not one of the things a player is choosing between on
+   the way into the game. Same DOM-sibling-of-the-scrolling-content
+   reasoning as .overlay-close-x (not that either hub screen scrolls, but
+   consistency), and the same visual language as #pause-open-button. */
+.hub-gear-button {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(197, 178, 255, 0.4);
+  background: rgba(20, 10, 45, 0.5);
+  backdrop-filter: blur(6px);
+  color: #C9C2E8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.hub-gear-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.hub-gear-button:hover {
+  background: rgba(139, 92, 246, 0.26);
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.4);
+  color: #F7F4FF;
+  transform: scale(1.08) rotate(20deg);
+}
+
 .menu-panel {
   background: rgba(20, 10, 45, 0.4);
   border: 1.5px solid rgba(197, 178, 255, 0.35);
@@ -239,13 +314,22 @@ canvas {
   transform: translateY(0) scale(0.97);
 }
 
+/* The obvious next step (Play, Resume) — spans two grid tracks and runs
+   noticeably bigger than every other hub button instead of just having a
+   brighter border, so it reads as *the* action, not one of a set of six
+   equal choices. */
 .hub-button-primary {
-  background: rgba(139, 92, 246, 0.26);
-  border-color: rgba(197, 178, 255, 0.7);
-  box-shadow: 0 0 26px rgba(139, 92, 246, 0.5);
+  grid-column: span 2;
+  padding: clamp(20px, 3.4vh, 30px) 10px;
+  background: linear-gradient(160deg, rgba(139, 92, 246, 0.32), rgba(139, 92, 246, 0.18));
+  border-color: rgba(197, 178, 255, 0.75);
+  box-shadow: 0 0 32px rgba(139, 92, 246, 0.55);
+  font-size: 1.15rem;
 }
 
 .hub-button-primary .hub-button-icon {
+  width: clamp(28px, 4vh, 38px);
+  height: clamp(28px, 4vh, 38px);
   color: #F7F4FF;
 }
 
@@ -745,17 +829,31 @@ canvas {
   stroke-linejoin: round;
 }
 
+/* Tighter dash (was 2 16 — mostly gap, barely any dash) so the path
+   reads as one continuous line curving behind the nodes instead of a
+   scatter of disconnected dots that looks broken at each bend. */
 #levelMapOverlay .tree-path-full {
-  stroke: rgba(197, 178, 255, 0.3);
-  stroke-width: 3;
-  stroke-dasharray: 2 16;
+  stroke: rgba(197, 178, 255, 0.4);
+  stroke-width: 3.5;
+  stroke-dasharray: 5 7;
   opacity: 0.9;
 }
 
 #levelMapOverlay .tree-path-lit {
   stroke: #22D3EE;
-  stroke-width: 3;
+  stroke-width: 3.5;
   filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6));
+}
+
+/* Was entirely unstyled (no stroke = invisible SVG default) — the gold
+   spur connecting a bonus/branch node (35/50/65/82/95) to the main path
+   had no visible line at all. Dash-dot rather than the main path's even
+   dash so a spur reads as "a detour," not just another stretch of the
+   same road. */
+#levelMapOverlay .tree-path-bonus {
+  stroke: rgba(251, 191, 36, 0.55);
+  stroke-width: 2.5;
+  stroke-dasharray: 1 6;
 }
 
 #levelMapOverlay .level-node {
@@ -988,10 +1086,17 @@ canvas {
 #shopOverlay .shop-panel {
   width: 900px;
   max-width: 96vw;
+  box-sizing: border-box;
 }
 
+/* .shop-header (shop.css) lays h1 and .coin-balance out side by side as
+   flex children — they used to each carry their own top/bottom margin
+   for vertical stacking, which is exactly what put them on top of each
+   other once the desktop grid also placed both in the same "title" area;
+   now there's exactly one place (.shop-header's own gap) controlling
+   their spacing. */
 #shopOverlay h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: #F7F4FF;
   font-family: 'Orbitron', sans-serif;
   font-weight: 800;
@@ -1000,7 +1105,7 @@ canvas {
 }
 
 #shopOverlay .coin-balance {
-  margin: 8px 0 16px;
+  margin: 0;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
