@@ -708,7 +708,13 @@ function resetLevelState() {
     // way a mid-level death respawn already does (see resetPlayer()).
     const savedIndex = loadCheckpointProgress(currentLevel);
     if (savedIndex >= 0 && savedIndex < checkpoints.length) {
-      for (let i = 0; i <= savedIndex; i++) checkpoints[i].reached = true;
+      // reachedAt = 0 (not left undefined) so drawCheckpoints()'s
+      // "just reached" pop — meant to decay over 300ms — doesn't fall back
+      // to `|| now` every frame and render these permanently oversized.
+      for (let i = 0; i <= savedIndex; i++) {
+        checkpoints[i].reached = true;
+        checkpoints[i].reachedAt = 0;
+      }
       player.x = checkpoints[savedIndex].x;
       player.y = checkpoints[savedIndex].y - 30;
     }
