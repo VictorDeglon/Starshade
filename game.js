@@ -55,6 +55,13 @@ window.addEventListener("resize", resizeCanvas);
 // phone players to match desktop precision.
 const isTouchDevice = window.matchMedia("(pointer: coarse) and (hover: none)").matches;
 
+// Drives every device-specific overlay layout (see game.css's
+// `.layout-desktop`/`.layout-mobile` rules — most visibly the Shop
+// overlay's spread-out desktop grid vs. its compact tabbed mobile layout)
+// off the same test everything else on this page already uses, rather
+// than a separate detection.
+document.body.classList.add(isTouchDevice ? "layout-mobile" : "layout-desktop");
+
 // Game settings
 const gravity = 0.5;
 const jumpStrength = -12;
@@ -75,7 +82,9 @@ let airJumpsUsed = 0;
 // top of the always-available grounded jump — 1 for every skin by
 // default (a normal double jump), 2 for a skin with `ability: "tripleJump"`.
 function extraAirJumps() {
-  return StarshadeEconomy.getEquippedSkin().ability === "tripleJump" ? 2 : 1;
+  const base = StarshadeEconomy.getEquippedAbility() === "tripleJump" ? 2 : 1;
+  const powerUp = StarshadeEconomy.getEquippedPowerUp();
+  return powerUp && powerUp.effect === "extraAirJump" ? base + 1 : base;
 }
 
 // Dash ability — a double-tap of Left/Right (keyboard or the touch d-pad,
@@ -92,7 +101,7 @@ const lastDirectionTapAt = { left: 0, right: 0 };
 
 function onDirectionTap(direction) {
   if (isPaused || isFading || isDying) return;
-  if (StarshadeEconomy.getEquippedSkin().ability !== "dash") return;
+  if (StarshadeEconomy.getEquippedAbility() !== "dash") return;
   const now = Date.now();
   if (
     dashTimeRemaining <= 0 &&
@@ -113,6 +122,21 @@ function onDirectionTap(direction) {
   }
   lastDirectionTapAt[direction] = now;
 }
+
+// Slingshot launch pads — an Angry-Birds-style aim-and-launch mechanic
+// (see window.slingshots, a per-level entity declared just like
+// spikes/checkpoints — level data lives in levelN.js). Standing on one
+// arms it (see the proximity check in updatePlayer()); dragging on the
+// canvas while armed (mouse or touch — see the input listeners further
+// down) previews a trajectory and, on release, launches the player.
+// Modeled after the dash ability just above: just set player.dx/dy once
+// and let gravity/resolveAxis() keep running normally afterward, rather
+// than a whole separate canned-animation branch like updatePortalSuck().
+let playerOnSlingshot = null; // the slingshot object the player is currently standing on, if any
+let slingshotAim = null; // { dragStartX, dragStartY, dragX, dragY } while actively dragging, else null
+let slingshotRecoveryTicks = 0; // mirrors dashTimeRemaining — briefly ignores input right after launch
+const SLINGSHOT_RECOVERY_TICKS = 12;
+const SLINGSHOT_POWER_SCALE = 0.12; // drag distance (px) -> launch speed
 
 // Invisible anti-cheat ceiling (see updatePlayer()) — how close to the
 // literal top edge of the viewport the player can get before being
@@ -754,6 +778,7 @@ function loadLevel(levelNumber) {
     window.levelText = "";
     window.tutorialTips = [];
     window.levelTheme = null;
+    window.slingshots = [];
 
     const script = document.createElement("script");
     // Cache-busted: level files just changed from `const`/`let` to
@@ -803,6 +828,9 @@ function resetLevelState() {
   leveldiedThisAttempt = false;
   usedExtraJumpThisAttempt = false;
   wasOnConveyorLastFrame = false;
+  playerOnSlingshot = null;
+  slingshotAim = null;
+  slingshotRecoveryTicks = 0;
   // The player starts standing on the level's opening platform, not
   // airborne — wasGrounded is what tryJump() actually checks for "can
   // take a fresh (non-double) jump," so this needs to be true from frame
@@ -921,6 +949,10 @@ function applyLevelVerticalLayout() {
     tops.push(c.y - 20);
     bottoms.push(c.y + 20);
   });
+  (window.slingshots || []).forEach((s) => {
+    tops.push(s.y);
+    bottoms.push(s.y + s.height);
+  });
 
   const levelCenterY = (Math.min(...tops) + Math.max(...bottoms)) / 2;
   const shiftY = Math.round(viewportHeight / 2 - levelCenterY);
@@ -930,12 +962,22 @@ function applyLevelVerticalLayout() {
     deadlyPlatforms.forEach((p) => (p.y += shiftY));
     spikes.forEach((s) => (s.y += shiftY));
     checkpoints.forEach((c) => (c.y += shiftY));
+    (window.slingshots || []).forEach((s) => (s.y += shiftY));
     player.y += shiftY;
   }
 }
 
 function advanceToNextLevel() {
-  const coinsEarned = StarshadeEconomy.markLevelCompleted(currentLevel);
+  let coinsEarned = StarshadeEconomy.markLevelCompleted(currentLevel);
+  // "Coin Boost" power-up (see shopData.js's STARSHADE_POWERUPS) — a
+  // persistent perk while equipped, not a one-time consumable, so it
+  // applies to every level completion for as long as it stays equipped.
+  const equippedPowerUp = StarshadeEconomy.getEquippedPowerUp();
+  if (coinsEarned > 0 && equippedPowerUp && equippedPowerUp.effect === "coinBoost") {
+    const bonus = Math.round(coinsEarned * 0.5);
+    StarshadeEconomy.addCoins(bonus);
+    coinsEarned += bonus;
+  }
   if (coinsEarned > 0) showCoinToast(`+${coinsEarned} Coins`);
   // "Weird" achievement bookkeeping — read the CURRENT level's per-attempt
   // flags before the next level's load resets them (see
@@ -972,28 +1014,52 @@ function showGameCompleteScreen(bonus) {
   document.getElementById("gameCompleteMenu").classList.remove("hidden");
 }
 
+let hasGameStarted = false;
+
 document
   .getElementById("game-complete-menu-button")
   .addEventListener("click", () => {
-    window.location.href = "index.html";
+    document.getElementById("gameCompleteMenu").classList.add("hidden");
+    // So the main menu's Play button (see below) starts a fresh run
+    // instead of trying to resume past the last level again.
+    currentLevel = 1;
+    localStorage.setItem("savedLevel", "1");
+    isFading = false;
+    loadLevel(1);
+    openMainMenuOverlay();
   });
 
 // -------------------------------------------------------------
-// PAUSE MENU
+// PAUSE MENU + MAIN MENU + every full-screen overlay
 // -------------------------------------------------------------
-// Settings, the Level Map, and Achievements all open as overlays *on top
-// of* the pause menu (hiding it, not resuming gameplay underneath) rather
-// than navigating to settings.html/levels.html/achievements.html — every
-// one of those pages' own scripts is also loaded here (each wrapped in
-// its own IIFE — see their top comments) and drives this exact same
-// markup in place instead. Besides keeping the game paused and the level
+// Settings, the Level Map, Achievements, Profile, the Shop, and Contact
+// all open as overlays *on top of* whichever root screen was showing —
+// the pause menu mid-run, or the main menu — rather than navigating to a
+// separate page. Every one of those overlays' own scripts is also loaded
+// here (each wrapped in its own IIFE — see their top comments) and drives
+// this exact same markup in place instead. Besides keeping the game's
 // state intact the way a full navigation never could mid-run, this keeps
 // game.js's own `audio` element alive and playing throughout (see
-// docs/architecture.md) — navigating to another page tears down and
-// recreates it, silently cutting the music. Only Quit to Menu still
-// navigates for real, since leaving the game entirely is the one case
-// where stopping the music is actually correct.
-const SUB_OVERLAY_IDS = ["settingsOverlay", "levelMapOverlay", "achievementsOverlay", "profileOverlay"];
+// docs/architecture.md) — there's only one page in the whole app now, so
+// nothing ever tears it down. Even "Main Menu" (what used to be "Quit to
+// Menu", a real navigation) is just another overlay swap now.
+const ROOT_MENU_IDS = ["pauseMenu", "mainMenuOverlay"];
+const SUB_OVERLAY_IDS = [
+  "settingsOverlay",
+  "levelMapOverlay",
+  "achievementsOverlay",
+  "profileOverlay",
+  "shopOverlay",
+  "contactOverlay",
+];
+// Which root menu a sub-overlay should return to when it closes — set by
+// openSubOverlay() below at the moment it's opened, since a sub-overlay
+// can now be reached from either root.
+let activeRootMenuId = null;
+
+function hideRootMenus() {
+  ROOT_MENU_IDS.forEach((id) => document.getElementById(id).classList.add("hidden"));
+}
 
 function closeSubOverlays() {
   let closedAny = false;
@@ -1004,13 +1070,22 @@ function closeSubOverlays() {
       closedAny = true;
     }
   });
-  if (closedAny) document.getElementById("pauseMenu").classList.remove("hidden");
+  if (closedAny && activeRootMenuId) {
+    document.getElementById(activeRootMenuId).classList.remove("hidden");
+  }
   return closedAny;
 }
 
+function openSubOverlay(overlayId) {
+  activeRootMenuId = document.getElementById("pauseMenu").classList.contains("hidden")
+    ? "mainMenuOverlay"
+    : "pauseMenu";
+  hideRootMenus();
+  document.getElementById(overlayId).classList.remove("hidden");
+}
+
 function openSettingsOverlay() {
-  document.getElementById("pauseMenu").classList.add("hidden");
-  document.getElementById("settingsOverlay").classList.remove("hidden");
+  openSubOverlay("settingsOverlay");
 }
 function closeSettingsOverlay() {
   closeSubOverlays();
@@ -1018,8 +1093,7 @@ function closeSettingsOverlay() {
 window.closeSettingsOverlay = closeSettingsOverlay;
 
 function openLevelMapOverlay() {
-  document.getElementById("pauseMenu").classList.add("hidden");
-  document.getElementById("levelMapOverlay").classList.remove("hidden");
+  openSubOverlay("levelMapOverlay");
   // Coin balance/unlock state can have changed since this was last shown
   // (or never shown this page load) — re-render rather than trusting a
   // stale first pass. Guarded because these only exist once levels.js has
@@ -1033,8 +1107,7 @@ function closeLevelMapOverlay() {
 window.closeLevelMapOverlay = closeLevelMapOverlay;
 
 function openAchievementsOverlay() {
-  document.getElementById("pauseMenu").classList.add("hidden");
-  document.getElementById("achievementsOverlay").classList.remove("hidden");
+  openSubOverlay("achievementsOverlay");
   // Same "don't trust a stale first render" reasoning as the level map.
   if (typeof window.renderAchievementsOverlay === "function") window.renderAchievementsOverlay();
 }
@@ -1044,8 +1117,7 @@ function closeAchievementsOverlay() {
 window.closeAchievementsOverlay = closeAchievementsOverlay;
 
 function openProfileOverlay() {
-  document.getElementById("pauseMenu").classList.add("hidden");
-  document.getElementById("profileOverlay").classList.remove("hidden");
+  openSubOverlay("profileOverlay");
   // Same "don't trust a stale first render" reasoning as the level map
   // and achievements overlays — coins/completions/unlocks can all have
   // changed since this was last opened.
@@ -1056,18 +1128,52 @@ function closeProfileOverlay() {
 }
 window.closeProfileOverlay = closeProfileOverlay;
 
+function openShopOverlay() {
+  openSubOverlay("shopOverlay");
+  if (typeof window.renderShopOverlay === "function") window.renderShopOverlay();
+}
+function closeShopOverlay() {
+  closeSubOverlays();
+}
+window.closeShopOverlay = closeShopOverlay;
+
+function openContactOverlay() {
+  openSubOverlay("contactOverlay");
+}
+function closeContactOverlay() {
+  closeSubOverlays();
+}
+window.closeContactOverlay = closeContactOverlay;
+
+// Pauses gameplay (if a run is in progress) and shows the main menu.
+// Replaces what used to be "Quit to Menu"'s real navigation back to
+// index.html — there's only one page left, so quitting to the menu is
+// just showing a different overlay over the same still-running
+// canvas/Audio, not leaving anything.
+function openMainMenuOverlay() {
+  if (hasGameStarted) isPaused = true;
+  hideRootMenus();
+  activeRootMenuId = null;
+  document.getElementById("mainMenuOverlay").classList.remove("hidden");
+}
+
 // Picking a level from the map overlay starts it immediately in-page — a
 // fade + loadLevel(), the exact mechanism advancing to the next level
-// already uses — instead of navigating through loading.html's fake
-// progress bar. Unpauses (unlike closeLevelMapOverlay(), which returns to
-// the *paused* pause menu) since this is meant to resume play, not browse
-// further.
+// already uses — instead of navigating through a loading screen. If the
+// game hasn't started yet (the level map was opened straight from the
+// main menu before Play was ever pressed), there's no run to fade out of
+// — just start fresh at that level instead.
 function startLevelFromOverlay(levelNumber) {
-  document.getElementById("levelMapOverlay").classList.add("hidden");
-  document.getElementById("pauseMenu").classList.add("hidden");
-  isPaused = false;
   currentLevel = levelNumber;
   localStorage.setItem("savedLevel", String(levelNumber));
+  document.getElementById("levelMapOverlay").classList.add("hidden");
+  if (!hasGameStarted) {
+    hideRootMenus();
+    startGame();
+    return;
+  }
+  hideRootMenus();
+  isPaused = false;
   if (isFading || isPortalSucking) return; // shouldn't happen, but never stack transitions
   isFading = true;
   fadeOpacity = 0;
@@ -1091,16 +1197,36 @@ document.getElementById("pause-settings-button").addEventListener("click", openS
 document.getElementById("pause-levels-button").addEventListener("click", openLevelMapOverlay);
 document.getElementById("pause-achievements-button").addEventListener("click", openAchievementsOverlay);
 document.getElementById("pause-profile-button").addEventListener("click", openProfileOverlay);
-// index.html's pause menu renamed this button to "pause-main-menu-button"
-// (game.html still uses "pause-quit-button") — game.js is a shared classic
-// script loaded by both pages, so fall back rather than crashing on
-// getElementById(...) === null on whichever page doesn't have this id.
-const pauseQuitButton =
-  document.getElementById("pause-quit-button") ||
-  document.getElementById("pause-main-menu-button");
-pauseQuitButton.addEventListener("click", () => {
-  window.location.href = "index.html";
+document.getElementById("pause-shop-button").addEventListener("click", openShopOverlay);
+document.getElementById("pause-main-menu-button").addEventListener("click", openMainMenuOverlay);
+
+// -------------------------------------------------------------
+// MAIN MENU
+// -------------------------------------------------------------
+// "Welcome back" greeting using the Display Name set in Settings — nothing
+// shown for a first-time/nameless visitor. Used to live in script.js,
+// which is retired now that this is the only page in the app.
+const savedPlayerName = localStorage.getItem("playerName");
+if (savedPlayerName) {
+  document.getElementById("welcome-message").textContent = `Welcome back, ${savedPlayerName}!`;
+}
+
+document.getElementById("main-menu-play-button").addEventListener("click", () => {
+  hideRootMenus();
+  activeRootMenuId = null;
+  if (!hasGameStarted) {
+    startGame();
+  } else {
+    isPaused = false;
+  }
 });
+document.getElementById("main-menu-levels-button").addEventListener("click", openLevelMapOverlay);
+document.getElementById("main-menu-shop-button").addEventListener("click", openShopOverlay);
+document.getElementById("main-menu-achievements-button").addEventListener("click", openAchievementsOverlay);
+document.getElementById("main-menu-settings-button").addEventListener("click", openSettingsOverlay);
+document.getElementById("main-menu-contact-button").addEventListener("click", openContactOverlay);
+document.getElementById("shop-back-button").addEventListener("click", closeShopOverlay);
+document.getElementById("contact-back-button").addEventListener("click", closeContactOverlay);
 
 // -------------------------------------------------------------
 // COIN TOAST
@@ -1313,8 +1439,14 @@ function drawCloudLayer() {
     ctx.save();
     ctx.translate(screenX, screenY);
     ctx.scale(1, squash);
+    // A brighter, smaller core stop in addition to the original two —
+    // without it every cloud is one flat, evenly-fading blob with no
+    // internal shape ("smudged colors"); the bright center gives each one
+    // a visible nucleus to read as a distinct cloud rather than a uniform
+    // color patch.
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
-    grad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, ${baseAlpha})`);
+    grad.addColorStop(0, `hsla(${hue}, ${Math.min(100, sat + 20)}%, ${Math.min(85, light + 25)}%, ${baseAlpha * 1.4})`);
+    grad.addColorStop(0.4, `hsla(${hue}, ${sat}%, ${light}%, ${baseAlpha})`);
     grad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light}%, 0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -1329,7 +1461,10 @@ function drawCloudLayer() {
 // a "you've come a long way" payoff, each with a random pastel-cosmic hue
 // so they don't all look identical.
 function drawPlanetLayer() {
-  const alpha = smoothstep(0.35, 0.8, sceneProgress);
+  // Was gated to only the back half of a 25-level game (0.35-0.8); with
+  // the level count now 100, that pushed the first planet to roughly
+  // level 36 — moved earlier so the sky has some depth well before then.
+  const alpha = smoothstep(0.05, 0.55, sceneProgress);
   if (alpha <= 0.01) return;
   forEachVisibleCell(PLANET_CELL, PLANET_PARALLAX, (cx, cy, camX, camY) => {
     if (hash01(cx, cy, 55) > 0.35) return; // most cells have no planet at all
@@ -1856,6 +1991,66 @@ function drawSpikes() {
   });
 }
 
+// Slingshot pads, plus the pull-back band + dashed trajectory preview
+// while actively aiming one (see slingshotAim/playerOnSlingshot and the
+// drag listeners near tryJump()). All drawn in world space (camera-offset
+// translated), same as every other level entity here — the preview is a
+// cheap forward simulation using the same `gravity` constant the real
+// physics loop uses, not a separate physics engine.
+function drawSlingshots() {
+  (window.slingshots || []).forEach((s) => {
+    ctx.save();
+    ctx.translate(s.x - cameraOffsetX, s.y - cameraOffsetY);
+    ctx.fillStyle = "rgba(255, 190, 60, 0.5)";
+    ctx.strokeStyle = "rgba(255, 224, 140, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.fillRect(0, 0, s.width, s.height);
+    ctx.strokeRect(1.5, 1.5, Math.max(0, s.width - 3), Math.max(0, s.height - 3));
+    ctx.restore();
+  });
+
+  if (!slingshotAim || !playerOnSlingshot) return;
+
+  const dx = slingshotAim.dragX - slingshotAim.dragStartX;
+  const dy = slingshotAim.dragY - slingshotAim.dragStartY;
+  const dragDistance = Math.hypot(dx, dy);
+  if (dragDistance <= 2) return;
+
+  const maxPower = playerOnSlingshot.maxPower || 22;
+  const power = Math.min(maxPower, dragDistance * SLINGSHOT_POWER_SCALE);
+  const originX = player.x - cameraOffsetX;
+  const originY = player.y - cameraOffsetY;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 224, 140, 0.85)";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(originX + dx, originY + dy);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.setLineDash([6, 8]);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let px = originX;
+  let py = originY;
+  let pvx = (-dx / dragDistance) * power;
+  let pvy = (-dy / dragDistance) * power;
+  ctx.moveTo(px, py);
+  for (let i = 0; i < 24; i++) {
+    pvy += gravity;
+    px += pvx;
+    py += pvy;
+    ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 // The finish checkpoint's logo image (see index.html's main-menu logo) —
 // cached the same way skin images are (see getSkinImage()) so it's only
 // ever loaded once no matter how many levels draw it.
@@ -2253,7 +2448,17 @@ function updatePlayer(dtScale) {
     else player.y += riddenPlatform._deltaOffset || 0;
   }
 
-  player.dy += gravity * dtScale;
+  // A short burst of extra gravity right around the top of a jump (|dy|
+  // under this threshold) cuts the "hangs in the air" floatiness a flat
+  // gravity value reads as, without touching the rise itself (still the
+  // exact same jumpStrength/gravity climb, so max height is unaffected)
+  // or the fall (left at the plain constant, so every gap-size audit in
+  // .claude/audit-gaps.js — which simulates the full arc — still holds).
+  // Only the few frames spent essentially motionless at the peak change.
+  const APEX_GRAVITY_ZONE = 2;
+  const APEX_GRAVITY_MULTIPLIER = 1.6;
+  const gravityMultiplier = Math.abs(player.dy) < APEX_GRAVITY_ZONE ? APEX_GRAVITY_MULTIPLIER : 1;
+  player.dy += gravity * gravityMultiplier * dtScale;
 
   const targetDx = anyPressed("right")
     ? horizontalSpeed
@@ -2261,14 +2466,20 @@ function updatePlayer(dtScale) {
     ? -horizontalSpeed
     : 0;
 
-  if (dashTimeRemaining > 0) {
+  if (slingshotRecoveryTicks > 0) {
+    // Just launched — leave player.dx exactly as the slingshot set it
+    // (see releaseSlingshotAim()) instead of instantly overwriting it with
+    // whatever direction key happens to be held; gravity above still
+    // applies normally to dy, so the shot still arcs like any other
+    // projectile, only the horizontal component briefly ignores input.
+  } else if (dashTimeRemaining > 0) {
     // A dash overrides normal input entirely for its short duration — a
     // fixed high speed in whichever direction it was triggered, not
     // whatever's currently held, so releasing the direction key mid-dash
     // can't cut it short.
     dashTimeRemaining -= dtScale;
     player.dx = DASH_SPEED * dashDirection;
-  } else if (equippedSkin.ability === "slippery") {
+  } else if (StarshadeEconomy.getEquippedAbility() === "slippery") {
     // Eases toward the target speed instead of snapping to it, and keeps
     // coasting after the input is released instead of stopping dead —
     // momentum, not instant start/stop, is what actually reads as "hard
@@ -2284,6 +2495,31 @@ function updatePlayer(dtScale) {
   const { wallHit } = resolveAxis("x", dtScale);
   const { grounded, groundedOn } = resolveAxis("y", dtScale);
   riddenPlatform = grounded ? groundedOn : null;
+
+  // Slingshot launch pads (see window.slingshots, a per-level entity like
+  // spikes/checkpoints) — standing on solid ground within a pad's
+  // footprint arms it for a drag-to-aim launch (see startSlingshotAim()/
+  // releaseSlingshotAim() near the input listeners below). A plain
+  // proximity check against the player's feet, not real collision — level
+  // design places the pad's marker on top of an ordinary platform the
+  // player already stands on normally, so nothing about resolveAxis()
+  // needs to know slingshots exist at all.
+  playerOnSlingshot = grounded
+    ? (window.slingshots || []).find(
+        (s) =>
+          player.x + player.width / 2 > s.x &&
+          player.x - player.width / 2 < s.x + s.width &&
+          Math.abs(player.y + player.height / 2 - s.y) < 20
+      ) || null
+    : null;
+  if (!playerOnSlingshot) slingshotAim = null;
+
+  // A short window right after launch (mirrors dashTimeRemaining above)
+  // where the player's own left/right input doesn't immediately fight the
+  // launch velocity — without this, holding a direction key at launch time
+  // (very easy to do, since aiming and moving use different inputs) would
+  // instantly overwrite player.dx the very next frame.
+  if (slingshotRecoveryTicks > 0) slingshotRecoveryTicks -= dtScale;
 
   // Conveyor platforms (`conveyor: true`, `conveyorSpeed` px/tick) push the
   // player horizontally for as long as they're actually standing on one —
@@ -2304,7 +2540,7 @@ function updatePlayer(dtScale) {
   // instant they let go of the direction key (wallHit only fires while
   // actively trying to move into the wall — see resolveAxis()), so it
   // never turns into an accidental permanent stop mid-fall.
-  if (!grounded && wallHit && equippedSkin.ability === "sticky" && player.dy > 1.2) {
+  if (!grounded && wallHit && StarshadeEconomy.getEquippedAbility() === "sticky" && player.dy > 1.2) {
     player.dy = 1.2;
     airJumpsUsed = 0;
   }
@@ -2374,24 +2610,37 @@ function updatePlayer(dtScale) {
     airJumpsUsed = 0;
     if (!wasGrounded) {
       // Just landed — a quick squash that eases back to normal in draw(),
-      // plus a small dust-impact burst along the ground.
-      squashX = 1.3;
-      squashY = 0.7;
-      spawnParticles(player.x, player.y + player.height / 2, 8, {
+      // plus a small dust-impact burst along the ground. Both scale with
+      // how hard the landing actually was (incomingDy, captured before
+      // resolveAxis() can zero it out) — a light hop off a low platform
+      // barely squashes at all, while a long fall reads as a real impact,
+      // rather than every landing looking identical regardless of speed.
+      const landingForce = Math.min(1, incomingDy / 14);
+      squashX = 1 + landingForce * 0.45;
+      squashY = 1 - landingForce * 0.45;
+      spawnParticles(player.x, player.y + player.height / 2, 6 + Math.round(landingForce * 8), {
         colors: ["rgba(200,210,230,0.8)", "rgba(150,165,190,0.7)"],
-        speed: 2.5,
+        speed: 2.5 + landingForce * 2,
         life: 22,
         size: 3,
         spread: Math.PI * 0.9,
         baseAngle: -Math.PI / 2,
         gravity: 0.2,
       });
+      // A hard enough landing gets a brief, subtle camera punch on top of
+      // the squash — the same shakeTime/shakeMagnitude death already uses
+      // (see resetPlayer()), just much smaller, and still gated on the
+      // existing Screen Shake setting via draw()'s screenShakeEnabled check.
+      if (landingForce > 0.5) {
+        shakeTime = Math.max(shakeTime, 6);
+        shakeMagnitude = Math.max(shakeMagnitude, 2 + landingForce * 2);
+      }
       // Bouncy: rebounds a fraction of the incoming fall speed straight
       // back up instead of coming to rest, decaying with each successive
       // bounce until it's too small to trigger and the player finally
       // settles — a real, small bounce on landing, not just a visual
       // flourish.
-      if (equippedSkin.ability === "bouncy" && incomingDy > 3) {
+      if (StarshadeEconomy.getEquippedAbility() === "bouncy" && incomingDy > 3) {
         player.dy = -incomingDy * 0.55;
       }
 
@@ -2418,10 +2667,18 @@ function updatePlayer(dtScale) {
   }
   wasGrounded = grounded;
 
-  // Continuous motion trail for skins that opt in (see skinsData.js).
-  if (equippedSkin.trail && (player.dx !== 0 || player.dy !== 0)) {
+  // Continuous motion trail — an equipped particle style from the Shop's
+  // Particles tab (see shopData.js/StarshadeEconomy.getEquippedParticleStyle())
+  // takes priority and always shows regardless of the skin; otherwise falls
+  // back to a skin that opts into its own trail via `trail: true` (see
+  // skinsData.js), colored from that skin's own fill, exactly as before
+  // particle styles existed.
+  const equippedParticleStyle = StarshadeEconomy.getEquippedParticleStyle();
+  if ((equippedParticleStyle || equippedSkin.trail) && (player.dx !== 0 || player.dy !== 0)) {
     spawnParticles(player.x, player.y, 1, {
-      colors: [equippedSkin.fill || "rgba(255,255,255,0.7)"],
+      colors: equippedParticleStyle
+        ? equippedParticleStyle.colors
+        : [equippedSkin.fill || "rgba(255,255,255,0.7)"],
       speed: 0.3,
       life: 18,
       size: 4,
@@ -2909,6 +3166,7 @@ function draw(dtScale) {
     drawBouncePlatforms();
     drawConveyorPlatforms();
     drawSpikes();
+    drawSlingshots();
     drawCheckpoints();
     drawParticles();
     drawPlayer();
@@ -3017,6 +3275,12 @@ function tryJump() {
 }
 
 canvas.addEventListener("click", () => {
+  // Standing on an armed slingshot (or just having released one — see
+  // slingshotRecoveryTicks) suppresses the ordinary tap-to-jump: a plain
+  // click/tap on the pad without dragging shouldn't also fire a jump, and
+  // the mouse's own synthetic "click" right after a drag-release would
+  // otherwise land here a moment later.
+  if (playerOnSlingshot || slingshotRecoveryTicks > 0) return;
   if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
 });
 
@@ -3038,11 +3302,95 @@ canvas.addEventListener("click", () => {
 canvas.addEventListener(
   "touchstart",
   (e) => {
+    // See the click listener above — a slingshot drag takes over instead.
+    if (playerOnSlingshot || slingshotRecoveryTicks > 0) return;
     if (clickToJumpEnabled && !isPaused && !isFading) tryJump();
     e.preventDefault();
   },
   { passive: false }
 );
+
+// -------------------------------------------------------------
+// SLINGSHOT AIM (drag to launch — mouse and touch)
+// -------------------------------------------------------------
+// Only ever does anything while playerOnSlingshot is set (see the
+// proximity check in updatePlayer()), so this coexists with every other
+// canvas listener above without needing to touch them beyond the two
+// early-returns just added.
+function slingshotDragPoint(e) {
+  const rect = canvas.getBoundingClientRect();
+  // `touches` for touchstart/touchmove; `changedTouches` for touchend (the
+  // finger has already lifted, so `touches` is empty by then) — a mouse
+  // event has neither and uses clientX/Y directly.
+  const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+  const clientX = touch ? touch.clientX : e.clientX;
+  const clientY = touch ? touch.clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function startSlingshotAim(e) {
+  if (!playerOnSlingshot || isPaused || isFading || isPortalSucking || isDying) return;
+  const p = slingshotDragPoint(e);
+  slingshotAim = { dragStartX: p.x, dragStartY: p.y, dragX: p.x, dragY: p.y };
+  e.preventDefault();
+}
+
+function moveSlingshotAim(e) {
+  if (!slingshotAim) return;
+  const p = slingshotDragPoint(e);
+  slingshotAim.dragX = p.x;
+  slingshotAim.dragY = p.y;
+  e.preventDefault();
+}
+
+function releaseSlingshotAim(e) {
+  if (!slingshotAim) return;
+  // Read the final point from the release event itself rather than
+  // trusting that enough mousemove/touchmove events fired beforehand —
+  // a fast flick-and-release can reach mouseup/touchend with few or no
+  // intermediate move events, which would otherwise read as "no drag at
+  // all" (dragX/Y still at the start point) and silently fail to launch.
+  if (e && (e.clientX !== undefined || e.changedTouches)) {
+    const p = slingshotDragPoint(e);
+    slingshotAim.dragX = p.x;
+    slingshotAim.dragY = p.y;
+  }
+  const pad = playerOnSlingshot;
+  const dx = slingshotAim.dragX - slingshotAim.dragStartX;
+  const dy = slingshotAim.dragY - slingshotAim.dragStartY;
+  const dragDistance = Math.hypot(dx, dy);
+  slingshotAim = null;
+  // A trivial drag (essentially just a tap that landed on the pad) isn't a
+  // real aim — don't launch on a near-zero pull, and leave the pad armed.
+  if (!pad || dragDistance <= 6) return;
+
+  const maxPower = pad.maxPower || 22;
+  const power = Math.min(maxPower, dragDistance * SLINGSHOT_POWER_SCALE);
+  // Launched opposite the drag direction — pull back, release forward —
+  // same as a real slingshot.
+  player.dx = (-dx / dragDistance) * power;
+  player.dy = (-dy / dragDistance) * power;
+  slingshotRecoveryTicks = SLINGSHOT_RECOVERY_TICKS;
+  airJumpsUsed = 0;
+  playerOnSlingshot = null;
+  vibrateHaptic(25);
+  spawnParticles(player.x, player.y, 14, {
+    colors: ["rgba(255,255,255,0.9)", "rgba(255,210,120,0.85)"],
+    speed: 5,
+    life: 20,
+    size: 3,
+    spread: Math.PI * 2,
+    gravity: 0.1,
+  });
+}
+
+canvas.addEventListener("mousedown", startSlingshotAim);
+canvas.addEventListener("mousemove", moveSlingshotAim);
+document.addEventListener("mouseup", releaseSlingshotAim);
+canvas.addEventListener("touchstart", startSlingshotAim, { passive: false });
+canvas.addEventListener("touchmove", moveSlingshotAim, { passive: false });
+canvas.addEventListener("touchend", releaseSlingshotAim);
+canvas.addEventListener("touchcancel", releaseSlingshotAim);
 
 // -------------------------------------------------------------
 // TOUCH CONTROLS (mobile)
@@ -3125,22 +3473,83 @@ document.addEventListener("keyup", (e) => {
 // which achievements this can safely re-test (not every one — a
 // real-world-clock achievement like "complete a level after midnight"
 // would be wrongly stripped every morning if it were re-tested the same
-// way).
+// way). Runs unconditionally at script load, not deferred to startGame()
+// below — achievement state should be correct even if the player browses
+// Achievements from the main menu before ever pressing Play.
 StarshadeAchievements.revalidateUnlocked();
 
-loadLevel(currentLevel)
-  .then(() => {
-    // Always enter the loop via rAF (never call it directly) so the very
-    // first call is guaranteed a real timestamp argument — gameLoop()
-    // needs one to compute dtScale.
-    requestAnimationFrame(gameLoop);
-  })
-  .catch(() => {
-    // Saved progress points past the last level (the player already beat
-    // the game and came back to game.html directly). Show the completion
-    // screen rather than a frozen blank canvas, and reset progress so the
-    // next Play starts a fresh run.
-    const bonus = StarshadeEconomy.setGameCompleted();
-    showGameCompleteScreen(bonus);
-    localStorage.setItem("savedLevel", "1");
-  });
+// Used to be an unconditional call at script-parse time — fine when this
+// ran on its own dedicated game.html page (arriving here at all meant
+// Play had already been pressed on the previous page). Now that game.js
+// loads once, up front, as part of the merged single-page app, starting
+// the level/render loop has to wait for an actual "go" signal instead:
+// the main menu's Play button on desktop/tablet, or immediately after the
+// loading screen on a touch device (see the boot sequence below and
+// docs/architecture.md). Guarded so a stray second call (e.g. Play
+// clicked twice) never double-starts the rAF loop.
+function startGame() {
+  if (hasGameStarted) return;
+  hasGameStarted = true;
+  loadLevel(currentLevel)
+    .then(() => {
+      // Always enter the loop via rAF (never call it directly) so the very
+      // first call is guaranteed a real timestamp argument — gameLoop()
+      // needs one to compute dtScale.
+      requestAnimationFrame(gameLoop);
+    })
+    .catch(() => {
+      // Saved progress points past the last level (the player already beat
+      // the game and came back with a stale savedLevel). Show the
+      // completion screen rather than a frozen blank canvas, and reset
+      // progress so the next Play starts a fresh run.
+      const bonus = StarshadeEconomy.setGameCompleted();
+      showGameCompleteScreen(bonus);
+      localStorage.setItem("savedLevel", "1");
+    });
+}
+
+// -------------------------------------------------------------
+// BOOT SEQUENCE — loading screen, then main menu (desktop/tablet) or
+// straight into the game (mobile)
+// -------------------------------------------------------------
+// The loading screen used to be its own page (loading.html), hit every
+// single time Play was pressed because Play was a real navigation. Now
+// there's only one page load for the whole app, so showing this once here
+// inherently means "once per app launch" with no extra flag needed.
+(function runBootSequence() {
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  const progressBar = document.getElementById("progress-bar");
+  const progressText = document.getElementById("progress-text");
+
+  function finishBoot() {
+    loadingOverlay.classList.add("boot-complete");
+    setTimeout(() => {
+      loadingOverlay.style.display = "none";
+      if (isTouchDevice) {
+        // Skip the main menu entirely — it has no `hidden` class by
+        // default (desktop needs it visible right after loading), so it
+        // has to be explicitly hidden here or it sits on top of the game
+        // this branch is about to start. The rotate-prompt overlay (pure
+        // CSS, see game.css) already blocks visibility until the phone is
+        // actually in landscape, so starting the game immediately here is
+        // what makes it "auto-launch" the instant it's flipped, with
+        // nothing left to tap.
+        document.getElementById("mainMenuOverlay").classList.add("hidden");
+        startGame();
+      } else {
+        document.getElementById("mainMenuOverlay").classList.remove("hidden");
+      }
+    }, 500); // matches the fade-out transition in game.css
+  }
+
+  let progress = 0;
+  const loadingInterval = setInterval(() => {
+    progress = Math.min(100, progress + Math.floor(Math.random() * 10) + 5);
+    progressBar.style.width = `${progress}%`;
+    progressText.textContent = `${progress}%`;
+    if (progress >= 100) {
+      clearInterval(loadingInterval);
+      setTimeout(finishBoot, 400);
+    }
+  }, 250);
+})();
