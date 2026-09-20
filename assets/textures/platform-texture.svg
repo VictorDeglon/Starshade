@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <!-- Tileable "paneled plating" texture for solid platforms (see
+       game.js's platformTexturePattern) — a faint grid with rivet dots
+       at the corners, drawn at low opacity over the platform's base
+       violet fill so it reads as a sci-fi panel surface rather than a
+       flat rectangle, without competing with the player/hazards for
+       attention. Edges are designed to tile seamlessly when repeated. -->
+  <rect x="0" y="0" width="40" height="40" fill="none" />
+  <path d="M0 0.5 H40 M0 39.5 H40" stroke="rgba(200,180,255,0.22)" stroke-width="1" />
+  <path d="M0.5 0 V40 M39.5 0 V40" stroke="rgba(200,180,255,0.15)" stroke-width="1" />
+  <circle cx="4" cy="4" r="1.4" fill="rgba(210,195,255,0.35)" />
+  <circle cx="36" cy="4" r="1.4" fill="rgba(210,195,255,0.35)" />
+  <circle cx="4" cy="36" r="1.4" fill="rgba(210,195,255,0.35)" />
+  <circle cx="36" cy="36" r="1.4" fill="rgba(210,195,255,0.35)" />
+</svg>

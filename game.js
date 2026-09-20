@@ -919,6 +919,30 @@ function getSkinImage(src) {
 }
 
 // -------------------------------------------------------------
+// SURFACE TEXTURES (platforms, hazards)
+// -------------------------------------------------------------
+// Real SVG images (assets/textures/) turned into tileable canvas
+// patterns, rather than a plain flat fillStyle — a `ctx.createPattern()`
+// needs its source image already loaded, which happens asynchronously,
+// so every consumer below just checks for `null` and falls back to the
+// flat color alone until it's ready (a handful of frames at most, and
+// only ever noticeable on the very first level load).
+let platformTexturePattern = null;
+let hazardTexturePattern = null;
+
+function loadTexturePattern(src, onReady) {
+  const img = new Image();
+  img.onload = () => onReady(ctx.createPattern(img, "repeat"));
+  img.src = src;
+}
+loadTexturePattern("assets/textures/platform-texture.svg", (pattern) => {
+  platformTexturePattern = pattern;
+});
+loadTexturePattern("assets/textures/hazard-texture.svg", (pattern) => {
+  hazardTexturePattern = pattern;
+});
+
+// -------------------------------------------------------------
 // BACKGROUND — layered parallax sky, blending into deep cosmos
 // -------------------------------------------------------------
 // A few small math helpers used only by the background — kept local to
@@ -1240,13 +1264,24 @@ function drawImageSkin(skin, halfW, lineWidth) {
   ctx.stroke();
 }
 
-function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
+function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern) {
   ctx.save();
   ctx.translate(x - cameraOffsetX, y - cameraOffsetY);
   ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
   ctx.lineWidth = 3;
   ctx.fillRect(0, 0, width, height);
+  // Layered on top of the flat fill (not instead of it) at reduced
+  // opacity — the pattern alone is too faint/monochrome to read as
+  // "the surface color," so the base fillStyle is what actually
+  // establishes that, and the texture just adds detail on top of it.
+  if (pattern) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
   ctx.strokeRect(
     ctx.lineWidth / 2,
     ctx.lineWidth / 2,
@@ -1256,6 +1291,11 @@ function drawInsetRect(x, y, width, height, fillStyle, strokeStyle) {
   ctx.restore();
 }
 
+// Violet-indigo rather than the old teal-blue — matches the purple/blue
+// family every menu, button, and glow in the game already uses (see
+// styles.css/game.css's #4d3f91/#8a5cff), instead of platforms reading as
+// a completely different, unrelated color family from everything else on
+// screen (including the nebula background behind them).
 function drawPlatforms() {
   platforms.forEach((platform) => {
     if (platform.ghost || platform.melt) return; // drawn separately, see below
@@ -1264,8 +1304,9 @@ function drawPlatforms() {
       platformY(platform),
       platform.width,
       platform.height,
-      "rgba(15, 100, 156, 0.63)",
-      "rgba(31, 113, 168, 0.77)"
+      "rgba(74, 58, 150, 0.7)",
+      "rgba(138, 92, 255, 0.85)",
+      platformTexturePattern
     );
   });
 }
@@ -1326,6 +1367,10 @@ function drawMeltPlatforms() {
   });
 }
 
+// Crimson-magenta rather than the old plain red — still reads instantly
+// as "danger" (the hazard-stripe texture does most of that work now
+// anyway), but sits in the same warm-toward-violet family as the nebula
+// background instead of clashing as a completely unrelated hue.
 function drawDeadlyPlatforms() {
   deadlyPlatforms.forEach((platform) => {
     drawInsetRect(
@@ -1333,18 +1378,25 @@ function drawDeadlyPlatforms() {
       platformY(platform),
       platform.width,
       platform.height,
-      "rgba(190, 7, 7, 0.63)",
-      "rgba(240, 22, 22, 0.61)"
+      "rgba(168, 12, 84, 0.7)",
+      "rgba(255, 60, 130, 0.85)",
+      hazardTexturePattern
     );
   });
 }
 
+// A crystalline gradient instead of a flat fill — cheap (a canvas
+// gradient, not an image) and, unlike a tiled texture, always crisp
+// regardless of a spike's actual size, which varies per level.
 function drawSpikes() {
   spikes.forEach((spike) => {
     ctx.save();
     ctx.translate(spike.x - cameraOffsetX, spike.y - cameraOffsetY);
-    ctx.fillStyle = "rgba(190, 7, 7, 0.63)";
-    ctx.strokeStyle = "rgba(240, 22, 22, 0.61)";
+    const grad = ctx.createLinearGradient(0, -spike.size, 0, 0);
+    grad.addColorStop(0, "rgba(255, 140, 190, 0.85)");
+    grad.addColorStop(1, "rgba(150, 10, 70, 0.75)");
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = "rgba(255, 90, 160, 0.85)";
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -2007,9 +2059,18 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetX - cameraOffsetX) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
+  // The airborne mid-zone framing/zoom-out (below) is touch-only — it was
+  // built to fix "hard to see where I'm landing" on a small phone screen,
+  // but on an already-large laptop/desktop viewport the extra zoom and
+  // framing shift just made a normal jump feel different than it always
+  // has, without solving a problem that mostly exists on a phone in the
+  // first place. Desktop keeps the plain, always-centered, unzoomed
+  // camera jumping has had from the start; touch devices keep both.
+  const airborneFramingActive = isTouchDevice && !grounded;
+
   // Ease the vertical anchor first — it's part of this frame's Y target
   // below, not just a cosmetic value read later.
-  const targetAnchor = grounded ? CAMERA_ANCHOR_GROUNDED : CAMERA_ANCHOR_AIRBORNE;
+  const targetAnchor = airborneFramingActive ? CAMERA_ANCHOR_AIRBORNE : CAMERA_ANCHOR_GROUNDED;
   cameraVerticalAnchor +=
     (targetAnchor - cameraVerticalAnchor) *
     (1 - Math.pow(1 - CAMERA_ANCHOR_SMOOTHING, dtScale));
@@ -2026,7 +2087,7 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetY - cameraOffsetY) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
 
-  const targetCameraZoom = grounded ? CAMERA_ZOOM_GROUNDED : CAMERA_ZOOM_AIRBORNE;
+  const targetCameraZoom = airborneFramingActive ? CAMERA_ZOOM_AIRBORNE : CAMERA_ZOOM_GROUNDED;
   cameraZoom +=
     (targetCameraZoom - cameraZoom) *
     (1 - Math.pow(1 - CAMERA_ZOOM_SMOOTHING, dtScale));
