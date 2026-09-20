@@ -34,17 +34,17 @@ const STARSHADE_ACHIEVEMENTS = [
     check: (s) => s.unlockedSkinCount >= 2 },
   { id: "wipeout", name: "Wipeout", description: "Die for the first time", rarity: "common", icon: "skull",
     check: (s) => s.totalDeaths >= 1 },
-  { id: "quarter-way", name: "Quarter Way", description: "Complete Level 6", rarity: "common", icon: "flag",
-    check: (s) => s.completedLevels.includes(6) },
-  { id: "halfway-hero", name: "Halfway Hero", description: "Complete Level 13", rarity: "common", icon: "flag",
-    check: (s) => s.completedLevels.includes(13) },
+  { id: "quarter-way", name: "Quarter Way", description: "Complete Level 25", rarity: "common", icon: "flag",
+    check: (s) => s.completedLevels.includes(25) },
+  { id: "halfway-hero", name: "Halfway Hero", description: "Complete Level 50", rarity: "common", icon: "flag",
+    check: (s) => s.completedLevels.includes(50) },
 
   { id: "coin-collector", name: "Coin Collector", description: "Earn 1,000 coins total", rarity: "rare", icon: "coin",
     check: (s) => s.totalCoinsEarned >= 1000 },
   { id: "style-icon", name: "Style Icon", description: "Unlock 10 skins", rarity: "rare", icon: "mask",
     check: (s) => s.unlockedSkinCount >= 10 },
-  { id: "three-quarters", name: "Three Quarters", description: "Complete Level 19", rarity: "rare", icon: "flag",
-    check: (s) => s.completedLevels.includes(19) },
+  { id: "three-quarters", name: "Three Quarters", description: "Complete Level 75", rarity: "rare", icon: "flag",
+    check: (s) => s.completedLevels.includes(75) },
   { id: "hardcore", name: "Hardcore", description: "Complete a level on Hard difficulty", rarity: "rare", icon: "lightning",
     check: (s) => s.hasHardModeWin },
   { id: "persistent", name: "Persistent", description: "Die 25 times total", rarity: "rare", icon: "skull",
@@ -54,8 +54,8 @@ const STARSHADE_ACHIEVEMENTS = [
     check: (s) => s.totalCoinsEarned >= 5000 },
   { id: "fashionista", name: "Fashionista", description: "Unlock 25 skins", rarity: "epic", icon: "mask",
     check: (s) => s.unlockedSkinCount >= 25 },
-  { id: "almost-there", name: "Almost There", description: "Complete Level 24", rarity: "epic", icon: "flag",
-    check: (s) => s.completedLevels.includes(24) },
+  { id: "almost-there", name: "Almost There", description: "Complete Level 99", rarity: "epic", icon: "flag",
+    check: (s) => s.completedLevels.includes(99) },
   { id: "daredevil", name: "Daredevil", description: "Die 100 times total", rarity: "epic", icon: "skull",
     check: (s) => s.totalDeaths >= 100 },
 
@@ -75,8 +75,12 @@ const STARSHADE_ACHIEVEMENTS = [
     grantsSkin: "nebula-bouncer", check: (s) => s.unlockedSkinCount >= s.totalSkinCount - 1 },
 
   // ---------------------------------------------------------------
-  // Per-level completions filling in the levels the original six
-  // milestones (1/6/13/19/24) skipped — rarity climbs with the level
+  // Per-level completions for most of 2-23 (the milestones above cover
+  // 1/25/50/75/99/100 — rescaled to those fractions of the full 100-level
+  // game rather than the original 25-level one; that rescale means levels
+  // 6/13/19/24 no longer have their own achievement, which is fine — the
+  // milestones' job is to mark quarter/half/three-quarter/finish, not to
+  // guarantee unbroken per-level coverage). Rarity climbs with the level
   // number, same as the game's own difficulty curve. Common/rare ones
   // also pay a small coin bonus; epic and up are just bragging rights,
   // matching the existing milestones above.
@@ -119,8 +123,8 @@ const STARSHADE_ACHIEVEMENTS = [
     check: (s) => s.completedLevels.includes(22) },
   { id: "twenty-three-skyward", name: "Skyward Bound", description: "Complete Level 23", rarity: "legendary", icon: "flag",
     check: (s) => s.completedLevels.includes(23) },
-  { id: "final-ascent", name: "Final Ascent", description: "Complete Level 25", rarity: "mythic", icon: "flag",
-    check: (s) => s.completedLevels.includes(25) },
+  { id: "final-ascent", name: "Final Ascent", description: "Complete Level 100", rarity: "mythic", icon: "flag",
+    check: (s) => s.completedLevels.includes(100) },
 
   // ---------------------------------------------------------------
   // More coin-total milestones, filling the gaps between the original
