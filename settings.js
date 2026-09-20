@@ -1,20 +1,41 @@
-// Opened from the pause menu (game.html links here with ?from=pause) goes
-// back to the game instead of all the way to the main menu — otherwise
-// checking a setting mid-run meant losing your place in the level.
+// Wrapped in an IIFE so every name in this file stays local — this script
+// is also loaded on game.html (see the pause menu's Settings overlay),
+// which loads game.js (and, for the Level Map overlay, levels.js) as
+// plain classic scripts sharing one global scope. Top-level `const`/`let`
+// with the same name in two of those scripts throws a SyntaxError (see
+// docs/architecture.md) — this file's DEFAULT_KEY_BINDINGS/loadKeyBindings
+// already collide with game.js's own, and topBackButton collides with
+// levels.js's. An IIFE sidesteps the whole class of problem regardless of
+// what either file is named internally, without changing this script's
+// behavior on the standalone settings.html at all.
+(function () {
+
+// Embedded in game.html (see the pause menu's Settings button): this
+// whole file also runs there, driving the same-markup overlay in place
+// instead of navigating anywhere — window.closeSettingsOverlay only
+// exists in that context (see game.js). Standalone settings.html has no
+// such function, so it falls back to the original navigation, including
+// the "opened from the pause menu via ?from=pause" case (settings.html
+// can still be reached that way directly, e.g. a bookmarked/shared link).
 const cameFromPause = new URLSearchParams(location.search).get("from") === "pause";
+const isEmbeddedInGame = typeof window.closeSettingsOverlay === "function";
 
 document.getElementById("back-button").addEventListener("click", () => {
-  window.location.href = cameFromPause ? "game.html" : "index.html";
+  if (isEmbeddedInGame) window.closeSettingsOverlay();
+  else window.location.href = cameFromPause ? "game.html" : "index.html";
 });
-if (cameFromPause) {
+if (cameFromPause && !isEmbeddedInGame) {
   document.getElementById("back-button").textContent = "Back to Game";
 }
 
-// Top-corner back arrow — delegates to the exact same handler above
-// (including the from-pause destination) instead of duplicating the logic.
-document.getElementById("top-back-button").addEventListener("click", () => {
-  document.getElementById("back-button").click();
-});
+// Top-corner back arrow (standalone settings.html only — game.html's
+// embedded overlay has no such element).
+const topBackButton = document.getElementById("top-back-button");
+if (topBackButton) {
+  topBackButton.addEventListener("click", () => {
+    document.getElementById("back-button").click();
+  });
+}
 
 // Display name — saved locally, read back by script.js for the main
 // menu's "Welcome back" greeting.
@@ -45,6 +66,9 @@ volumeSlider.addEventListener("input", () => {
 
 musicVolumeSlider.addEventListener("input", () => {
   localStorage.setItem("musicVolume", musicVolumeSlider.value);
+  // Applies to the actual playing track immediately when embedded, rather
+  // than only on the next page load — see game.js's refreshLiveSettings().
+  if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
 // -------------------------------------------------------------
@@ -91,6 +115,11 @@ let keyBindings = loadKeyBindings();
 
 function saveKeyBindings() {
   localStorage.setItem("keyBindings", JSON.stringify(keyBindings));
+  // Rebinding a key while embedded needs game.js's own `keyBindings`
+  // object (a separate copy read once at load — see game.js) to pick up
+  // the change immediately, or the new binding wouldn't do anything until
+  // the level reloads.
+  if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 }
 
 const rebindButtons = document.querySelectorAll(".rebind-button");
@@ -118,11 +147,22 @@ function stopListening() {
   if (listeningButton) listeningButton.classList.remove("listening");
   listeningButton = null;
   document.removeEventListener("keydown", captureRebindKey);
+  // Exposed so game.js's own (separately-attached, earlier-registered)
+  // Escape handler can tell a rebind is in progress and step aside — its
+  // listener fires *before* this file's, so stopImmediatePropagation in
+  // captureRebindKey alone can't stop it from also acting on the same
+  // keystroke.
+  window.isCapturingKeyRebind = false;
 }
 
 function captureRebindKey(e) {
   if (!listeningButton) return;
   e.preventDefault();
+  // Embedded in game.html, its own keydown listener is on this same
+  // document — stopImmediatePropagation keeps it from *also* seeing this
+  // press (Escape in particular would otherwise both cancel the rebind
+  // here and close the whole settings overlay in the same keystroke).
+  e.stopImmediatePropagation();
   const action = listeningButton.dataset.action;
 
   if (e.key === "Escape") {
@@ -141,6 +181,7 @@ rebindButtons.forEach((button) => {
   button.addEventListener("click", () => {
     stopListening();
     listeningButton = button;
+    window.isCapturingKeyRebind = true;
     button.classList.add("listening");
     button.textContent = "Press a key…";
     document.addEventListener("keydown", captureRebindKey);
@@ -176,6 +217,7 @@ if (savedDifficulty) difficultySelect.value = savedDifficulty;
 
 difficultySelect.addEventListener("change", () => {
   localStorage.setItem("difficulty", difficultySelect.value);
+  if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
 // -------------------------------------------------------------
@@ -191,6 +233,7 @@ if (savedClickToJump) clickToJumpSelect.value = savedClickToJump;
 
 clickToJumpSelect.addEventListener("change", () => {
   localStorage.setItem("clickToJump", clickToJumpSelect.value);
+  if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
 const screenShakeSelect = document.getElementById("screen-shake");
@@ -199,4 +242,7 @@ if (savedScreenShake) screenShakeSelect.value = savedScreenShake;
 
 screenShakeSelect.addEventListener("change", () => {
   localStorage.setItem("screenShake", screenShakeSelect.value);
+  if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
+
+})();

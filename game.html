@@ -96,6 +96,124 @@
       </div>
     </div>
 
+    <!-- Settings overlay — opened from the pause menu. Same markup/IDs
+         settings.html uses (settings.js is loaded on this page too and
+         drives this in place, detecting it's embedded rather than
+         navigating away — see settings.js). Styled via game.css's own
+         rules (#settingsOverlay ...) rather than loading styles.css,
+         which defines a conflicting `.menu`/`.settings` meaning of its
+         own for the standalone page. -->
+    <div id="settingsOverlay" class="menu hidden">
+      <div class="menu-panel">
+        <div class="setting-item">
+          <h1>Settings</h1>
+        </div>
+
+        <div class="setting-item">
+          <label for="player-name">Display Name:</label>
+          <input type="text" id="player-name" name="player-name" maxlength="20" placeholder="Explorer" />
+        </div>
+
+        <div class="setting-item">
+          <label for="volume">Sound Volume:</label>
+          <input type="range" id="volume" name="volume" min="0" max="100" value="50" />
+        </div>
+
+        <div class="setting-item">
+          <label for="background-volume">Background Music Volume:</label>
+          <input type="range" id="background-volume" name="background-volume" min="0" max="100" value="33" />
+        </div>
+
+        <div class="setting-item">
+          <label for="difficulty">Difficulty:</label>
+          <select id="difficulty" name="difficulty">
+            <option value="easy">Easy — slower hazards, forgiving checkpoints</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard — faster hazards, more coins</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label for="controls">Controls:</label>
+          <select id="controls" name="controls">
+            <option value="wasd">WASD</option>
+            <option value="arrowkeys">Arrow Keys</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label for="click-to-jump">Click/Tap to Jump:</label>
+          <select id="click-to-jump" name="click-to-jump">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label for="keybindings">Key Bindings:</label>
+          <button class="edit-button" id="edit-bindings-button">Edit Key Bindings</button>
+          <div id="bindings-panel" class="bindings-panel" hidden>
+            <div class="binding-row">
+              <span class="binding-label">Move Left</span>
+              <button class="rebind-button" data-action="left"></button>
+            </div>
+            <div class="binding-row">
+              <span class="binding-label">Move Right</span>
+              <button class="rebind-button" data-action="right"></button>
+            </div>
+            <div class="binding-row">
+              <span class="binding-label">Jump</span>
+              <button class="rebind-button" data-action="jump"></button>
+            </div>
+            <p class="bindings-hint">Click a key, then press its replacement.</p>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label for="screen-shake">Screen Shake:</label>
+          <select id="screen-shake" name="screen-shake">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+
+        <button class="menu-button" id="back-button">Back</button>
+      </div>
+    </div>
+
+    <!-- Level Map overlay — opened from the pause menu. Same node-tree
+         rendering levels.html uses (levels.js is loaded on this page too
+         and drives this in place — see levels.js). Picking a level here
+         starts it instantly in-page (a fade + loadLevel(), the same
+         mechanism advancing to the next level already uses) instead of
+         navigating through loading.html's fake progress bar. -->
+    <div id="levelMapOverlay" class="menu hidden">
+      <div class="menu-panel">
+        <h1>Level Map</h1>
+        <div class="coin-balance" id="coin-balance">0 Coins</div>
+        <div class="tree-wrap">
+          <svg id="tree-lines" class="tree-lines"></svg>
+          <div class="tree-nodes" id="tree-nodes"></div>
+        </div>
+        <button class="menu-button" id="level-map-back-button">Back</button>
+      </div>
+    </div>
+
+    <!-- Achievements overlay — opened from the pause menu. Same grid
+         achievements.html uses (achievements.js is loaded on this page
+         too and drives this in place — see achievements.js). Keeps the
+         game's Audio element alive (see architecture.md) the same way
+         Settings/Level Map do — navigating to achievements.html directly
+         would tear it down and restart the music from silence. -->
+    <div id="achievementsOverlay" class="menu hidden">
+      <div class="menu-panel">
+        <h1>Achievements</h1>
+        <div class="achievements-progress" id="achievements-progress">0 / 0 unlocked</div>
+        <div class="achievements-grid" id="achievements-grid"></div>
+        <button class="menu-button" id="achievements-back-button">Back</button>
+      </div>
+    </div>
+
     <script src="skinsData.js"></script>
     <script src="achievementsData.js"></script>
     <!--
@@ -112,5 +230,17 @@
       the page reload silently cutting the music.
     -->
     <script src="game.js"></script>
+    <!--
+      Loaded after game.js specifically — both are wrapped in their own
+      IIFE (see each file's top comment) to avoid colliding with game.js's
+      top-level names (a few, like DEFAULT_KEY_BINDINGS, are otherwise
+      identical), but they still check for window.closeSettingsOverlay /
+      window.startLevelFromOverlay etc. to detect they're embedded here
+      rather than on their own standalone page, and those only exist once
+      game.js has already run.
+    -->
+    <script src="settings.js"></script>
+    <script src="levels.js"></script>
+    <script src="achievements.js"></script>
   </body>
 </html>
