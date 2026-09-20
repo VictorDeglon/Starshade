@@ -1,36 +1,5 @@
 const canvas = document.getElementById("gameCanvas");
-// `alpha: false` — every frame starts with a fully opaque backdrop (see
-// drawBackground()), so the canvas never needs a transparent channel;
-// saying so up front lets the browser skip blending the entire canvas
-// over the page background on every composite, one of the cheapest real
-// wins available on a phone. It also means the canvas is opaque black
-// from the moment it exists, before any frame is drawn — game.css keeps
-// it `visibility: hidden` until startGame() adds `game-running` to <body>,
-// so the menus' translucent panels still show .galaxy-bg through them
-// before Play, exactly as they did with a transparent canvas.
-// Deliberately NOT `desynchronized: true` — it skips vsync on Chrome and
-// showed up as visible tearing/jitter in play; the latency it buys isn't
-// worth that.
-const ctx = canvas.getContext("2d", { alpha: false });
-
-// The backing buffer is capped at 2x — a 3x phone (most current iPhones
-// and flagship Androids) would otherwise push 2.25x the pixels of a 2x one
-// through every gradient, pattern fill and glow every frame, for detail
-// nobody can see on 25px sprites and 3px strokes. 2x is still fully crisp.
-const MAX_RENDER_DPR = 2;
-// The live cap — starts at MAX_RENDER_DPR and only ever ratchets *down*,
-// by trackFramePace() (see gameLoop()) on a device that can't sustain a
-// smooth frame rate at its current resolution. Fewer pixels is the one
-// lever that reliably buys frame rate on a weak phone once the draw
-// code itself is cheap.
-let renderDprCap = MAX_RENDER_DPR;
-// The DPR actually in use after the cap — the pre-rendered sprite caches
-// below (see getSprite()) render at this scale so they stay as sharp as
-// direct drawing would have been.
-let renderDpr = 1;
-// See update(): while paused, exactly one frame is drawn and then the
-// canvas is left alone. Resizing needs to re-draw that one frame.
-let pausedFrameDrawn = false;
+const ctx = canvas.getContext("2d");
 
 // Logical viewport size in CSS px. Every gameplay/camera/UI calculation in
 // this file is written against these, never against canvas.width/height
@@ -57,14 +26,12 @@ let viewportHeight = window.innerHeight;
 function resizeCanvas() {
   viewportWidth = window.innerWidth;
   viewportHeight = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, renderDprCap);
-  renderDpr = dpr;
+  const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(viewportWidth * dpr);
   canvas.height = Math.round(viewportHeight * dpr);
   canvas.style.width = viewportWidth + "px";
   canvas.style.height = viewportHeight + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  pausedFrameDrawn = false;
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
@@ -1394,21 +1361,6 @@ function startLevelFromOverlay(levelNumber) {
 }
 window.startLevelFromOverlay = startLevelFromOverlay;
 
-// The two hub screens never scroll (see .hub-screen in game.css). CSS
-// `touch-action: none` covers current browsers, but older iOS Safari still
-// rubber-bands the whole page on a drag that starts over a non-scrolling
-// element — cancelling touchmove at the source is the only thing that
-// reliably stops that. Non-passive on purpose (preventDefault has no
-// effect from a passive listener). Only the hub screens; the Shop/Level
-// Map/Achievements overlays keep their scrolling panels untouched.
-ROOT_MENU_IDS.forEach((id) => {
-  document.getElementById(id).addEventListener(
-    "touchmove",
-    (e) => e.preventDefault(),
-    { passive: false }
-  );
-});
-
 document.getElementById("pause-open-button").addEventListener("click", () => {
   // A sub-overlay covers the pause menu itself — back out of that first,
   // the same way Escape does below, rather than also toggling pause and
@@ -1623,97 +1575,27 @@ function forEachVisibleCell(cellSize, parallax, fn) {
   }
 }
 
-// -------------------------------------------------------------
-// PRE-RENDERED SPRITES (background objects)
-// -------------------------------------------------------------
-// Every glowing background object (sparkle stars, nebula puffs, planets)
-// used to be drawn live each frame with ctx.shadowBlur — which on a phone
-// means the browser rasterizes the shape to a scratch surface, runs a
-// full Gaussian blur over it (kernel radius scaled by DPR, so up to
-// ~100px on a nebula puff) and composites the result, per object, per
-// frame. Measured at a phone-sized viewport that was ~25ms/frame for the
-// backdrop alone — over the entire 16ms frame budget before a single
-// platform was drawn. The shapes themselves never change, only where
-// they sit on screen and how bright they are, so each one is now
-// rendered exactly once (glow and all) into a small offscreen canvas
-// keyed by its quantized size/color, and every frame afterward is a
-// single drawImage() blit. Quantizing the key (a few px of radius, a few
-// degrees of hue) is what keeps the cache tiny — visually identical, since
-// the values were hash-derived noise to begin with.
-//
-// Bounded by a byte budget rather than an entry count, because one big
-// puff is worth ~100 tiny sparkles: once over budget the whole cache is
-// dropped and simply rebuilds on demand (a handful of one-off renders
-// spread across the next few frames, not a stall).
-const spriteCache = new Map();
-let spriteCacheBytes = 0;
-const SPRITE_CACHE_BYTE_BUDGET = 24 * 1024 * 1024;
-
-// `pad` is the sprite's half-size in logical px (the drawn content plus
-// enough room for its glow). `scale` is the backing resolution — crisp
-// outlined objects (sparkles, planets) render at the real renderDpr, while
-// soft-edged nebula puffs render at 1x regardless: they have no hard edges
-// to lose, and it quarters their memory.
-function getSprite(key, pad, scale, paint) {
-  let sprite = spriteCache.get(key);
-  if (sprite) return sprite;
-  const sizePx = Math.ceil(pad * 2 * scale);
-  const bytes = sizePx * sizePx * 4;
-  if (spriteCacheBytes + bytes > SPRITE_CACHE_BYTE_BUDGET) {
-    spriteCache.clear();
-    spriteCacheBytes = 0;
-  }
-  const c = document.createElement("canvas");
-  c.width = sizePx;
-  c.height = sizePx;
-  const sctx = c.getContext("2d");
-  // Origin at the sprite's center, so the paint callbacks can use the
-  // exact same origin-relative coordinates the live draw code used.
-  sctx.setTransform(scale, 0, 0, scale, pad * scale, pad * scale);
-  paint(sctx);
-  sprite = { canvas: c, pad };
-  spriteCache.set(key, sprite);
-  spriteCacheBytes += bytes;
-  return sprite;
-}
-
-function blitSprite(sprite, x, y, alpha) {
-  // Restore the caller's alpha afterward — the cloud/planet layers call
-  // this bare (no surrounding save/restore), and a leaked 0.45 alpha here
-  // would bleed into every platform and the player for the rest of the
-  // frame.
-  const prevAlpha = ctx.globalAlpha;
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(sprite.canvas, x - sprite.pad, y - sprite.pad, sprite.pad * 2, sprite.pad * 2);
-  ctx.globalAlpha = prevAlpha;
-}
-
 // A chunky four-point cartoon sparkle (a pinched diamond, not a pointy
 // 5-star) for the brightest handful of stars — plain circles alone read
 // as a realistic photo starfield; mixing in a few of these per screen is
-// what actually sells "cartoon sky" at a glance. One filled path plus a
-// matching shadowBlur glow — rendered once per size into the sprite cache
-// (see above), then blitted.
-function paintSparkleStar(c, r) {
-  c.fillStyle = "#fff8e6";
-  c.shadowColor = "rgba(255, 244, 214, 0.95)";
-  c.shadowBlur = r * 1.6;
-  c.beginPath();
-  c.moveTo(0, -r);
-  c.quadraticCurveTo(r * 0.16, -r * 0.16, r, 0);
-  c.quadraticCurveTo(r * 0.16, r * 0.16, 0, r);
-  c.quadraticCurveTo(-r * 0.16, r * 0.16, -r, 0);
-  c.quadraticCurveTo(-r * 0.16, -r * 0.16, 0, -r);
-  c.closePath();
-  c.fill();
-}
-
+// what actually sells "cartoon sky" at a glance. Cheap: one filled path
+// plus a matching shadowBlur glow, no gradient.
 function drawSparkleStar(x, y, r, alpha) {
-  const rq = Math.round(r * 4) / 4; // quarter-px steps — ~20 distinct sizes in practice
-  const sprite = getSprite(`sparkle:${rq}:${renderDpr}`, rq * 2.8 + 2, renderDpr, (c) =>
-    paintSparkleStar(c, rq)
-  );
-  blitSprite(sprite, x, y, alpha);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.fillStyle = "#fff8e6";
+  ctx.shadowColor = "rgba(255, 244, 214, 0.95)";
+  ctx.shadowBlur = r * 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.quadraticCurveTo(r * 0.16, -r * 0.16, r, 0);
+  ctx.quadraticCurveTo(r * 0.16, r * 0.16, 0, r);
+  ctx.quadraticCurveTo(-r * 0.16, r * 0.16, -r, 0);
+  ctx.quadraticCurveTo(-r * 0.16, -r * 0.16, 0, -r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 // Farthest layer: a starfield that grows richer as the backdrop climbs
@@ -1759,11 +1641,6 @@ function drawStarLayer(forceAlpha, denseVariant) {
       if (!denseVariant && rsparkle > 0.87) {
         drawSparkleStar(screenX, screenY, size * 2.8, a);
       } else {
-        // Plain dots stay as direct arc fills on purpose — measured, a
-        // drawImage() of a tiny cached sprite per star is ~12x SLOWER
-        // than this in Chrome (every distinct sprite canvas is its own
-        // texture bind), so the sprite cache is only worth it for shapes
-        // that carry a shadowBlur glow.
         ctx.globalAlpha = a;
         ctx.beginPath();
         ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
@@ -1784,7 +1661,7 @@ function drawStarLayer(forceAlpha, denseVariant) {
 // a solid outlined "sticker" planet, rather than the two layers blurring
 // into "a bunch of circles." Replaces the old soft radial-gradient blob,
 // which read as a blurry smudge rather than a distinct illustrated shape.
-function paintNebulaPuff(c, r, hue, sat, light) {
+function drawNebulaPuff(x, y, r, hue, sat, light, alpha) {
   const base = `hsl(${hue}, ${sat}%, ${light}%)`;
   const glow = `hsla(${hue}, ${Math.min(100, sat + 10)}%, ${Math.min(70, light + 15)}%, 0.5)`;
   const lobes = [
@@ -1794,42 +1671,28 @@ function paintNebulaPuff(c, r, hue, sat, light) {
     [-r * 0.2, -r * 0.4, r * 0.42],
     [r * 0.3, -r * 0.34, r * 0.4],
   ];
-  c.shadowColor = glow;
-  c.shadowBlur = r * 0.65;
-  c.fillStyle = base;
-  c.beginPath();
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = r * 0.65;
+  ctx.fillStyle = base;
+  ctx.beginPath();
   lobes.forEach(([lx, ly, lr]) => {
-    c.moveTo(lx + lr, ly);
-    c.arc(lx, ly, lr, 0, Math.PI * 2);
+    ctx.moveTo(lx + lr, ly);
+    ctx.arc(lx, ly, lr, 0, Math.PI * 2);
   });
-  c.fill();
-  c.shadowBlur = 0;
+  ctx.fill();
+  ctx.shadowBlur = 0;
   // Flat highlight patch, offset toward upper-left — a second flat tone
   // instead of a gradient is what makes this read as "illustrated" rather
   // than "softly lit," without needing an outline to define the shape.
-  c.globalAlpha = 0.45;
-  c.fillStyle = `hsl(${hue}, ${Math.min(100, sat + 15)}%, ${Math.min(88, light + 28)}%)`;
-  c.beginPath();
-  c.arc(-r * 0.3, -r * 0.36, r * 0.36, 0, Math.PI * 2);
-  c.fill();
-}
-
-// Rendered once per (size, color) into the sprite cache at 1x (see
-// getSprite() — a soft-edged gas cloud has nothing crisp to lose), then
-// blitted. The quantization steps below are coarser than the hash noise
-// that generated the values, so no two puffs that looked different before
-// look the same now — it just means a puff at r=61 and one at r=62 share
-// a sprite.
-function drawNebulaPuff(x, y, r, hue, sat, light, alpha) {
-  const rq = Math.round(r / 3) * 3;
-  const hq = Math.round(hue / 6) * 6;
-  const sq = Math.round(sat / 6) * 6;
-  const lq = Math.round(light / 4) * 4;
-  // Lobes reach ~1.1r from center, the glow another ~0.65r past that.
-  const sprite = getSprite(`puff:${rq}:${hq}:${sq}:${lq}`, rq * 1.85 + 2, 1, (c) =>
-    paintNebulaPuff(c, rq, hq, sq, lq)
-  );
-  blitSprite(sprite, x, y, alpha);
+  ctx.globalAlpha = alpha * 0.45;
+  ctx.fillStyle = `hsl(${hue}, ${Math.min(100, sat + 15)}%, ${Math.min(88, light + 28)}%)`;
+  ctx.beginPath();
+  ctx.arc(-r * 0.3, -r * 0.36, r * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 // Mid layer: sparse flat-shaded nebula puffs (see drawNebulaPuff() above).
@@ -1872,61 +1735,54 @@ function drawCloudLayer() {
 // third get a simple ellipse ring behind them for extra silhouette
 // variety. Replaces the old single soft radial-gradient glow ball, which
 // had no real light/shadow shape of its own.
-function paintCartoonPlanet(c, r, hue, hasRing) {
+function drawCartoonPlanet(x, y, r, hue, alpha, hasRing) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+
   if (hasRing) {
-    c.save();
-    c.scale(1, 0.32);
-    c.strokeStyle = `hsla(${hue}, 50%, 80%, 0.5)`;
-    c.lineWidth = r * 0.16;
-    c.beginPath();
-    c.arc(0, 0, r * 1.55, 0, Math.PI * 2);
-    c.stroke();
-    c.restore();
+    ctx.save();
+    ctx.scale(1, 0.32);
+    ctx.strokeStyle = `hsla(${hue}, 50%, 80%, 0.5)`;
+    ctx.lineWidth = r * 0.16;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  c.shadowColor = `hsla(${hue}, 70%, 55%, 0.4)`;
-  c.shadowBlur = r * 0.35;
-  c.beginPath();
-  c.arc(0, 0, r, 0, Math.PI * 2);
-  c.fillStyle = `hsl(${hue}, 70%, 68%)`;
-  c.fill();
-  c.shadowBlur = 0;
+  ctx.shadowColor = `hsla(${hue}, 70%, 55%, 0.4)`;
+  ctx.shadowBlur = r * 0.35;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = `hsl(${hue}, 70%, 68%)`;
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
   // Hard-edged shadow crescent — an offset circle clipped to the sphere,
   // not a gradient blur, so the terminator reads as one clean flat shape.
-  c.save();
-  c.beginPath();
-  c.arc(0, 0, r, 0, Math.PI * 2);
-  c.clip();
-  c.beginPath();
-  c.arc(r * 0.55, r * 0.3, r * 1.05, 0, Math.PI * 2);
-  c.fillStyle = `hsl(${hue}, 55%, 32%)`;
-  c.fill();
-  c.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.arc(r * 0.55, r * 0.3, r * 1.05, 0, Math.PI * 2);
+  ctx.fillStyle = `hsl(${hue}, 55%, 32%)`;
+  ctx.fill();
+  ctx.restore();
 
-  c.lineWidth = Math.max(1.5, r * 0.06);
-  c.strokeStyle = `hsl(${hue}, 60%, 20%)`;
-  c.beginPath();
-  c.arc(0, 0, r, 0, Math.PI * 2);
-  c.stroke();
+  ctx.lineWidth = Math.max(1.5, r * 0.06);
+  ctx.strokeStyle = `hsl(${hue}, 60%, 20%)`;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
 
-  c.fillStyle = "rgba(255, 255, 255, 0.8)";
-  c.beginPath();
-  c.arc(-r * 0.35, -r * 0.35, r * 0.12, 0, Math.PI * 2);
-  c.fill();
-}
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.beginPath();
+  ctx.arc(-r * 0.35, -r * 0.35, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
 
-// Rendered once per (size, hue, ring) into the sprite cache at full
-// renderDpr (the rim stroke and highlight dot are crisp, outlined shapes),
-// then blitted — see the sprite cache comment above.
-function drawCartoonPlanet(x, y, r, hue, alpha, hasRing) {
-  const rq = Math.round(r / 2) * 2;
-  const hq = Math.round(hue / 5) * 5;
-  // The ring reaches 1.55r plus half its own stroke width (0.08r).
-  const sprite = getSprite(`planet:${rq}:${hq}:${hasRing ? 1 : 0}:${renderDpr}`, rq * 1.7 + 2, renderDpr, (c) =>
-    paintCartoonPlanet(c, rq, hq, hasRing)
-  );
-  blitSprite(sprite, x, y, alpha);
+  ctx.restore();
 }
 
 // Nearest (but still very slow — these read as huge and distant) layer:
@@ -1991,39 +1847,26 @@ function drawNeonBackground() {
   drawStarLayer(0.55, true);
 }
 
-// The screen-space sky (vertical gradient + horizon glow) only changes
-// when the viewport size or sceneProgress does — i.e. on resize or a level
-// load — so it's rendered once into an offscreen canvas and blitted each
-// frame, rather than building two gradient objects and running two
-// full-screen gradient fills (the radial one in particular is not cheap
-// at phone DPR) every single frame.
-let skyBackdropCanvas = null;
-let skyBackdropKey = "";
-
-function getSkyBackdrop() {
-  const key = `${viewportWidth}x${viewportHeight}@${renderDpr}:${sceneProgress.toFixed(4)}`;
-  if (skyBackdropKey === key && skyBackdropCanvas) return skyBackdropCanvas;
-  if (!skyBackdropCanvas) skyBackdropCanvas = document.createElement("canvas");
-  skyBackdropCanvas.width = Math.max(1, Math.round(viewportWidth * renderDpr));
-  skyBackdropCanvas.height = Math.max(1, Math.round(viewportHeight * renderDpr));
-  const c = skyBackdropCanvas.getContext("2d");
-  c.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
-
+function drawBackground() {
+  if (currentLevelTheme === "neon") {
+    drawNeonBackground();
+    return;
+  }
   const top = lerpColor(SKY_TOP_LOW, SKY_TOP_HIGH, sceneProgress);
   const mid = lerpColor(SKY_MID_LOW, SKY_MID_HIGH, sceneProgress);
   const bottom = lerpColor(SKY_BOTTOM_LOW, SKY_BOTTOM_HIGH, sceneProgress);
-  const grad = c.createLinearGradient(0, 0, 0, viewportHeight);
+  const grad = ctx.createLinearGradient(0, 0, 0, viewportHeight);
   grad.addColorStop(0, `rgb(${top[0]}, ${top[1]}, ${top[2]})`);
   grad.addColorStop(0.55, `rgb(${mid[0]}, ${mid[1]}, ${mid[2]})`);
   grad.addColorStop(1, `rgb(${bottom[0]}, ${bottom[1]}, ${bottom[2]})`);
-  c.fillStyle = grad;
-  c.fillRect(0, 0, viewportWidth, viewportHeight);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
   // A soft glowing "horizon" band low in the frame — screen-space, not
   // parallaxed with the world, so it stays put as a fixed lighting cue
   // rather than a world object — for an illustrated-poster pop instead of
   // a flat, uniformly dark lower sky.
-  const horizonGlow = c.createRadialGradient(
+  const horizonGlow = ctx.createRadialGradient(
     viewportWidth / 2,
     viewportHeight * 0.85,
     0,
@@ -2033,88 +1876,12 @@ function getSkyBackdrop() {
   );
   horizonGlow.addColorStop(0, `rgba(${mid[0]}, ${mid[1]}, ${mid[2]}, 0.26)`);
   horizonGlow.addColorStop(1, `rgba(${mid[0]}, ${mid[1]}, ${mid[2]}, 0)`);
-  c.fillStyle = horizonGlow;
-  c.fillRect(0, 0, viewportWidth, viewportHeight);
-
-  skyBackdropKey = key;
-  return skyBackdropCanvas;
-}
-
-function drawBackground() {
-  if (currentLevelTheme === "neon") {
-    drawNeonBackground();
-    return;
-  }
-  ctx.drawImage(getSkyBackdrop(), 0, 0, viewportWidth, viewportHeight);
+  ctx.fillStyle = horizonGlow;
+  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
   drawPlanetLayer();
   drawStarLayer();
   drawCloudLayer();
-}
-
-// -------------------------------------------------------------
-// VIEWPORT CULLING
-// -------------------------------------------------------------
-// A level is several screens wide (and, for the vertical ones, tall), but
-// every platform/spike/checkpoint in it used to be drawn every frame —
-// pattern fills, gradients and strokes for things whole screens away that
-// the canvas then clipped to nothing. Each draw*() below now skips
-// anything whose world-space rect misses the visible area. Recomputed
-// once per frame in draw() (the world is drawn zoomed about the viewport
-// center, so the visible world rect is viewport / cameraZoom), padded by a
-// margin that covers the death shake, the melt-platform wobble, the neon
-// glow bleed, and a checkpoint's outermost claim ring.
-const CULL_MARGIN = 96;
-let cullLeft = -Infinity;
-let cullTop = -Infinity;
-let cullRight = Infinity;
-let cullBottom = Infinity;
-
-function updateCullBounds() {
-  const halfW = viewportWidth / 2 / cameraZoom + CULL_MARGIN;
-  const halfH = viewportHeight / 2 / cameraZoom + CULL_MARGIN;
-  const centerX = cameraOffsetX + viewportWidth / 2;
-  const centerY = cameraOffsetY + viewportHeight / 2;
-  cullLeft = centerX - halfW;
-  cullRight = centerX + halfW;
-  cullTop = centerY - halfH;
-  cullBottom = centerY + halfH;
-}
-
-function isInView(x, y, width, height) {
-  return x + width >= cullLeft && x <= cullRight && y + height >= cullTop && y <= cullBottom;
-}
-
-// Whether glows should be faked with a few layered translucent strokes
-// instead of a real ctx.shadowBlur — on a touch device, yes: mobile
-// browsers (iOS Safari in particular) blur shadows in software per draw
-// call, and the neon level draws one per platform per frame. Desktop
-// keeps the true blur, which its GPU-backed canvas handles fine. Only
-// applies to the handful of *live* per-frame glows (neon platforms and
-// spikes, the finish ring); background glows are pre-rendered sprites on
-// every device (see getSprite()) and stay pixel-identical.
-const USE_CHEAP_GLOW = isTouchDevice;
-
-// The cheap glow itself: three concentric strokes just outside the given
-// rect, fading outward. Drawn before the fill so the rect's own edge stays
-// crisp on top of it. Multiplies into whatever globalAlpha the caller set
-// (ghost platforms fade the whole thing), same as a real shadow would.
-function strokeCheapRectGlow(width, height, color) {
-  const baseAlpha = ctx.globalAlpha;
-  ctx.strokeStyle = color;
-  ctx.lineJoin = "round";
-  const layers = [
-    [14, 0.07],
-    [8, 0.14],
-    [3, 0.28],
-  ];
-  for (let i = 0; i < layers.length; i++) {
-    const w = layers[i][0];
-    ctx.lineWidth = w;
-    ctx.globalAlpha = baseAlpha * layers[i][1];
-    ctx.strokeRect(-w / 2, -w / 2, width + w, height + w);
-  }
-  ctx.globalAlpha = baseAlpha;
 }
 
 // -------------------------------------------------------------
@@ -2465,21 +2232,14 @@ function drawImageSkin(skin, halfW, lineWidth) {
 }
 
 function drawInsetRect(x, y, width, height, fillStyle, strokeStyle, pattern, glow) {
-  if (!isInView(x, y, width, height)) return;
   ctx.save();
   ctx.translate(x - cameraOffsetX, y - cameraOffsetY);
   // Neon-themed levels (see drawBackground()) pass a glow color here
   // instead of a texture pattern — a real shadowBlur reads as "lit from
   // within" against a pure-black backdrop in a way a flat fill never could.
-  // On touch devices the same look is faked with layered strokes instead
-  // (see USE_CHEAP_GLOW).
   if (glow) {
-    if (USE_CHEAP_GLOW) {
-      strokeCheapRectGlow(width, height, glow);
-    } else {
-      ctx.shadowColor = glow;
-      ctx.shadowBlur = 16;
-    }
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 16;
   }
   ctx.fillStyle = fillStyle;
   ctx.strokeStyle = strokeStyle;
@@ -2549,7 +2309,6 @@ function drawBouncePlatforms() {
     if (!platform.bounce) return;
     const px = platformX(platform);
     const py = platformY(platform);
-    if (!isInView(px, py, platform.width, platform.height)) return;
     drawInsetRect(
       px,
       py,
@@ -2586,7 +2345,6 @@ function drawConveyorPlatforms() {
     if (!platform.conveyor) return;
     const px = platformX(platform);
     const py = platformY(platform);
-    if (!isInView(px, py, platform.width, platform.height)) return;
     drawInsetRect(
       px,
       py,
@@ -2727,34 +2485,14 @@ function drawDeadlyPlatforms() {
 function drawSpikes() {
   const neon = currentLevelTheme === "neon";
   spikes.forEach((spike) => {
-    if (!isInView(spike.x, spike.y - spike.size, spike.size, spike.size)) return;
     ctx.save();
     ctx.translate(spike.x - cameraOffsetX, spike.y - cameraOffsetY);
     const grad = ctx.createLinearGradient(0, -spike.size, 0, 0);
     if (neon) {
       grad.addColorStop(0, "rgba(255, 90, 170, 0.95)");
       grad.addColorStop(1, "rgba(120, 5, 60, 0.85)");
-      if (USE_CHEAP_GLOW) {
-        // Same layered-stroke stand-in for shadowBlur as drawInsetRect()
-        // uses on touch devices, traced around the spike's own triangle.
-        ctx.strokeStyle = "rgba(255, 60, 150, 0.9)";
-        ctx.lineJoin = "round";
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(spike.size / 2, -spike.size);
-        ctx.lineTo(spike.size, 0);
-        ctx.closePath();
-        ctx.globalAlpha = 0.12;
-        ctx.lineWidth = 12;
-        ctx.stroke();
-        ctx.globalAlpha = 0.25;
-        ctx.lineWidth = 6;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.shadowColor = "rgba(255, 60, 150, 0.9)";
-        ctx.shadowBlur = 12;
-      }
+      ctx.shadowColor = "rgba(255, 60, 150, 0.9)";
+      ctx.shadowBlur = 12;
     } else {
       grad.addColorStop(0, "rgba(255, 140, 190, 0.85)");
       grad.addColorStop(1, "rgba(150, 10, 70, 0.75)");
@@ -2781,7 +2519,6 @@ function drawSpikes() {
 // physics loop uses, not a separate physics engine.
 function drawSlingshots() {
   (window.slingshots || []).forEach((s) => {
-    if (!isInView(s.x, s.y, s.width, s.height)) return;
     ctx.save();
     ctx.translate(s.x - cameraOffsetX, s.y - cameraOffsetY);
     ctx.fillStyle = "rgba(255, 190, 60, 0.5)";
@@ -2850,9 +2587,6 @@ const CLAIM_BURST_MS = 550;
 function drawCheckpoints() {
   const now = Date.now();
   checkpoints.forEach((checkpoint, index) => {
-    // A 40px box around the beacon — CULL_MARGIN covers the claim rings
-    // (out to ~4x the beacon radius) and the pop.
-    if (!isInView(checkpoint.x - 20, checkpoint.y - 20, 40, 40)) return;
     const isFinish = index === checkpoints.length - 1;
 
     // Idle glow pulse on unreached checkpoints, a bigger "pop" the moment
@@ -2860,11 +2594,6 @@ function drawCheckpoints() {
     const pulse = checkpoint.reached
       ? 0
       : Math.sin(now / 300 + checkpoint.x) * 2;
-    // `??`, not `||`: resetLevelState() marks a resumed-past checkpoint
-    // with reachedAt = 0 to mean "claimed long ago" — under `||` that 0
-    // fell through to `now`, so a level resumed at a saved checkpoint
-    // rendered the one-shot claim flash (a `lighter` radial gradient) and
-    // the size pop on that beacon on every frame for the entire level.
     const timeSinceReached = checkpoint.reached
       ? now - (checkpoint.reachedAt ?? now)
       : 0;
@@ -2897,23 +2626,9 @@ function drawCheckpoints() {
       ctx.save();
       ctx.beginPath();
       ctx.arc(0, 0, outer, 0, Math.PI * 2);
-      if (USE_CHEAP_GLOW) {
-        // Two soft outer strokes in place of the shadowBlur — see
-        // USE_CHEAP_GLOW. This ring is on screen every frame the finish
-        // is in view, so it can't afford a live software blur on a phone.
-        ctx.strokeStyle = glowColor;
-        ctx.globalAlpha = 0.16;
-        ctx.lineWidth = 13;
-        ctx.stroke();
-        ctx.globalAlpha = 0.3;
-        ctx.lineWidth = 7;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.shadowColor = glowColor;
-        ctx.shadowBlur = 15;
-      }
       ctx.strokeStyle = ringColor;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 15;
       ctx.lineWidth = 3;
       ctx.stroke();
       ctx.restore();
@@ -4150,21 +3865,9 @@ let isPaused = false;
 
 function update(dtScale) {
   if (isPaused) {
-    // Draw exactly one frame on entering pause (so the menu sits over a
-    // fresh frame — e.g. after a resize) and then leave the canvas alone.
-    // Repainting it every frame under the pause/main menu was pure waste
-    // on its own, and worse than that on a phone: every .menu overlay has
-    // a backdrop-filter blur, and a backdrop that changes every frame
-    // makes the compositor re-blur the whole screen every frame too. The
-    // rAF loop itself keeps running (cheaply) so unpausing resumes with
-    // no restart plumbing.
-    if (!pausedFrameDrawn) {
-      draw(dtScale);
-      pausedFrameDrawn = true;
-    }
+    draw(dtScale);
     return;
   }
-  pausedFrameDrawn = false;
   if (isDying) {
     // Frozen at the death location for a short beat before the actual
     // respawn — see triggerDeath()/updateDeathAnimation()'s comments.
@@ -4206,7 +3909,6 @@ function draw(dtScale) {
   // the backdrop stays put while the foreground shakes on death, the same
   // way the plain clear it replaced was never shaken either.
   drawBackground();
-  updateCullBounds();
 
   ctx.save();
   if (shakeTime > 0 && screenShakeEnabled) {
@@ -4263,52 +3965,13 @@ function draw(dtScale) {
 let lastFrameTime = null;
 const MAX_DT_SCALE = 3;
 
-// -------------------------------------------------------------
-// ADAPTIVE RESOLUTION
-// -------------------------------------------------------------
-// Once the draw code itself is cheap (sprite caches, culling — see the
-// BACKGROUND/VIEWPORT CULLING sections), what's left on a phone is raw
-// pixel fill: every full-screen blit, pattern fill and glow costs in
-// proportion to canvas.width * canvas.height. A device that can't hold a
-// smooth rate at 2x gets stepped down a quarter-DPR at a time (2 → 1.75 →
-// … → 1) and stays there — never scaled back up, so it can't oscillate
-// between two resolutions mid-level. Decided on a smoothed average of
-// real frame deltas held above SLOW_FRAME_MS for SLOW_FRAME_STREAK frames
-// in a row, so a single hitch (level load, a GC pause, switching apps)
-// never triggers it; anything over HITCH_MS is treated as a stall rather
-// than a "slow frame" and resets the streak, as does being paused or in a
-// background tab (where rAF is throttled and every delta looks slow).
-const SLOW_FRAME_MS = 20; // below ~50fps
-const SLOW_FRAME_STREAK = 90; // ~1.5s of sustained slowness
-const HITCH_MS = 100;
-const MIN_RENDER_DPR = 1;
-let frameDeltaEma = 0;
-let slowFrameStreak = 0;
-
-function trackFramePace(rawDeltaMs) {
-  if (isPaused || document.visibilityState !== "visible" || rawDeltaMs > HITCH_MS) {
-    slowFrameStreak = 0;
-    return;
-  }
-  if (renderDpr <= MIN_RENDER_DPR) return; // nothing left to give back
-  frameDeltaEma = frameDeltaEma === 0 ? rawDeltaMs : frameDeltaEma * 0.9 + rawDeltaMs * 0.1;
-  if (frameDeltaEma > SLOW_FRAME_MS) slowFrameStreak++;
-  else slowFrameStreak = 0;
-  if (slowFrameStreak >= SLOW_FRAME_STREAK) {
-    renderDprCap = Math.max(MIN_RENDER_DPR, renderDprCap - 0.25);
-    slowFrameStreak = 0;
-    frameDeltaEma = 0;
-    resizeCanvas();
-    console.info(`[starshade] sustained slow frames — render scale lowered to ${renderDpr}x`);
-  }
-}
-
 function gameLoop(timestamp) {
   if (lastFrameTime === null) lastFrameTime = timestamp;
-  const rawDelta = timestamp - lastFrameTime;
-  const dtScale = Math.min(MAX_DT_SCALE, Math.max(0, rawDelta / (1000 / 60)));
+  const dtScale = Math.min(
+    MAX_DT_SCALE,
+    Math.max(0, (timestamp - lastFrameTime) / (1000 / 60))
+  );
   lastFrameTime = timestamp;
-  trackFramePace(rawDelta);
 
   update(dtScale);
   requestAnimationFrame(gameLoop);
@@ -4617,9 +4280,6 @@ StarshadeAchievements.revalidateUnlocked();
 function startGame() {
   if (hasGameStarted) return;
   hasGameStarted = true;
-  // Reveals the (opaque — see the canvas context setup at the top of this
-  // file) canvas now that there's a frame about to be drawn on it.
-  document.body.classList.add("game-running");
   loadLevel(currentLevel)
     .then(() => {
       // Always enter the loop via rAF (never call it directly) so the very
