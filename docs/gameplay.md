@@ -126,9 +126,11 @@ while the foreground shakes on death. Every frame it draws, back to front:
 2. **Planets** (`drawPlanetLayer()`) — sparse, huge, glowing circles, only
    appearing in the back half of the game.
 3. **Stars** (`drawStarLayer()`) — small white dots with a gentle sine
-   twinkle, fading in from level ~4 to fully visible by level ~17, biased
-   toward the top of each grid cell (see below) so the sky overall reads
-   as "stars up top."
+   twinkle. Never fully absent — `STAR_BASE_ALPHA` keeps a dim but real
+   baseline visible from level 1 onward, so the very first level doesn't
+   read as a flat, empty gradient — then ramps up to full brightness by
+   level ~17, biased toward the top of each grid cell (see below) so the
+   sky overall reads as "stars up top."
 4. **Clouds/nebula** (`drawCloudLayer()`) — soft, radial-gradient blobs (a
    mix of near-circles and flatter ovals, randomized per cloud), biased
    toward the *bottom* of each cell — the mirror image of the star bias,
@@ -139,12 +141,27 @@ while the foreground shakes on death. Every frame it draws, back to front:
    game progresses — the same shapes doing double duty rather than
    swapping to a different asset partway through.
 
-**Progress, not physics**: `sceneProgress` (0 at level 1, 1 at level 25)
-is computed once per level load in `resetLevelState()`, purely from
-`currentLevel` — it has nothing to do with a level's actual platform
-layout or altitude. Levels change abruptly (a new `currentLevel` the
-instant a level loads), but the player only ever sees that change through
-the existing fade-to-black transition (`isFading` — see
+**Progress, not physics, and not the whole game either**: `sceneProgress`
+(0 at level 1, 1 at level `SKY_PROGRESS_LEVEL_COUNT` — 25, then held
+there for the rest of the game) is computed once per level load in
+`resetLevelState()`, purely from `currentLevel` — it has nothing to do
+with a level's actual platform layout or altitude. Deliberately *not*
+tied to the game's real total level count: the star/cloud/planet
+thresholds above were hand-tuned as fractions of this to land on specific
+absolute level numbers (stars starting around level 4, planets by level
+~9, everything fully "deep cosmos" by level ~20). When the game grew from
+25 to 100 levels, this briefly *was* the full level count, which stretched
+those same fractions out to level ~13/~35/~80 instead — the sky stayed
+looking empty for most of the early-to-mid game. Keeping it fixed at 25
+regardless of how long the game actually is preserves the original
+pacing: the backdrop finishes its "low altitude to deep cosmos" journey a
+bit past a quarter of the way through a 100-level game, and then just
+stays in deep-cosmos mode for the rest of it, which reads better than a
+transition that barely completes by the very end.
+
+Levels change abruptly (a new `currentLevel` the instant a level loads),
+but the player only ever sees that change through the existing
+fade-to-black transition (`isFading` — see
 [architecture.md](architecture.md)), which happens to already cover the
 switch: the backdrop is a different theme by the time the screen fades
 back in, with no separate cross-fade logic needed.
@@ -990,12 +1007,16 @@ contact with the usual impact feedback (screen shake, haptics, a
 player in place (`player.dx`/`dy` zeroed, position captured into
 `deathAnimX`/`deathAnimY` rather than left on live `player.x`/`y`) instead
 of moving them anywhere yet. `drawPlayer()` swaps to `drawDeathAnimation()`
-for the duration — six small skin-colored shards spinning outward from
-the death point and fading, plus a fast red flash right at the start —
-rather than trying to shrink/spin each skin's actual shape (a circle's
-roll, a triangle's tumble, an image sprite) convincingly in place; shatter
-debris reads as "broke apart" regardless of the equipped skin's real
-shape, while still using that skin's own colors.
+for the duration — the player's own 25x25 hitbox split into four
+quadrant-sized chunks, each flying off in its own diagonal direction with
+independent spin and a little gravity-like drift, plus a fast red flash
+right at the start. An earlier version used a ring of six small uniform
+shards, which read as a confetti/firework burst rather than the character
+itself coming apart; four chunks at a quarter of the actual hitbox each
+read as "you broke into pieces" instead, without needing to shrink/spin
+each skin's actual shape (a circle's roll, a triangle's tumble, an image
+sprite) convincingly in place. Colors still come from the equipped skin's
+fill/stroke.
 
 Once `deathProgress` reaches 1, `updateDeathAnimation()` hands off to
 `resetPlayer()` — unchanged from before except that the stats/particle-
@@ -1020,9 +1041,11 @@ already continuously falling under completely normal physics, and the
 right thing to do is let that keep happening, not freeze it mid-air the
 instant it crosses the bottom edge. So the off-bottom check
 (`updatePlayer()`) holds off calling anything until the player has fallen
-`VOID_FALL_MARGIN` (`viewportHeight * 0.4`) *past* the edge, not just to
-it — by which point normal camera lag (`cameraSmoothing`) has already
-carried them well clear of the visible area on its own. Only then does
+`VOID_FALL_MARGIN` (`viewportHeight * 0.15` — deliberately small, since a
+void fall is common enough that a longer wait here reads as sluggish
+rather than weighty) *past* the edge, not just to it — by which point
+normal camera lag (`cameraSmoothing`) has already carried them well clear
+of the visible area on its own. Only then does
 `triggerVoidDeath()` fire, and it's deliberately much lighter than
 `triggerDeath()`: a haptic buzz (still felt with nothing on screen to look
 at) and a direct call to `resetPlayer()` — no `isDying` state, no freeze,
