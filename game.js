@@ -8,9 +8,10 @@ const canvas = document.getElementById("gameCanvas");
 // it `visibility: hidden` until startGame() adds `game-running` to <body>,
 // so the menus' translucent panels still show .galaxy-bg through them
 // before Play, exactly as they did with a transparent canvas.
-// `desynchronized` lets Chrome/Android present frames without waiting on
-// the DOM compositor (lower touch-to-photon latency); ignored elsewhere.
-const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+// Deliberately NOT `desynchronized: true` — it skips vsync on Chrome and
+// showed up as visible tearing/jitter in play; the latency it buys isn't
+// worth that.
+const ctx = canvas.getContext("2d", { alpha: false });
 
 // The backing buffer is capped at 2x — a 3x phone (most current iPhones
 // and flagship Androids) would otherwise push 2.25x the pixels of a 2x one
@@ -1671,8 +1672,14 @@ function getSprite(key, pad, scale, paint) {
 }
 
 function blitSprite(sprite, x, y, alpha) {
+  // Restore the caller's alpha afterward — the cloud/planet layers call
+  // this bare (no surrounding save/restore), and a leaked 0.45 alpha here
+  // would bleed into every platform and the player for the rest of the
+  // frame.
+  const prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = alpha;
   ctx.drawImage(sprite.canvas, x - sprite.pad, y - sprite.pad, sprite.pad * 2, sprite.pad * 2);
+  ctx.globalAlpha = prevAlpha;
 }
 
 // A chunky four-point cartoon sparkle (a pinched diamond, not a pointy
