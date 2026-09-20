@@ -468,6 +468,41 @@ canvas {
   transform: scale(1.08);
 }
 
+/* Persistent coin HUD — top-right, mirrors #pause-open-button's pill/
+   glass look (top-left) so the two read as a matched pair of always-on
+   overlays rather than one being an afterthought. Updated by
+   updateCoinHud() in game.js. */
+.coin-hud {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 207, 77, 0.45);
+  background: rgba(20, 10, 45, 0.5);
+  backdrop-filter: blur(6px);
+  color: #ffcf4d;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  z-index: 1000;
+  box-shadow: 0 0 12px rgba(255, 207, 77, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.coin-hud.bump {
+  animation: coin-hud-bump 0.4s ease;
+}
+
+@keyframes coin-hud-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
 #gameCompleteCoins {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;

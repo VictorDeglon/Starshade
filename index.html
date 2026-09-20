@@ -123,6 +123,19 @@
       </svg>
     </button>
 
+    <!-- Persistent coin HUD — always visible during gameplay (not just
+         inside the Level Map/Shop overlays), so the balance a purchase or
+         bonus payout is drawing from/adding to is on screen the whole
+         time. Updated by updateCoinHud() in game.js, called on level
+         completion, bonus payouts, and shop purchases. -->
+    <div id="coinHud" class="coin-hud">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" />
+        <path d="M12 8v8M9.5 10h5M9.5 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
+      <span id="coin-hud-value">0</span>
+    </div>
+
     <!-- -------------------------------------------------------------
          LOADING OVERLAY — shown exactly once, at app launch, then never
          again for the rest of the session (see startGame()/boot sequence
@@ -448,7 +461,10 @@
             <div class="shop-subtab-panel hidden" data-subpanel="custom">
               <div class="skin-builder" id="skin-builder">
                 <div class="skin-builder-preview">
-                  <div class="skin-preview" id="builder-preview"></div>
+                  <div class="skin-preview-wrap">
+                    <div class="skin-preview" id="builder-preview"></div>
+                    <div class="builder-accessory-overlay" id="builder-accessory-overlay"></div>
+                  </div>
                 </div>
                 <div class="skin-builder-controls">
                   <div class="builder-field">
@@ -471,9 +487,21 @@
                     <label for="builder-glow-color">Glow Color</label>
                     <input type="color" id="builder-glow-color" value="#a042d3" />
                   </div>
+                  <div class="builder-field">
+                    <label for="builder-outline-width">Outline Thickness</label>
+                    <input type="range" id="builder-outline-width" min="1" max="7" step="1" value="3" />
+                  </div>
+                  <div class="builder-field">
+                    <label>Accessory</label>
+                    <div class="builder-swatch-row builder-accessory-row" id="builder-accessory-row"></div>
+                  </div>
                   <div class="builder-field builder-field-inline">
                     <label for="builder-trail">Particle Trail</label>
                     <input type="checkbox" id="builder-trail" />
+                  </div>
+                  <div class="builder-field builder-field-inline">
+                    <label for="builder-glow-pulse">Glow Pulse</label>
+                    <input type="checkbox" id="builder-glow-pulse" />
                   </div>
                   <div class="builder-field">
                     <label for="builder-name">Name</label>
@@ -506,6 +534,7 @@
     <script src="skinsData.js"></script>
     <script src="achievementsData.js"></script>
     <script src="shopData.js"></script>
+    <script src="shopIcons.js"></script>
     <!--
       Level scripts are NOT included here directly — see loadLevel() in
       game.js and docs/architecture.md's "Level loading" section for why

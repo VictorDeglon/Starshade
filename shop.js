@@ -25,6 +25,30 @@
 
   function updateCoinBalance() {
     coinBalanceEl.textContent = `${StarshadeEconomy.getCoins()} Coins`;
+    // The persistent top-right coin HUD (game.js) needs to reflect a Shop
+    // purchase immediately too, not just this overlay's own balance line.
+    if (typeof window.updateCoinHud === "function") window.updateCoinHud();
+  }
+
+  // A brief "claimed" flourish right after a successful purchase — a
+  // quick scale-pop plus a ring of particles bursting out from behind the
+  // icon (pure CSS, see shop.css's .shop-item-card.claiming). Every grid
+  // re-renders its cards from scratch on any change (simplest way to keep
+  // lock-state/afford-state always correct — see renderSkinsGrid()/
+  // renderGenericGrid()), so the *element* a purchase click landed on is
+  // already gone by the time the animation would play; recording just the
+  // id here and checking it while building the fresh card is what lets
+  // the newly-built card pick the animation up instead.
+  let recentlyClaimedId = null;
+  function markRecentlyClaimed(id) {
+    recentlyClaimedId = id;
+    setTimeout(() => {
+      if (recentlyClaimedId === id) recentlyClaimedId = null;
+    }, 700);
+  }
+  function applyClaimAnimationIfRecent(cardEl, id) {
+    if (id !== recentlyClaimedId) return;
+    cardEl.classList.add("claiming");
   }
 
   // -----------------------------------------------------------
@@ -118,6 +142,7 @@
       const card = document.createElement("div");
       card.className = "shop-item-card";
       card.style.setProperty("--glow", skin.glow || rarityColor);
+      applyClaimAnimationIfRecent(card, skin.id);
 
       const swatch = document.createElement("div");
       applySkinShape(swatch, skin, "shop-item-swatch");
@@ -166,6 +191,7 @@
           if (StarshadeEconomy.unlockWithCoins(skin)) {
             updateCoinBalance();
             if (window.StarshadeAchievements) StarshadeAchievements.checkAndNotify();
+            markRecentlyClaimed(skin.id);
             renderSkinsGrid();
           }
         });
@@ -230,12 +256,24 @@
       const card = document.createElement("div");
       card.className = "shop-item-card";
       card.style.setProperty("--glow", rarityColor);
+      applyClaimAnimationIfRecent(card, item.id);
 
-      const swatch = document.createElement("div");
-      swatch.className = "shop-item-swatch";
-      swatch.style.background = item.preview || rarityColor;
-      if (!unlocked) swatch.style.filter = "grayscale(0.6) brightness(0.7)";
-      card.appendChild(swatch);
+      // A parametric badge-ring + glyph icon (shopIcons.js) instead of a
+      // flat color swatch — every Particle/Skill/Power-Up gets a distinct,
+      // "complex" (multi-layer, not a single flat shape) icon this way,
+      // with a subtle rotating-ring hover loop and this same element also
+      // doubling as the anchor the claim-burst animation radiates from
+      // (see shop.css's .shop-item-card.claiming).
+      const iconWrap = document.createElement("div");
+      iconWrap.className = "shop-item-icon" + (unlocked ? "" : " locked");
+      iconWrap.innerHTML = buildShopIcon(item.icon, { rarity: item.rarity, size: 48 });
+      if (!unlocked) {
+        const lockBadge = document.createElement("div");
+        lockBadge.className = "skin-lock-badge";
+        lockBadge.innerHTML = LOCK_ICON_SVG;
+        iconWrap.appendChild(lockBadge);
+      }
+      card.appendChild(iconWrap);
 
       const h3 = document.createElement("h3");
       h3.textContent = item.name;
@@ -276,6 +314,7 @@
         btn.addEventListener("click", () => {
           if (config.unlock(item)) {
             updateCoinBalance();
+            markRecentlyClaimed(item.id);
             renderGenericGrid(kind);
           }
         });
@@ -291,7 +330,31 @@
   // -----------------------------------------------------------
   // CUSTOM SKIN BUILDER
   // -----------------------------------------------------------
-  const builderState = { shape: "square", fill: "#a042d3", stroke: "#5d1a91", glow: "#a042d3", trail: false };
+  const builderState = {
+    shape: "square",
+    fill: "#a042d3",
+    stroke: "#5d1a91",
+    glow: "#a042d3",
+    trail: false,
+    outlineWidth: 3,
+    glowPulse: false,
+    accessory: "accessory-none",
+  };
+
+  // shopData.js's STARSHADE_ACCESSORIES id -> shopIcons.js glyph key,
+  // reused for both the picker row below and the small overlay preview —
+  // the actual in-game accessory rendering is real canvas art
+  // (drawSkinAccessory() in game.js), this is just a representative icon,
+  // not a pixel match.
+  const ACCESSORY_ICON_MAP = {
+    "accessory-none": "blank",
+    "accessory-crown": "crown",
+    "accessory-halo": "halo",
+    "accessory-wings": "wingsSmall",
+    "accessory-visor": "visor",
+    "accessory-horns": "horns",
+    "accessory-aura": "auraRing",
+  };
 
   function refreshBuilderPreview() {
     const el = document.getElementById("builder-preview");
@@ -299,7 +362,17 @@
     el.className = "skin-preview shape-" + builderState.shape;
     el.style.background = builderState.fill;
     el.style.borderColor = builderState.stroke;
+    el.style.borderWidth = builderState.outlineWidth + "px";
     el.style.setProperty("--glow", builderState.glow);
+    el.classList.toggle("glow-pulse", builderState.glowPulse);
+
+    const overlay = document.getElementById("builder-accessory-overlay");
+    if (overlay) {
+      overlay.innerHTML =
+        builderState.accessory === "accessory-none"
+          ? ""
+          : buildShopIcon(ACCESSORY_ICON_MAP[builderState.accessory], { rarity: "custom", size: 44 });
+    }
   }
 
   document.querySelectorAll(".builder-shape-option").forEach((btn) => {
@@ -311,14 +384,39 @@
     });
   });
 
+  // Built from STARSHADE_ACCESSORIES (shopData.js) rather than hardcoded
+  // here, so adding a new accessory to the catalog is the only place that
+  // needs to change.
+  const accessoryRowEl = document.getElementById("builder-accessory-row");
+  if (accessoryRowEl && typeof STARSHADE_ACCESSORIES !== "undefined") {
+    STARSHADE_ACCESSORIES.forEach((accessory) => {
+      const btn = document.createElement("button");
+      btn.className = "builder-shape-option builder-accessory-option";
+      btn.dataset.accessory = accessory.id;
+      btn.title = accessory.name;
+      btn.innerHTML = buildShopIcon(accessory.icon, { rarity: "custom", size: 22 });
+      if (accessory.id === builderState.accessory) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        builderState.accessory = accessory.id;
+        accessoryRowEl.querySelectorAll(".builder-accessory-option").forEach((b) => b.classList.toggle("active", b === btn));
+        refreshBuilderPreview();
+      });
+      accessoryRowEl.appendChild(btn);
+    });
+  }
+
   const fillInput = document.getElementById("builder-fill-color");
   const strokeInput = document.getElementById("builder-stroke-color");
   const glowInput = document.getElementById("builder-glow-color");
   const trailInput = document.getElementById("builder-trail");
+  const outlineWidthInput = document.getElementById("builder-outline-width");
+  const glowPulseInput = document.getElementById("builder-glow-pulse");
   if (fillInput) fillInput.addEventListener("input", (e) => { builderState.fill = e.target.value; refreshBuilderPreview(); });
   if (strokeInput) strokeInput.addEventListener("input", (e) => { builderState.stroke = e.target.value; refreshBuilderPreview(); });
   if (glowInput) glowInput.addEventListener("input", (e) => { builderState.glow = e.target.value; refreshBuilderPreview(); });
   if (trailInput) trailInput.addEventListener("change", (e) => { builderState.trail = e.target.checked; });
+  if (outlineWidthInput) outlineWidthInput.addEventListener("input", (e) => { builderState.outlineWidth = Number(e.target.value); refreshBuilderPreview(); });
+  if (glowPulseInput) glowPulseInput.addEventListener("change", (e) => { builderState.glowPulse = e.target.checked; refreshBuilderPreview(); });
 
   function renderSavedCustomSkins() {
     const list = document.getElementById("builder-saved-list");

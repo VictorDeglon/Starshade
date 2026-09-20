@@ -1,17 +1,27 @@
-// Shop catalogs for Particles, Skills (abilities), and Power-Ups — the
-// three tabs alongside Skins (STARSHADE_SKINS, skinsData.js) in the Shop
-// overlay (see shop.js/shop.css). Same `unlockType`/`cost`/`rarity` shape
-// skinsData.js already uses, read through StarshadeEconomy's matching
-// isXUnlocked()/unlockXWithCoins()/getEquippedX() accessors (skinsData.js)
-// so buying/equipping here works exactly like buying/equipping a skin.
+// Shop catalogs for Particles, Skills (abilities), Power-Ups, and skin
+// Accessories — the tabs alongside Skins (STARSHADE_SKINS, skinsData.js)
+// in the Shop overlay (see shop.js/shop.css). Same `unlockType`/`cost`/
+// `rarity` shape skinsData.js already uses, read through StarshadeEconomy's
+// matching isXUnlocked()/unlockXWithCoins()/getEquippedX() accessors
+// (skinsData.js) so buying/equipping here works exactly like buying/
+// equipping a skin.
 //
 // Loaded before game.js (see index.html) so game.js can read these
 // catalogs by name (STARSHADE_ABILITIES/STARSHADE_POWERUPS) the moment it
 // needs to resolve an equipped ability/power-up id back to its effect.
+//
+// `icon` on every entry is a glyph key into ICON_GLYPHS (shopIcons.js) —
+// the actual SVG markup is generated from it, not stored here, so the
+// same glyph library and rarity/hue treatment applies consistently across
+// all three catalogs instead of each entry embedding its own one-off SVG.
 
-// `colors` feeds spawnParticles() directly (see game.js's continuous
-// trail effect) — one entry picked at random per particle. `preview` is a
-// CSS gradient for the shop card, same convention as a skin's `preview`.
+// -----------------------------------------------------------------
+// PARTICLES — 12 trails, each with a distinct `behavior` (not just a
+// different color on the same plain-circle drift every earlier trail
+// used). `behavior` is read by game.js's spawnTrailParticle() to pick
+// which of a handful of real per-frame motion patterns a trail's
+// particles follow — see docs/gameplay.md's Particles section.
+// -----------------------------------------------------------------
 const STARSHADE_PARTICLES = [
   {
     id: "particle-embers",
@@ -20,6 +30,8 @@ const STARSHADE_PARTICLES = [
     unlockType: "free",
     colors: ["rgba(255,180,90,0.85)", "rgba(255,120,60,0.7)"],
     preview: "radial-gradient(circle, #ffb45a, #ff5a1e)",
+    behavior: "drift",
+    icon: "flame",
   },
   {
     id: "particle-frost",
@@ -29,6 +41,8 @@ const STARSHADE_PARTICLES = [
     cost: 120,
     colors: ["rgba(180,230,255,0.9)", "rgba(120,190,255,0.7)"],
     preview: "radial-gradient(circle, #d6f3ff, #6fc2ff)",
+    behavior: "drift",
+    icon: "snowflake",
   },
   {
     id: "particle-nebula",
@@ -38,6 +52,8 @@ const STARSHADE_PARTICLES = [
     cost: 260,
     colors: ["rgba(200,150,255,0.9)", "rgba(120,90,220,0.75)"],
     preview: "radial-gradient(circle, #e2c9ff, #7c4de0)",
+    behavior: "spiral",
+    icon: "spiral",
   },
   {
     id: "particle-verdant",
@@ -47,6 +63,8 @@ const STARSHADE_PARTICLES = [
     cost: 260,
     colors: ["rgba(150,255,170,0.9)", "rgba(60,210,110,0.75)"],
     preview: "radial-gradient(circle, #c6ffd2, #35c96a)",
+    behavior: "zigzag",
+    icon: "bolt",
   },
   {
     id: "particle-solar",
@@ -56,6 +74,8 @@ const STARSHADE_PARTICLES = [
     cost: 420,
     colors: ["rgba(255,230,120,0.95)", "rgba(255,140,40,0.8)"],
     preview: "radial-gradient(circle, #fff2b0, #ff8c28)",
+    behavior: "burst",
+    icon: "sun",
   },
   {
     id: "particle-void",
@@ -64,24 +84,87 @@ const STARSHADE_PARTICLES = [
     unlockType: "completion",
     colors: ["rgba(120,80,200,0.9)", "rgba(10,5,25,0.85)"],
     preview: "radial-gradient(circle, #7c50c8, #0a0519)",
+    behavior: "spiral",
+    icon: "vortex",
+  },
+  {
+    id: "particle-comet",
+    name: "Comet Streak",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 280,
+    colors: ["rgba(255,255,255,0.95)", "rgba(150,200,255,0.7)"],
+    preview: "radial-gradient(circle, #ffffff, #7fb2ff)",
+    behavior: "streak",
+    icon: "comet",
+  },
+  {
+    id: "particle-blossom",
+    name: "Blossom Drift",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 140,
+    colors: ["rgba(255,190,220,0.9)", "rgba(255,150,190,0.7)"],
+    preview: "radial-gradient(circle, #ffd6e8, #ff9dc4)",
+    behavior: "sway",
+    icon: "petal",
+  },
+  {
+    id: "particle-toxic",
+    name: "Toxic Bloom",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 400,
+    colors: ["rgba(170,255,60,0.9)", "rgba(90,180,20,0.75)"],
+    preview: "radial-gradient(circle, #d4ff8a, #6fbe1a)",
+    behavior: "pulse",
+    icon: "biohazard",
+  },
+  {
+    id: "particle-ember-storm",
+    name: "Ember Storm",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 400,
+    colors: ["rgba(255,90,50,0.9)", "rgba(255,200,60,0.85)", "rgba(120,20,10,0.8)"],
+    preview: "radial-gradient(circle, #ff8a3c, #7a1408)",
+    behavior: "burst",
+    icon: "storm",
+  },
+  {
+    id: "particle-aurora",
+    name: "Aurora Veil",
+    rarity: "legendary",
+    unlockType: "coins",
+    cost: 650,
+    colors: ["rgba(120,255,220,0.85)", "rgba(150,120,255,0.8)", "rgba(255,150,220,0.75)"],
+    preview: "linear-gradient(135deg, #78ffdc, #9678ff, #ff96dc)",
+    behavior: "sway",
+    icon: "aurora",
+  },
+  {
+    id: "particle-starlight",
+    name: "Starlight Sparkle",
+    rarity: "mythic",
+    unlockType: "achievement",
+    achievement: "Beat every level deathless",
+    colors: ["rgba(255,255,255,0.95)", "rgba(255,230,150,0.85)"],
+    preview: "radial-gradient(circle, #ffffff, #ffe6a3)",
+    behavior: "sparkle",
+    icon: "star",
   },
 ];
 
-// `ability` is the exact string game.js's physics loop already checks
-// (dash/featherFall/sticky/slippery/bouncy — see docs/gameplay.md's
-// Abilities section and StarshadeEconomy.getEquippedAbility()). Four of
-// these (all but featherFall) are also effects a legendary/mythic skin can
-// bundle directly — promoted here into their own independently-
-// purchasable/equippable catalog so a player isn't forced to also change
-// their cosmetic look to get one. `featherFall` replaces the old
-// standalone `tripleJump` skill — an extra full mid-air jump let a player
-// skip past gaps and hazard sequences the level design assumed were
-// mandatory; a slower fall after a jump's peak (same rise, same max
-// height/reach, just more hang time coming down) is a real perk without
-// that same "skip the level design" ceiling. `tripleJump` itself is still
-// a valid ability string — the "Skyward Herald" legendary skin
-// (skinsData.js) still bundles it — it's just no longer independently
-// purchasable here.
+// -----------------------------------------------------------------
+// SKILLS — 25 total (5 original movement abilities + 20 new, situational
+// ones). `ability` is the exact string game.js's physics loop checks via
+// StarshadeEconomy.getEquippedAbility()/hasSkill(). None of the new 20
+// grant an extra full jump or otherwise let a player skip past a level's
+// intended route the way the old standalone `tripleJump` skill did (see
+// the note on `featherFall` below, and docs/gameplay.md) — every one is
+// either a forgiveness/comfort tweak scoped to one specific mechanic, or
+// a genuine technique with a real trade-off, not a blanket "more
+// capable" upgrade.
 const STARSHADE_ABILITIES = [
   {
     id: "skill-dash",
@@ -91,6 +174,7 @@ const STARSHADE_ABILITIES = [
     cost: 300,
     ability: "dash",
     description: "Double-tap Left/Right for a short fast burst.",
+    icon: "dash",
   },
   {
     id: "skill-featherfall",
@@ -100,6 +184,7 @@ const STARSHADE_ABILITIES = [
     cost: 300,
     ability: "featherFall",
     description: "Fall noticeably slower after a jump's peak — more time to react, not more reach.",
+    icon: "feather",
   },
   {
     id: "skill-sticky",
@@ -109,6 +194,7 @@ const STARSHADE_ABILITIES = [
     cost: 380,
     ability: "sticky",
     description: "Cling to a wall while holding into it, refreshing your air jump.",
+    icon: "wall",
   },
   {
     id: "skill-slippery",
@@ -118,6 +204,7 @@ const STARSHADE_ABILITIES = [
     cost: 150,
     ability: "slippery",
     description: "Eases toward speed and keeps coasting instead of stopping instantly.",
+    icon: "wave",
   },
   {
     id: "skill-bouncy",
@@ -127,15 +214,216 @@ const STARSHADE_ABILITIES = [
     cost: 380,
     ability: "bouncy",
     description: "Rebounds a bit on landing instead of coming to rest.",
+    icon: "bounce",
+  },
+  {
+    id: "skill-coyote",
+    name: "Coyote Time",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 180,
+    ability: "coyoteTime",
+    description: "Jump still works for a few frames after walking off a ledge.",
+    icon: "clock",
+  },
+  {
+    id: "skill-fastfall",
+    name: "Fast Fall",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 180,
+    ability: "fastFall",
+    description: "Hold Down while airborne to drop faster — your call, not automatic.",
+    icon: "arrowDown",
+  },
+  {
+    id: "skill-ledgesnap",
+    name: "Ledge Snap",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 200,
+    ability: "ledgeSnap",
+    description: "A landing close to a platform's edge nudges you fully onto it.",
+    icon: "target",
+  },
+  {
+    id: "skill-spikecushion",
+    name: "Spike Cushion",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 220,
+    ability: "spikeCushion",
+    description: "A few extra pixels of forgiveness on every spike hitbox.",
+    icon: "shield",
+  },
+  {
+    id: "skill-checkpointreach",
+    name: "Checkpoint Reach",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 200,
+    ability: "checkpointReach",
+    description: "Checkpoints trigger from a little further away.",
+    icon: "flag",
+  },
+  {
+    id: "skill-meltward",
+    name: "Melt Ward",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 260,
+    ability: "meltWard",
+    description: "Melt platforms take noticeably longer to crumble under you.",
+    icon: "hourglass",
+  },
+  {
+    id: "skill-ghostsense",
+    name: "Ghost Sense",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 260,
+    ability: "ghostSense",
+    description: "Ghost platforms stay solid a little longer on their visible phase.",
+    icon: "ghost",
+  },
+  {
+    id: "skill-conveyorgrip",
+    name: "Conveyor Grip",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 260,
+    ability: "conveyorGrip",
+    description: "Conveyor belts push you noticeably less.",
+    icon: "belt",
+  },
+  {
+    id: "skill-bouncemaster",
+    name: "Bounce Master",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 280,
+    ability: "bounceMaster",
+    description: "Bounce pads launch you a bit higher than usual.",
+    icon: "spring",
+  },
+  {
+    id: "skill-suregrip",
+    name: "Sure Grip",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 340,
+    ability: "sureGrip",
+    description: "Jumping off a wall you're clinging to gives a real kick away from it (needs Wall Cling equipped too).",
+    icon: "grip",
+  },
+  {
+    id: "skill-quietlanding",
+    name: "Quiet Landing",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 140,
+    ability: "quietLanding",
+    description: "Removes the camera punch from hard landings — comfort, not a buff.",
+    icon: "feather2",
+  },
+  {
+    id: "skill-swiftrespawn",
+    name: "Swift Respawn",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 200,
+    ability: "swiftRespawn",
+    description: "Cuts the fade-out/fade-in delay after a death roughly in half.",
+    icon: "bolt2",
+  },
+  {
+    id: "skill-doubledash",
+    name: "Extended Dash",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 360,
+    ability: "extendedDash",
+    description: "Dash's burst lasts 50% longer (needs Dash equipped too).",
+    icon: "dashLong",
+  },
+  {
+    id: "skill-highroller",
+    name: "High Roller",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 300,
+    ability: "highRoller",
+    description: "Every checkpoint you reach pays out a small coin bonus.",
+    icon: "coinStack",
+  },
+  {
+    id: "skill-secondwind",
+    name: "Second Wind",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 340,
+    ability: "secondWind",
+    description: "Your first death on a level doesn't count toward hazard slowdown.",
+    icon: "heart",
+  },
+  {
+    id: "skill-slingshot",
+    name: "Slingshot",
+    rarity: "legendary",
+    unlockType: "coins",
+    cost: 700,
+    ability: "slingshot",
+    description: "Drag-to-launch from anywhere you're standing, not just a slingshot pad.",
+    icon: "slingshot",
+  },
+  {
+    id: "skill-precisionfall",
+    name: "Precision Air",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 260,
+    ability: "precisionAir",
+    description: "Tighter horizontal air control for lining up a landing exactly.",
+    icon: "crosshair",
+  },
+  {
+    id: "skill-warmstart",
+    name: "Warm Start",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 220,
+    ability: "warmStart",
+    description: "A short speed boost for the first few seconds of every level.",
+    icon: "rocket",
+  },
+  {
+    id: "skill-irongrip",
+    name: "Iron Grip",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 340,
+    ability: "ironGrip",
+    description: "Wall Cling's slide is even slower (needs Wall Cling equipped too).",
+    icon: "anchor",
+  },
+  {
+    id: "skill-adrenaline",
+    name: "Adrenaline",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 360,
+    ability: "adrenaline",
+    description: "A brief speed surge right after recovering from a long fall.",
+    icon: "pulse",
   },
 ];
 
-// `effect` is read by game.js at the one specific point each power-up
-// actually applies — extraAirJumps() for "extraAirJump", the coin payout
-// in advanceToNextLevel() for "coinBoost". Equipped one at a time (see
-// StarshadeEconomy.getEquippedPowerUp()), as a persistent perk rather
-// than a per-use consumable — simpler to reason about, and to a build a
-// shop UI for, than tracking per-level consumption.
+// -----------------------------------------------------------------
+// POWER-UPS — 17 total (2 original + 15 new). Equipped one at a time via
+// StarshadeEconomy.getEquippedPowerUp(), same pattern as an ability —
+// deliberately economy/comfort themed (coins, bonuses, softer failure)
+// rather than movement techniques, which is what Skills above are for,
+// so the two tabs stay meaningfully different instead of overlapping.
 const STARSHADE_POWERUPS = [
   {
     id: "powerup-air-jump",
@@ -145,6 +433,7 @@ const STARSHADE_POWERUPS = [
     cost: 350,
     effect: "extraAirJump",
     description: "+1 extra mid-air jump, stacking with any equipped Skill.",
+    icon: "wings",
   },
   {
     id: "powerup-coin-boost",
@@ -154,5 +443,172 @@ const STARSHADE_POWERUPS = [
     cost: 450,
     effect: "coinBoost",
     description: "+50% coins from every level you complete while equipped.",
+    icon: "coin",
   },
+  {
+    id: "powerup-deathless-bonus",
+    name: "Clean Run Bonus",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 300,
+    effect: "deathlessBonus",
+    description: "+25 coins for completing a level without dying once.",
+    icon: "medal",
+  },
+  {
+    id: "powerup-nojump-bonus",
+    name: "Grounded Bonus",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 300,
+    effect: "noJumpBonus",
+    description: "+25 coins for completing a level without ever using an air jump.",
+    icon: "footprints",
+  },
+  {
+    id: "powerup-speed-bonus",
+    name: "Quick Clear Bonus",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 420,
+    effect: "speedBonus",
+    description: "+15 coins for clearing a level without pausing once.",
+    icon: "stopwatch",
+  },
+  {
+    id: "powerup-warm-welcome",
+    name: "Warm Welcome",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 180,
+    effect: "warmWelcome",
+    description: "Double coins from the very first level you complete each session.",
+    icon: "gift",
+  },
+  {
+    id: "powerup-achievement-booster",
+    name: "Achievement Booster",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 450,
+    effect: "achievementBooster",
+    description: "+20% coins from every coin-granting achievement.",
+    icon: "trophy",
+  },
+  {
+    id: "powerup-safety-line",
+    name: "Safety Line",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 220,
+    effect: "safetyLine",
+    description: "A little extra checkpoint trigger radius, on top of any Skill.",
+    icon: "lifebuoy",
+  },
+  {
+    id: "powerup-comfort-shake",
+    name: "Comfort Shake",
+    rarity: "common",
+    unlockType: "coins",
+    cost: 160,
+    effect: "comfortShake",
+    description: "Cuts all screen shake intensity by 70% — a softer middle ground than the on/off setting.",
+    icon: "waveform",
+  },
+  {
+    id: "powerup-dash-recharge",
+    name: "Dash Recharge",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 280,
+    effect: "dashRecharge",
+    description: "A more forgiving double-tap window for triggering Dash.",
+    icon: "refresh",
+  },
+  {
+    id: "powerup-feather-boost",
+    name: "Feather Boost",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 400,
+    effect: "featherBoost",
+    description: "Featherfall's slow-fall effect is 30% stronger (needs Featherfall equipped too).",
+    icon: "feather3",
+  },
+  {
+    id: "powerup-slingshot-power",
+    name: "Slingshot Power+",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 420,
+    effect: "slingshotPower",
+    description: "Every slingshot launch — pad or Skill — gets 25% more power.",
+    icon: "slingshotPlus",
+  },
+  {
+    id: "powerup-golden-touch",
+    name: "Golden Touch",
+    rarity: "legendary",
+    unlockType: "coins",
+    cost: 600,
+    effect: "goldenTouch",
+    description: "+5 flat coins on every level-completion and achievement payout.",
+    icon: "hand",
+  },
+  {
+    id: "powerup-lucky-charm",
+    name: "Lucky Charm",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 420,
+    effect: "luckyCharm",
+    description: "A 1-in-10 chance to double any single bonus coin payout.",
+    icon: "clover",
+  },
+  {
+    id: "powerup-big-spender",
+    name: "Big Spender",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 320,
+    effect: "bigSpender",
+    description: "A 1-in-10 chance any Shop purchase partially refunds itself.",
+    icon: "wallet",
+  },
+  {
+    id: "powerup-streak-insurance",
+    name: "Streak Insurance",
+    rarity: "rare",
+    unlockType: "coins",
+    cost: 300,
+    effect: "streakInsurance",
+    description: "Deaths count for half toward hazard slowdown — softer, not gone.",
+    icon: "umbrella",
+  },
+  {
+    id: "powerup-momentum-shield",
+    name: "Momentum Shield",
+    rarity: "epic",
+    unlockType: "coins",
+    cost: 380,
+    effect: "momentumShield",
+    description: "Halves the camera punch from both hard landings and deaths.",
+    icon: "shieldPulse",
+  },
+];
+
+// -----------------------------------------------------------------
+// ACCESSORIES — small cosmetic overlays for the custom skin builder
+// (Skins tab). Purely visual, drawn on top of the equipped skin's shape
+// in both the builder preview and the real in-game render (see
+// drawPlayer()'s accessory pass in game.js). Always free — the point is
+// giving the builder more expressive range, not another coin sink.
+const STARSHADE_ACCESSORIES = [
+  { id: "accessory-none", name: "None", icon: "blank" },
+  { id: "accessory-crown", name: "Crown", icon: "crown" },
+  { id: "accessory-halo", name: "Halo", icon: "halo" },
+  { id: "accessory-wings", name: "Wings", icon: "wingsSmall" },
+  { id: "accessory-visor", name: "Visor", icon: "visor" },
+  { id: "accessory-horns", name: "Horns", icon: "horns" },
+  { id: "accessory-aura", name: "Aura Ring", icon: "auraRing" },
 ];
