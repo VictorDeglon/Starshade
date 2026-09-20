@@ -1073,8 +1073,7 @@ const StarshadeEconomy = (() => {
   // this same IIFE — safe since this only runs inside a function body,
   // called well after the whole file has parsed.
   function applyBigSpenderRefund(cost) {
-    const powerUp = getEquippedPowerUp();
-    if (powerUp && powerUp.effect === "bigSpender" && Math.random() < 0.1) {
+    if (hasPowerUpEffect("bigSpender") && Math.random() < 0.1) {
       addCoins(Math.round(cost * 0.3));
     }
   }
@@ -1127,51 +1126,132 @@ const StarshadeEconomy = (() => {
   function unlockAbilityWithCoins(ability) {
     return unlockItemWithCoins(ability, UNLOCKED_ABILITIES_KEY);
   }
-  function getEquippedAbilityId() {
-    return localStorage.getItem(EQUIPPED_ABILITY_KEY) || "";
-  }
-  function setEquippedAbilityId(id) {
-    localStorage.setItem(EQUIPPED_ABILITY_KEY, id);
-  }
-  // The actual ability *string* game.js's physics loop checks
-  // (dash/tripleJump/featherFall/sticky/slippery/bouncy) — falls back to the equipped
-  // skin's own bundled `ability` field (unchanged from before this
-  // existed) if nothing's been independently equipped from the Shop's
-  // Skills tab, so every already-existing skin's built-in ability keeps
-  // working exactly as it always has.
-  function getEquippedAbility() {
-    const id = getEquippedAbilityId();
-    if (id && typeof STARSHADE_ABILITIES !== "undefined") {
-      const found = STARSHADE_ABILITIES.find((a) => a.id === id);
-      if (found) return found.ability;
+
+  // Skills and Power-Ups are each equipped several at once (see
+  // shopData.js's header comment) rather than one at a time — the
+  // localStorage value is a JSON array of ids, capped at
+  // MAX_EQUIPPED_ABILITIES/MAX_EQUIPPED_POWERUPS. getEquippedAbilityIds()
+  // also reads a pre-multi-equip save cleanly: JSON.parse throws on a
+  // bare id string (not valid JSON), and the catch treats that as a
+  // single already-equipped id rather than losing it.
+  const MAX_EQUIPPED_ABILITIES = 3;
+  const MAX_EQUIPPED_POWERUPS = 5;
+
+  function getEquippedAbilityIds() {
+    const raw = localStorage.getItem(EQUIPPED_ABILITY_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [raw];
     }
-    return getEquippedSkin().ability || null;
+  }
+  function setEquippedAbilityIds(ids) {
+    localStorage.setItem(EQUIPPED_ABILITY_KEY, JSON.stringify(ids));
+  }
+  function getEquippedPowerUpIds() {
+    const raw = localStorage.getItem(EQUIPPED_POWERUP_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [raw];
+    }
+  }
+  function setEquippedPowerUpIds(ids) {
+    localStorage.setItem(EQUIPPED_POWERUP_KEY, JSON.stringify(ids));
   }
 
-  // Power-ups are equipped one at a time (same pattern as abilities/
-  // particles above) rather than a consumed-on-use inventory — a
-  // persistent passive perk while equipped is simpler to reason about and
-  // to build a shop UI for than per-level consumption accounting, and
-  // still delivers the "buy a power-up" shop category. game.js reads the
-  // effect via getEquippedPowerUp() at the point each one actually applies
-  // (extraAirJumps() for "extraAirJump", markLevelCompleted's coin payout
-  // for "coinBoost" — see shopData.js's STARSHADE_POWERUPS `effect` field).
+  // Resolved catalog entries (not just ids) for the shop UI and for
+  // hasAbility()/hasPowerUpEffect() below.
+  function getEquippedAbilities() {
+    if (typeof STARSHADE_ABILITIES === "undefined") return [];
+    const ids = getEquippedAbilityIds();
+    return STARSHADE_ABILITIES.filter((a) => ids.includes(a.id));
+  }
+  function getEquippedPowerUps() {
+    if (typeof STARSHADE_POWERUPS === "undefined") return [];
+    const ids = getEquippedPowerUpIds();
+    return STARSHADE_POWERUPS.filter((p) => ids.includes(p.id));
+  }
+
+  // The actual ability *strings* game.js's physics loop checks (dash/
+  // featherFall/sticky/slippery/bouncy/...), true if ANY currently-
+  // equipped Skill grants this one — falls back to the equipped skin's
+  // own bundled `ability` field (unchanged from before multi-equip
+  // existed) so an older skin's built-in ability keeps working exactly as
+  // it always has even with nothing equipped from the Shop's Skills tab.
+  function hasAbility(ability) {
+    if (getEquippedAbilities().some((a) => a.ability === ability)) return true;
+    return getEquippedSkin().ability === ability;
+  }
+  function hasPowerUpEffect(effect) {
+    return getEquippedPowerUps().some((p) => p.effect === effect);
+  }
+
+  // Toggles one Skill's equipped state — unequips it if already equipped
+  // (also dropping any OTHER equipped Skill/Power-Up whose own `requires`
+  // pointed at this one, so a dependent perk is never left silently
+  // active without its prerequisite), or equips it if there's room
+  // (MAX_EQUIPPED_ABILITIES) and its own `requires` (if any) is already
+  // equipped. Returns true if anything changed, false if the attempt was
+  // blocked (at the cap, or missing a prerequisite) — shop.js uses that
+  // to decide whether to re-render or leave the click a no-op.
+  function toggleEquippedAbility(id) {
+    const ids = getEquippedAbilityIds();
+    if (ids.includes(id)) {
+      setEquippedAbilityIds(ids.filter((x) => x !== id));
+      dropDependentsOf(id);
+      return true;
+    }
+    const item =
+      typeof STARSHADE_ABILITIES !== "undefined" ? STARSHADE_ABILITIES.find((a) => a.id === id) : null;
+    if (item && item.requires && !ids.includes(item.requires)) return false;
+    if (ids.length >= MAX_EQUIPPED_ABILITIES) return false;
+    setEquippedAbilityIds([...ids, id]);
+    return true;
+  }
+  function toggleEquippedPowerUp(id) {
+    const ids = getEquippedPowerUpIds();
+    if (ids.includes(id)) {
+      setEquippedPowerUpIds(ids.filter((x) => x !== id));
+      return true;
+    }
+    const item = typeof STARSHADE_POWERUPS !== "undefined" ? STARSHADE_POWERUPS.find((p) => p.id === id) : null;
+    if (item && item.requires && !getEquippedAbilityIds().includes(item.requires)) return false;
+    if (ids.length >= MAX_EQUIPPED_POWERUPS) return false;
+    setEquippedPowerUpIds([...ids, id]);
+    return true;
+  }
+  // Called right after unequipping Skill `requiredId` — drops any other
+  // equipped Skill or Power-Up whose `requires` was exactly that id, from
+  // both catalogs, since a dependent perk unequipped-in-spirit but still
+  // in the list would silently do nothing (see shopData.js) instead of
+  // visibly coming unequipped too.
+  function dropDependentsOf(requiredId) {
+    if (typeof STARSHADE_ABILITIES !== "undefined") {
+      const stillOk = (x) => {
+        const dep = STARSHADE_ABILITIES.find((a) => a.id === x);
+        return !dep || dep.requires !== requiredId;
+      };
+      setEquippedAbilityIds(getEquippedAbilityIds().filter(stillOk));
+    }
+    if (typeof STARSHADE_POWERUPS !== "undefined") {
+      const stillOk = (x) => {
+        const dep = STARSHADE_POWERUPS.find((p) => p.id === x);
+        return !dep || dep.requires !== requiredId;
+      };
+      setEquippedPowerUpIds(getEquippedPowerUpIds().filter(stillOk));
+    }
+  }
+
   function isPowerUpUnlocked(powerUp) {
     return isItemUnlocked(powerUp, UNLOCKED_POWERUPS_KEY);
   }
   function unlockPowerUpWithCoins(powerUp) {
     return unlockItemWithCoins(powerUp, UNLOCKED_POWERUPS_KEY);
-  }
-  function getEquippedPowerUpId() {
-    return localStorage.getItem(EQUIPPED_POWERUP_KEY) || "";
-  }
-  function setEquippedPowerUpId(id) {
-    localStorage.setItem(EQUIPPED_POWERUP_KEY, id);
-  }
-  function getEquippedPowerUp() {
-    const id = getEquippedPowerUpId();
-    if (!id || typeof STARSHADE_POWERUPS === "undefined") return null;
-    return STARSHADE_POWERUPS.find((p) => p.id === id) || null;
   }
 
   // Custom skins built in the Shop's "Custom Builder" sub-tab — plain
@@ -1351,14 +1431,18 @@ const StarshadeEconomy = (() => {
     getEquippedParticleStyle,
     isAbilityUnlocked,
     unlockAbilityWithCoins,
-    getEquippedAbilityId,
-    setEquippedAbilityId,
-    getEquippedAbility,
+    getEquippedAbilityIds,
+    getEquippedAbilities,
+    toggleEquippedAbility,
+    hasAbility,
+    MAX_EQUIPPED_ABILITIES,
     isPowerUpUnlocked,
     unlockPowerUpWithCoins,
-    getEquippedPowerUpId,
-    setEquippedPowerUpId,
-    getEquippedPowerUp,
+    getEquippedPowerUpIds,
+    getEquippedPowerUps,
+    toggleEquippedPowerUp,
+    hasPowerUpEffect,
+    MAX_EQUIPPED_POWERUPS,
     getCustomSkins,
     saveCustomSkin,
     deleteCustomSkin,

@@ -111,26 +111,32 @@ const BOUNCE_STRENGTH = -18;
 // the default 1).
 let airJumpsUsed = 0;
 
-// How many *extra* (mid-air) jumps the currently equipped skin grants on
-// top of the always-available grounded jump — 1 for every skin by
-// default (a normal double jump), 2 for a skin with `ability: "tripleJump"`.
+// How many *extra* (mid-air) jumps the currently equipped skin/Skills
+// grant on top of the always-available grounded jump — 1 by default (a
+// normal double jump), +1 more on top from the Air Jump Boost power-up.
+// tripleJump itself is no longer a purchasable Skill (an unconditional
+// extra jump could skip past a level's intended route — see
+// docs/gameplay.md's Abilities section and shopData.js's Featherfall
+// comment) but the string is still checked here since the "Skyward
+// Herald"-style bundled-on-a-skin path (hasAbility()'s fallback) is still
+// fully supported.
 function extraAirJumps() {
-  const base = StarshadeEconomy.getEquippedAbility() === "tripleJump" ? 2 : 1;
-  const powerUp = StarshadeEconomy.getEquippedPowerUp();
-  return powerUp && powerUp.effect === "extraAirJump" ? base + 1 : base;
+  const base = StarshadeEconomy.hasAbility("tripleJump") ? 2 : 1;
+  return StarshadeEconomy.hasPowerUpEffect("extraAirJump") ? base + 1 : base;
 }
 
 // Shorthand for the two most common checks the 20 new Skills/15 new
 // Power-Ups below make — every one of them is either "is this exact
-// ability equipped" or "is this exact power-up equipped", so this saves
-// re-spelling StarshadeEconomy.getEquippedAbility()/getEquippedPowerUp()
-// at each of the ~30 call sites.
+// ability equipped" or "is this exact power-up equipped" — true if it's
+// among the several simultaneously-equipped Skills/Power-Ups
+// (StarshadeEconomy.hasAbility()/hasPowerUpEffect(), which check the full
+// equipped list), not just a single active one. Saves re-spelling those
+// at each of the ~30 call sites below.
 function hasSkill(name) {
-  return StarshadeEconomy.getEquippedAbility() === name;
+  return StarshadeEconomy.hasAbility(name);
 }
 function hasPowerUp(name) {
-  const p = StarshadeEconomy.getEquippedPowerUp();
-  return !!p && p.effect === name;
+  return StarshadeEconomy.hasPowerUpEffect(name);
 }
 
 // How many frames since the player was last actually grounded — Coyote
@@ -183,7 +189,7 @@ const lastDirectionTapAt = { left: 0, right: 0 };
 
 function onDirectionTap(direction) {
   if (isPaused || isFading || isDying) return;
-  if (StarshadeEconomy.getEquippedAbility() !== "dash") return;
+  if (!hasSkill("dash")) return;
   const now = Date.now();
   // Dash Recharge (power-up) widens the double-tap window; Extended Dash
   // (skill) lengthens the burst itself once triggered — two independent
@@ -3403,7 +3409,7 @@ function updatePlayer(dtScale) {
     // can't cut it short.
     dashTimeRemaining -= dtScale;
     player.dx = DASH_SPEED * dashDirection;
-  } else if (StarshadeEconomy.getEquippedAbility() === "slippery") {
+  } else if (hasSkill("slippery")) {
     // Eases toward the target speed instead of snapping to it, and keeps
     // coasting after the input is released instead of stopping dead —
     // momentum, not instant start/stop, is what actually reads as "hard

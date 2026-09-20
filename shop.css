@@ -231,6 +231,29 @@
   min-height: 2.2em;
 }
 
+/* "2 / 3 Skills equipped" — a Skills/Power-Ups-only header row (see
+   shop.js's renderGenericGrid()) spanning every column of the grid it's
+   prepended into, rather than sitting in the first card's own cell. */
+.shop-equip-count {
+  grid-column: 1 / -1;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #C9B6FF;
+  text-align: center;
+  padding: 2px 0 6px;
+}
+
+.shop-item-card p.shop-item-requires {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #E8A64A;
+}
+
+.shop-item-card p.shop-item-requires.met {
+  color: #6FE0A0;
+}
+
 .shop-item-card .rarity-badge {
   display: inline-block;
   padding: 2px 12px;

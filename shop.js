@@ -230,21 +230,31 @@
       getEquippedId: StarshadeEconomy.getEquippedParticleId,
       setEquippedId: StarshadeEconomy.setEquippedParticleId,
     },
+    // Skills and Power-Ups are `multi: true` — several equipped at once
+    // (StarshadeEconomy.MAX_EQUIPPED_ABILITIES/MAX_EQUIPPED_POWERUPS)
+    // instead of Particles' one-at-a-time slot, via toggleEquip() rather
+    // than a plain setEquippedId(). See shopData.js's header comment.
     ability: {
       grid: "abilities-grid",
       catalog: () => STARSHADE_ABILITIES,
       isUnlocked: StarshadeEconomy.isAbilityUnlocked,
       unlock: StarshadeEconomy.unlockAbilityWithCoins,
-      getEquippedId: StarshadeEconomy.getEquippedAbilityId,
-      setEquippedId: StarshadeEconomy.setEquippedAbilityId,
+      multi: true,
+      label: "Skill",
+      maxEquipped: StarshadeEconomy.MAX_EQUIPPED_ABILITIES,
+      getEquippedIds: StarshadeEconomy.getEquippedAbilityIds,
+      toggleEquip: StarshadeEconomy.toggleEquippedAbility,
     },
     powerup: {
       grid: "powerups-grid",
       catalog: () => STARSHADE_POWERUPS,
       isUnlocked: StarshadeEconomy.isPowerUpUnlocked,
       unlock: StarshadeEconomy.unlockPowerUpWithCoins,
-      getEquippedId: StarshadeEconomy.getEquippedPowerUpId,
-      setEquippedId: StarshadeEconomy.setEquippedPowerUpId,
+      multi: true,
+      label: "Power-Up",
+      maxEquipped: StarshadeEconomy.MAX_EQUIPPED_POWERUPS,
+      getEquippedIds: StarshadeEconomy.getEquippedPowerUpIds,
+      toggleEquip: StarshadeEconomy.toggleEquippedPowerUp,
     },
   };
 
@@ -252,15 +262,33 @@
     const config = GRID_KINDS[kind];
     const gridEl = document.getElementById(config.grid);
     if (!gridEl) return;
-    const equippedId = config.getEquippedId();
     const coins = StarshadeEconomy.getCoins();
+    const equippedId = config.multi ? null : config.getEquippedId();
+    const equippedIds = config.multi ? config.getEquippedIds() : null;
+    const atCap = config.multi && equippedIds.length >= config.maxEquipped;
 
     gridEl.innerHTML = "";
+
+    // "2 / 3 Skills equipped" — the only way a multi-equip category's cap
+    // is otherwise visible is a disabled button several cards down, which
+    // doesn't explain *why* on its own.
+    if (config.multi) {
+      const countEl = document.createElement("div");
+      countEl.className = "shop-equip-count";
+      countEl.textContent = `${equippedIds.length} / ${config.maxEquipped} ${config.label}s equipped`;
+      gridEl.appendChild(countEl);
+    }
+
     config.catalog().forEach((item) => {
       const unlocked = config.isUnlocked(item);
-      const equipped = unlocked && equippedId === item.id;
+      const equipped = config.multi ? unlocked && equippedIds.includes(item.id) : unlocked && equippedId === item.id;
       const canAfford = item.unlockType === "coins" && coins >= item.cost;
       const rarityColor = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
+      // `requires` always names a STARSHADE_ABILITIES (Skill) id, even on
+      // a Power-Up entry (see shopData.js) — Featherfall Boost requires
+      // the Featherfall *Skill*, not another Power-Up.
+      const requiresItem = item.requires ? STARSHADE_ABILITIES.find((a) => a.id === item.requires) : null;
+      const prereqMet = !item.requires || (equippedIds ? equippedIds.includes(item.requires) : false);
 
       const card = document.createElement("div");
       card.className = "shop-item-card";
@@ -303,18 +331,38 @@
         card.appendChild(desc);
       }
 
+      if (requiresItem) {
+        const reqNote = document.createElement("p");
+        reqNote.className = "shop-item-requires" + (prereqMet ? " met" : "");
+        reqNote.textContent = prereqMet
+          ? `✓ ${requiresItem.name} equipped`
+          : `Requires ${requiresItem.name} equipped`;
+        card.appendChild(reqNote);
+      }
+
       const btn = document.createElement("button");
       btn.className = "shop-action-button";
       if (equipped) {
         btn.textContent = "Unequip";
         btn.addEventListener("click", () => {
-          config.setEquippedId("");
+          if (config.multi) config.toggleEquip(item.id);
+          else config.setEquippedId("");
           renderGenericGrid(kind);
         });
+      } else if (unlocked && config.multi && !prereqMet) {
+        btn.textContent = `Requires ${requiresItem ? requiresItem.name : "another Skill"}`;
+        btn.disabled = true;
+      } else if (unlocked && config.multi && atCap) {
+        btn.textContent = `${config.label} slots full`;
+        btn.disabled = true;
       } else if (unlocked) {
         btn.textContent = "Equip";
         btn.addEventListener("click", () => {
-          config.setEquippedId(item.id);
+          if (config.multi) {
+            if (!config.toggleEquip(item.id)) return; // blocked — cap or missing prerequisite
+          } else {
+            config.setEquippedId(item.id);
+          }
           renderGenericGrid(kind);
         });
       } else if (item.unlockType === "coins") {

@@ -14,6 +14,22 @@
 // the actual SVG markup is generated from it, not stored here, so the
 // same glyph library and rarity/hue treatment applies consistently across
 // all three catalogs instead of each entry embedding its own one-off SVG.
+//
+// Skills and Power-Ups are each equipped several at once now, not one at
+// a time — up to StarshadeEconomy.MAX_EQUIPPED_ABILITIES (3) Skills and
+// MAX_EQUIPPED_POWERUPS (5) Power-Ups simultaneously (shop.js's Equip
+// button toggles membership in that list; StarshadeEconomy.
+// toggleEquippedAbility()/toggleEquippedPowerUp() enforce the cap).
+// `requires` (a STARSHADE_ABILITIES id) marks an entry — Skill or
+// Power-Up — that only actually does anything once that specific Skill
+// is *also* equipped (sureGrip/ironGrip need "skill-sticky", extendedDash
+// needs "skill-dash", featherBoost needs "skill-featherfall"): it can't
+// be equipped until its prerequisite already is, and unequipping the
+// prerequisite automatically drops it too, so it's never left silently
+// inert the way these four already were under the old one-Skill-at-a-time
+// model (a dependent Skill occupied the *same* single slot its
+// prerequisite needed, so the two could never actually be equipped
+// together — see docs/gameplay.md).
 
 // -----------------------------------------------------------------
 // PARTICLES — 12 trails, each with a distinct `behavior` (not just a
@@ -313,6 +329,7 @@ const STARSHADE_ABILITIES = [
     unlockType: "coins",
     cost: 340,
     ability: "sureGrip",
+    requires: "skill-sticky",
     description: "Jumping off a wall you're clinging to gives a real kick away from it (needs Wall Cling equipped too).",
     icon: "grip",
   },
@@ -343,6 +360,7 @@ const STARSHADE_ABILITIES = [
     unlockType: "coins",
     cost: 360,
     ability: "extendedDash",
+    requires: "skill-dash",
     description: "Dash's burst lasts 50% longer (needs Dash equipped too).",
     icon: "dashLong",
   },
@@ -403,6 +421,7 @@ const STARSHADE_ABILITIES = [
     unlockType: "coins",
     cost: 340,
     ability: "ironGrip",
+    requires: "skill-sticky",
     description: "Wall Cling's slide is even slower (needs Wall Cling equipped too).",
     icon: "anchor",
   },
@@ -532,6 +551,7 @@ const STARSHADE_POWERUPS = [
     unlockType: "coins",
     cost: 400,
     effect: "featherBoost",
+    requires: "skill-featherfall",
     description: "Featherfall's slow-fall effect is 30% stronger (needs Featherfall equipped too).",
     icon: "feather3",
   },

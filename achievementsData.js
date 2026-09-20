@@ -329,14 +329,15 @@ const StarshadeAchievements = (() => {
       if (ach.grantsCoins) {
         // Achievement Booster/Golden Touch/Lucky Charm (Shop power-ups,
         // shopData.js) apply here too, not just to level-completion
-        // payouts — StarshadeEconomy.getEquippedPowerUp() rather than
-        // game.js's hasPowerUp() shorthand since this file doesn't
-        // otherwise depend on game.js being loaded first.
+        // payouts — StarshadeEconomy.hasPowerUpEffect() (true if that
+        // effect is among the several simultaneously-equipped Power-Ups)
+        // rather than game.js's hasPowerUp() shorthand, since this file
+        // doesn't otherwise depend on game.js being loaded first. All
+        // three can stack now that Power-Ups aren't one-at-a-time.
         let coins = ach.grantsCoins;
-        const powerUp = StarshadeEconomy.getEquippedPowerUp();
-        if (powerUp && powerUp.effect === "achievementBooster") coins = Math.round(coins * 1.2);
-        if (powerUp && powerUp.effect === "goldenTouch") coins += 5;
-        if (powerUp && powerUp.effect === "luckyCharm" && Math.random() < 0.1) coins *= 2;
+        if (StarshadeEconomy.hasPowerUpEffect("achievementBooster")) coins = Math.round(coins * 1.2);
+        if (StarshadeEconomy.hasPowerUpEffect("goldenTouch")) coins += 5;
+        if (StarshadeEconomy.hasPowerUpEffect("luckyCharm") && Math.random() < 0.1) coins *= 2;
         StarshadeEconomy.addCoins(coins);
         // The persistent top-right coin HUD (game.js) — this payout path
         // doesn't go through showCoinToast(), which is what normally
