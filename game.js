@@ -2847,8 +2847,13 @@ function drawCheckpoints() {
     const pulse = checkpoint.reached
       ? 0
       : Math.sin(now / 300 + checkpoint.x) * 2;
+    // `??`, not `||`: resetLevelState() marks a resumed-past checkpoint
+    // with reachedAt = 0 to mean "claimed long ago" — under `||` that 0
+    // fell through to `now`, so a level resumed at a saved checkpoint
+    // rendered the one-shot claim flash (a `lighter` radial gradient) and
+    // the size pop on that beacon on every frame for the entire level.
     const timeSinceReached = checkpoint.reached
-      ? now - (checkpoint.reachedAt || now)
+      ? now - (checkpoint.reachedAt ?? now)
       : 0;
     const pop =
       checkpoint.reached && timeSinceReached < CLAIM_BURST_MS
