@@ -282,9 +282,65 @@ function leniencyLevel() {
 // band of y values (see applyLevelVerticalLayout()/docs/gameplay.md) now
 // that the view actually scrolls to follow the player up and down, not
 // just left and right.
+// `cameraOffsetX`/`cameraOffsetY` are what every draw call in this file
+// reads (`x - cameraOffsetX` etc, ~20 call sites) — deliberately always a
+// whole pixel (see snapCameraOffset()/the easing block below, both of
+// which round into these). A continuously-fractional camera position
+// (the natural result of exponential easing, which almost never lands on
+// an exact integer) made EVERY sharp edge in the game — every platform,
+// spike, and the player itself — anti-alias very slightly differently
+// from one frame to the next as that fractional part drifted, which reads
+// as a faint but constant shimmer/jitter across the whole screen, worst
+// on rectangles' straight edges and most visible on higher-DPR phone
+// screens. Rounding only the value everything actually renders against
+// (never the easing math itself — see cameraOffsetXRaw/YRaw below) fixes
+// that without changing the follow behavior at all: the camera still eases
+// continuously, it just never asks the canvas to draw at a sub-pixel
+// offset.
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
-const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
+// The true floating-point eased position — every easing calculation
+// (below, and every hard "snap" site via snapCameraOffset()) reads and
+// writes THESE, never the rounded cameraOffsetX/Y above, so slow
+// convergence keeps its normal smooth sub-pixel motion instead of being
+// quantized into visible whole-pixel steps; only the last, per-frame
+// rounding step (writing into cameraOffsetX/Y) ever touches an integer.
+let cameraOffsetXRaw = 0;
+let cameraOffsetYRaw = 0;
+// Every "hard snap" camera moment (level load, death respawn, the
+// checkpoint-skip launch) goes through this instead of assigning
+// cameraOffsetX/Y directly, so the raw accumulator and the rounded
+// display value can never drift out of sync with each other — a stale
+// raw value would otherwise make the very next eased frame after a snap
+// visibly animate in from the old position instead of holding still.
+function snapCameraOffset(x, y) {
+  cameraOffsetXRaw = x;
+  cameraOffsetYRaw = y;
+  cameraOffsetX = Math.round(x);
+  cameraOffsetY = Math.round(y);
+  ceilingTrackY = y;
+}
+
+// The screen-pinned anti-cheat ceiling (see its check in updatePlayer())
+// needs to track the player's own vertical position much more tightly
+// than the visual camera does — cameraSmoothingY is deliberately laggy
+// for a smoother FEEL, but that same lag, read directly, meant a fast
+// enough upward burst (a double jump chained for height) could outrun the
+// camera and get clipped by a ceiling that hadn't caught up yet: a real,
+// unintended "sometimes can't complete a double jump near the top of the
+// screen" bug, not the deliberate anti-cheat case that boundary exists
+// for. This is a separate accumulator, eased every frame toward the same
+// target the visual camera uses but at CEILING_TRACK_SMOOTHING's much
+// faster rate — invisible, so it can track tightly without looking
+// laggy, while cameraOffsetY itself keeps its own slow, smooth feel for
+// everything actually rendered.
+let ceilingTrackY = 0;
+const CEILING_TRACK_SMOOTHING = 0.25;
+// Slower than this used to be — "the camera should slowly, smoothly
+// follow the player" — lower decay factor means more lag/trailing before
+// catching up (see the comment on cameraSmoothingY below for how this
+// compounds with dtScale/frame rate).
+const cameraSmoothing = 0.09; // lower = more lag/trailing behind the player
 // Vertical follow is deliberately laggier than horizontal — a lower decay
 // factor here means the camera moves noticeably less than the player does
 // during any short burst of vertical motion (a jump, a landing) before
@@ -292,7 +348,7 @@ const cameraSmoothing = 0.12; // lower = more lag/trailing behind the player
 // own Y movement 1:1. Purely a feel tweak (smoother, a bit more "the
 // player moves, the world settles behind them") — horizontal tracking
 // (cameraSmoothing above) is untouched.
-const cameraSmoothingY = 0.08;
+const cameraSmoothingY = 0.065;
 
 // Zooms the whole world view out a little during a fall (see the
 // fall-speed-proportional openAmount in updatePlayer()) and back to
@@ -311,8 +367,13 @@ const cameraSmoothingY = 0.08;
 // dangerous fall.
 let cameraZoom = 1;
 const CAMERA_ZOOM_GROUNDED = 1;
-const CAMERA_ZOOM_OPEN_RANGE = 0.2; // how far zoom drops at full "openAmount"
-const CAMERA_ZOOM_SMOOTHING = 0.045;
+// Widened (was 0.2) and eased more gradually (CAMERA_ZOOM_SMOOTHING,
+// below) — pulls back further at the top of its range so more of the
+// level around the player stays in frame through a real fall, and the
+// transition itself reads as a slow, settled pull rather than a quick
+// pulse that fires and retracts every time you jump.
+const CAMERA_ZOOM_OPEN_RANGE = 0.3; // how far zoom drops at full "openAmount"
+const CAMERA_ZOOM_SMOOTHING = 0.035;
 
 // Where the player sits vertically on screen, as a fraction of
 // viewportHeight from the top — 0.5 is dead-center. At rest that's the
@@ -325,15 +386,19 @@ const CAMERA_ZOOM_SMOOTHING = 0.045;
 // normal jump" guarantee.
 let cameraVerticalAnchor = 0.5;
 const CAMERA_ANCHOR_GROUNDED = 0.5;
-const CAMERA_ANCHOR_OPEN_RANGE = 0.2; // how far the anchor rises at full "openAmount"
-const CAMERA_ANCHOR_SMOOTHING = 0.04;
+const CAMERA_ANCHOR_OPEN_RANGE = 0.26; // how far the anchor rises at full "openAmount"
+const CAMERA_ANCHOR_SMOOTHING = 0.032;
 
 // The player.dy range (px/tick) that "openAmount" ramps across — a normal
 // jump's descent brushes the low end right near landing (a brief, gentle
 // widen-then-settle rather than a snap), while a real, dangerous fall
 // (a long drop, a missed platform) climbs toward the high end and holds
 // the view open the whole way down.
-const CAMERA_OPEN_FALL_SPEED_MIN = 9;
+// Lowered from 9 — the view starts opening up a little earlier into a
+// fall (still ramping gradually across the same MIN..MAX band, never a
+// snap) so the platform you're aiming for has more time to actually come
+// into frame before you're committed to the landing.
+const CAMERA_OPEN_FALL_SPEED_MIN = 7;
 const CAMERA_OPEN_FALL_SPEED_MAX = 24;
 
 // How far the camera leans in the direction the player is actually
@@ -1137,8 +1202,7 @@ function resetLevelState() {
   // runs while the screen is fully black mid-transition, so a lerp would
   // just be wasted motion nobody sees, and skipping it means the fade-in
   // never has to "catch up" to the player.
-  cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
+  snapCameraOffset(player.x - viewportWidth / 2, player.y - viewportHeight * cameraVerticalAnchor);
 }
 
 // Gives a level's opening view a nice frame: shifts every y (platforms,
@@ -3395,10 +3459,13 @@ function updatePlayer(dtScale) {
   // a jump (or a double jump chained purely for height) can never carry
   // the player above the visible play area, let alone skip over hazards
   // below it. Nothing is drawn for this on purpose: it's a boundary, not
-  // a platform. Uses last frame's cameraOffsetY (this frame's hasn't been
-  // computed yet — see the camera easing below) — one frame of lag here is
-  // imperceptible.
-  const screenTop = cameraOffsetY + SCREEN_TOP_MARGIN + player.height / 2;
+  // a platform. Reads ceilingTrackY, NOT the visually-smoothed
+  // cameraOffsetY — see ceilingTrackY's declaration for why: this still
+  // uses last frame's value (this frame's hasn't been computed yet — see
+  // the camera easing below), but ceilingTrackY catches up fast enough
+  // that one frame of its lag is genuinely imperceptible, unlike
+  // cameraOffsetY's deliberately slower lag.
+  const screenTop = ceilingTrackY + SCREEN_TOP_MARGIN + player.height / 2;
   if (player.y < screenTop) {
     player.y = screenTop;
     if (player.dy < 0) player.dy = 0;
@@ -3737,9 +3804,10 @@ function updatePlayer(dtScale) {
   // higher-fps display converging faster just because it's taking more,
   // smaller steps per second.
   const targetCameraOffsetX = cameraTargetX - viewportWidth / 2;
-  cameraOffsetX +=
-    (targetCameraOffsetX - cameraOffsetX) *
+  cameraOffsetXRaw +=
+    (targetCameraOffsetX - cameraOffsetXRaw) *
     (1 - Math.pow(1 - cameraSmoothing, dtScale));
+  cameraOffsetX = Math.round(cameraOffsetXRaw);
 
   // Fall-speed-proportional "opening up" on desktop — `openAmount` stays
   // at exactly 0 through a normal single/double jump (gravity only builds
@@ -3759,9 +3827,21 @@ function updatePlayer(dtScale) {
   // smoothing below, so it's a real "camera pulls back" the moment you
   // leave the ground rather than a snap, and settles right back to normal
   // the instant you land.
-  const MOBILE_AIRBORNE_OPEN_AMOUNT = 0.85;
-  const MOBILE_ZOOM_OPEN_RANGE = 0.32;
-  const MOBILE_ANCHOR_OPEN_RANGE = 0.28;
+  // A moderate floor (not the full 1), not a pin — the point is to zoom
+  // out and back in AS NECESSARY, not to sit at maximum zoom-out for the
+  // entire time the player's feet are off the ground regardless of
+  // whether that jump actually needs it. MOBILE_AIRBORNE_OPEN_AMOUNT is a
+  // baseline safety margin for a small/landscape-locked viewport (even a
+  // routine hop's ascent can carry the target off-screen — see below),
+  // and fallOpenAmount is layered on top of it via Math.max(): a trivial
+  // hop opens only to the floor, while an actually fast/dangerous fall
+  // still ramps further out, all the way to full, exactly like desktop
+  // does. Landing always eases openAmount straight back to 0 either way
+  // (grounded skips this whole branch), so "zoom back in" is never stuck
+  // open longer than the airborne moment that opened it.
+  const MOBILE_AIRBORNE_OPEN_AMOUNT = 0.55;
+  const MOBILE_ZOOM_OPEN_RANGE = 0.42;
+  const MOBILE_ANCHOR_OPEN_RANGE = 0.34;
   const fallSpeed = Math.max(0, player.dy);
   const fallOpenAmount = Math.max(
     0,
@@ -3787,9 +3867,15 @@ function updatePlayer(dtScale) {
   // can shift more of the screen toward whatever's below the player
   // during a real fall.
   const targetCameraOffsetY = cameraTargetY - viewportHeight * cameraVerticalAnchor;
-  cameraOffsetY +=
-    (targetCameraOffsetY - cameraOffsetY) *
+  cameraOffsetYRaw +=
+    (targetCameraOffsetY - cameraOffsetYRaw) *
     (1 - Math.pow(1 - cameraSmoothingY, dtScale));
+  cameraOffsetY = Math.round(cameraOffsetYRaw);
+  // Tracks the same target, much faster — see ceilingTrackY's declaration
+  // above for why this can't just reuse cameraOffsetY/cameraOffsetYRaw.
+  ceilingTrackY +=
+    (targetCameraOffsetY - ceilingTrackY) *
+    (1 - Math.pow(1 - CEILING_TRACK_SMOOTHING, dtScale));
 
   const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * zoomOpenRange;
   cameraZoom +=
@@ -4029,8 +4115,7 @@ function resetPlayer() {
   // as the camera takes to ease the whole distance back: a death loop the
   // player can't act their way out of, since every attempt starts by
   // re-dying before the level has even scrolled back into view.
-  cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
+  snapCameraOffset(player.x - viewportWidth / 2, player.y - viewportHeight * cameraVerticalAnchor);
 
   maybeOfferCheckpointSkip();
 }
@@ -4106,8 +4191,7 @@ function updateSkipLaunch(dtScale) {
   player.x = skipLaunchStartX + (skipLaunchTargetX - skipLaunchStartX) * eased;
   player.y =
     skipLaunchStartY + (skipLaunchTargetY - skipLaunchStartY) * eased - Math.sin(t * Math.PI) * arcHeight;
-  cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight / 2;
+  snapCameraOffset(player.x - viewportWidth / 2, player.y - viewportHeight / 2);
 
   if (Math.random() < 0.6) {
     spawnParticles(player.x, player.y, 1, {
@@ -4161,8 +4245,7 @@ function finishSkipLaunch() {
   riddenPlatform = null;
   cameraZoom = 1;
   cameraVerticalAnchor = 0.5;
-  cameraOffsetX = player.x - viewportWidth / 2;
-  cameraOffsetY = player.y - viewportHeight * cameraVerticalAnchor;
+  snapCameraOffset(player.x - viewportWidth / 2, player.y - viewportHeight * cameraVerticalAnchor);
 }
 
 // -------------------------------------------------------------
