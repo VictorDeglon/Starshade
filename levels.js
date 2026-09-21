@@ -242,7 +242,7 @@ function renderLevels() {
 
   const completed = StarshadeEconomy.getCompletedLevels();
   const unlockedThrough = highestUnlockedLevel();
-  const currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+  const currentLevel = parseInt(safeLocalStorageGet("savedLevel"), 10) || 1;
   updateProgressSummary(completed);
 
   const width = wrap.clientWidth || 340;
@@ -341,7 +341,7 @@ function renderLevels() {
         if (typeof window.startLevelFromOverlay === "function") {
           window.startLevelFromOverlay(n);
         } else {
-          localStorage.setItem("savedLevel", String(n));
+          safeLocalStorageSet("savedLevel", String(n));
           window.location.href = "loading.html";
         }
       });
@@ -383,7 +383,7 @@ if (topBackButton) {
 // finished it and haven't started the next yet) — the next unlocked one.
 function focusLevelNumber() {
   const completed = StarshadeEconomy.getCompletedLevels();
-  const currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+  const currentLevel = parseInt(safeLocalStorageGet("savedLevel"), 10) || 1;
   if (completed.includes(currentLevel)) {
     return Math.min(TOTAL_LEVELS, highestUnlockedLevel());
   }

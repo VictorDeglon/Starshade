@@ -276,7 +276,7 @@ const StarshadeAchievements = (() => {
 
   function getUnlockedIds() {
     try {
-      return JSON.parse(localStorage.getItem(UNLOCKED_KEY)) || [];
+      return JSON.parse(safeLocalStorageGet(UNLOCKED_KEY)) || [];
     } catch {
       return [];
     }
@@ -347,7 +347,7 @@ const StarshadeAchievements = (() => {
       newlyUnlocked.push(ach);
     });
     if (newlyUnlocked.length) {
-      localStorage.setItem(UNLOCKED_KEY, JSON.stringify(unlocked));
+      safeLocalStorageSet(UNLOCKED_KEY, JSON.stringify(unlocked));
     }
     return newlyUnlocked;
   }
@@ -392,7 +392,7 @@ const StarshadeAchievements = (() => {
 
     const revoked = unlocked.filter((id) => !stillValid.includes(id));
     if (revoked.length) {
-      localStorage.setItem(UNLOCKED_KEY, JSON.stringify(stillValid));
+      safeLocalStorageSet(UNLOCKED_KEY, JSON.stringify(stillValid));
     }
     return revoked;
   }

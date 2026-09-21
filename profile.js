@@ -62,7 +62,7 @@ function renderProfile() {
   StarshadeAchievements.revalidateUnlocked();
   StarshadeAchievements.checkAll();
 
-  const displayName = (localStorage.getItem("playerName") || "").trim() || "Explorer";
+  const displayName = (safeLocalStorageGet("playerName") || "").trim() || "Explorer";
   nameEl.textContent = displayName;
 
   renderSkinSwatch(swatchEl, StarshadeEconomy.getEquippedSkin());
