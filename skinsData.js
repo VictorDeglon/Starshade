@@ -59,6 +59,35 @@
 // (and StarshadeEconomy.getEquippedSkin().ability, and the physics checks
 // that read it) stay fully supported, in case a future skin ever
 // legitimately warrants a bundled perk again.
+// Defensive localStorage wrappers, shared across every script on the page
+// (skinsData.js loads first — see index.html — so these are real global
+// functions by the time settings.js/achievementsData.js/levels.js/
+// profile.js/game.js run; a plain top-level `function` declaration, not
+// `const`, so it becomes a genuine window property every later classic
+// script can call directly, the same way game.js's own top-level
+// functions already are). See StarshadeEconomy's own copy of this
+// reasoning below (that one stays private/IIFE-local since nothing
+// outside skinsData.js needs it) — in short: Safari's Private Browsing
+// mode (and some other storage-restricted browsers/WebViews) makes a
+// write throw rather than silently no-op, and an unguarded call anywhere
+// on the page could otherwise abort whatever click handler or save it was
+// part of.
+function safeLocalStorageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+function safeLocalStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 const STARSHADE_SKINS = [
   {
     id: "square-default",
@@ -887,6 +916,39 @@ const STARSHADE_SKINS = [
 ];
 
 const StarshadeEconomy = (() => {
+  // Defensive localStorage wrappers. Safari's Private Browsing mode (and
+  // some other storage-restricted browsers/WebViews) deliberately makes
+  // a write throw a QuotaExceededError rather than silently no-op — it
+  // sets that mode's storage quota to 0 bytes on purpose. Every accessor
+  // below used to call localStorage directly and unguarded, so on an
+  // affected device EVERY save (coins, completed levels, equipped skin,
+  // everything) threw and was lost — which plays out exactly like "my
+  // progress resets every time I open the game," even though the rest of
+  // the game kept working fine, since the throw just aborted whichever
+  // award/unlock function was mid-call and the game loop moved on to the
+  // next frame regardless. A read can in principle throw too (storage
+  // fully disabled), so reads are wrapped the same way. This can't make
+  // true private/incognito browsing persist data — nothing can, that's
+  // the point of private mode — but it stops every OTHER storage-
+  // restricted case from silently losing writes it could have kept, and
+  // stops a thrown exception from ever interrupting the gameplay code
+  // that was in the middle of awarding something.
+  function safeGet(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+  function safeSet(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   const COINS_KEY = "starshadeCoins";
   const EQUIPPED_KEY = "starshadeEquippedSkin";
   const UNLOCKED_KEY = "starshadeUnlockedSkins";
@@ -933,7 +995,7 @@ const StarshadeEconomy = (() => {
   const DIFFICULTY_COIN_MULTIPLIERS = { easy: 0.75, normal: 1, hard: 1.5 };
 
   function getDifficulty() {
-    return localStorage.getItem("difficulty") || "normal";
+    return safeGet("difficulty") || "normal";
   }
 
   function getCoinMultiplier() {
@@ -941,43 +1003,43 @@ const StarshadeEconomy = (() => {
   }
 
   function getCoins() {
-    return parseInt(localStorage.getItem(COINS_KEY), 10) || 0;
+    return parseInt(safeGet(COINS_KEY), 10) || 0;
   }
 
   function addCoins(amount) {
     const total = getCoins() + amount;
-    localStorage.setItem(COINS_KEY, String(total));
+    safeSet(COINS_KEY, String(total));
     if (amount > 0) {
       const earned = getTotalCoinsEarned() + amount;
-      localStorage.setItem(TOTAL_COINS_EARNED_KEY, String(earned));
+      safeSet(TOTAL_COINS_EARNED_KEY, String(earned));
     }
     return total;
   }
 
   function getTotalCoinsEarned() {
-    return parseInt(localStorage.getItem(TOTAL_COINS_EARNED_KEY), 10) || 0;
+    return parseInt(safeGet(TOTAL_COINS_EARNED_KEY), 10) || 0;
   }
 
   function getTotalDeaths() {
-    return parseInt(localStorage.getItem(TOTAL_DEATHS_KEY), 10) || 0;
+    return parseInt(safeGet(TOTAL_DEATHS_KEY), 10) || 0;
   }
 
   function incrementTotalDeaths() {
     const total = getTotalDeaths() + 1;
-    localStorage.setItem(TOTAL_DEATHS_KEY, String(total));
+    safeSet(TOTAL_DEATHS_KEY, String(total));
     return total;
   }
 
   function hasHardModeWin() {
-    return localStorage.getItem(HARD_MODE_WIN_KEY) === "true";
+    return safeGet(HARD_MODE_WIN_KEY) === "true";
   }
 
   // Simple "read an int, bump it by 1, write it back" helper — every
   // counter below (playthroughs, deathless/no-double-jump completions,
   // bounce-pad uses, conveyor rides) follows this exact shape.
   function bumpCounter(key) {
-    const total = (parseInt(localStorage.getItem(key), 10) || 0) + 1;
-    localStorage.setItem(key, String(total));
+    const total = (parseInt(safeGet(key), 10) || 0) + 1;
+    safeSet(key, String(total));
     return total;
   }
 
@@ -987,7 +1049,7 @@ const StarshadeEconomy = (() => {
   // exactly "how many times you've replayed something" (see the
   // Déjà Vu achievement).
   function getTotalLevelPlaythroughs() {
-    return parseInt(localStorage.getItem(TOTAL_LEVEL_PLAYTHROUGHS_KEY), 10) || 0;
+    return parseInt(safeGet(TOTAL_LEVEL_PLAYTHROUGHS_KEY), 10) || 0;
   }
   function recordLevelPlaythrough() {
     return bumpCounter(TOTAL_LEVEL_PLAYTHROUGHS_KEY);
@@ -996,7 +1058,7 @@ const StarshadeEconomy = (() => {
   // A level completed without dying since it was last (re)loaded — see
   // game.js's `leveldiedThisAttempt`.
   function getDeathlessCompletions() {
-    return parseInt(localStorage.getItem(DEATHLESS_COMPLETIONS_KEY), 10) || 0;
+    return parseInt(safeGet(DEATHLESS_COMPLETIONS_KEY), 10) || 0;
   }
   function recordDeathlessCompletion() {
     return bumpCounter(DEATHLESS_COMPLETIONS_KEY);
@@ -1005,14 +1067,14 @@ const StarshadeEconomy = (() => {
   // A level completed without ever using a double/extra air jump since it
   // was last (re)loaded — see game.js's `usedExtraJumpThisAttempt`.
   function getNoDoubleJumpCompletions() {
-    return parseInt(localStorage.getItem(NO_DOUBLE_JUMP_COMPLETIONS_KEY), 10) || 0;
+    return parseInt(safeGet(NO_DOUBLE_JUMP_COMPLETIONS_KEY), 10) || 0;
   }
   function recordNoDoubleJumpCompletion() {
     return bumpCounter(NO_DOUBLE_JUMP_COMPLETIONS_KEY);
   }
 
   function getBouncePadUses() {
-    return parseInt(localStorage.getItem(BOUNCE_PAD_USES_KEY), 10) || 0;
+    return parseInt(safeGet(BOUNCE_PAD_USES_KEY), 10) || 0;
   }
   function recordBouncePadUse() {
     return bumpCounter(BOUNCE_PAD_USES_KEY);
@@ -1022,7 +1084,7 @@ const StarshadeEconomy = (() => {
   // on a conveyor (edge-detected), not every frame spent standing on one,
   // so a single long ride and a series of short hops both count sanely.
   function getConveyorRides() {
-    return parseInt(localStorage.getItem(CONVEYOR_RIDES_KEY), 10) || 0;
+    return parseInt(safeGet(CONVEYOR_RIDES_KEY), 10) || 0;
   }
   function recordConveyorRide() {
     return bumpCounter(CONVEYOR_RIDES_KEY);
@@ -1033,7 +1095,7 @@ const StarshadeEconomy = (() => {
   // setEquippedSkinId() below the moment anything but the free starting
   // skin gets equipped.
   function hasEquippedNonFreeSkin() {
-    return localStorage.getItem(EQUIPPED_NON_FREE_SKIN_KEY) === "true";
+    return safeGet(EQUIPPED_NON_FREE_SKIN_KEY) === "true";
   }
 
   // Captured once, at the exact moment the game is first completed (see
@@ -1042,11 +1104,11 @@ const StarshadeEconomy = (() => {
   // replay would otherwise make a legitimately-earned zero-death clear
   // look unearned in hindsight.
   function hasCompletedGameDeathless() {
-    return localStorage.getItem(COMPLETED_GAME_DEATHLESS_KEY) === "true";
+    return safeGet(COMPLETED_GAME_DEATHLESS_KEY) === "true";
   }
 
   function recordHardModeWinIfApplicable() {
-    if (getDifficulty() === "hard") localStorage.setItem(HARD_MODE_WIN_KEY, "true");
+    if (getDifficulty() === "hard") safeSet(HARD_MODE_WIN_KEY, "true");
   }
 
   // -----------------------------------------------------------
@@ -1060,7 +1122,7 @@ const StarshadeEconomy = (() => {
   // if they weren't hardcoded to the skins list specifically.
   function getUnlockedIds(storageKey) {
     try {
-      return JSON.parse(localStorage.getItem(storageKey)) || [];
+      return JSON.parse(safeGet(storageKey)) || [];
     } catch {
       return [];
     }
@@ -1093,7 +1155,7 @@ const StarshadeEconomy = (() => {
     applyBigSpenderRefund(item.cost);
     const unlocked = getUnlockedIds(storageKey);
     unlocked.push(item.id);
-    localStorage.setItem(storageKey, JSON.stringify(unlocked));
+    safeSet(storageKey, JSON.stringify(unlocked));
     return true;
   }
 
@@ -1112,10 +1174,10 @@ const StarshadeEconomy = (() => {
     return unlockItemWithCoins(particle, UNLOCKED_PARTICLES_KEY);
   }
   function getEquippedParticleId() {
-    return localStorage.getItem(EQUIPPED_PARTICLE_KEY) || "";
+    return safeGet(EQUIPPED_PARTICLE_KEY) || "";
   }
   function setEquippedParticleId(id) {
-    localStorage.setItem(EQUIPPED_PARTICLE_KEY, id);
+    safeSet(EQUIPPED_PARTICLE_KEY, id);
   }
   // Returns the equipped particle *style* (a STARSHADE_PARTICLES entry),
   // not just its id — null if nothing's equipped, in which case callers
@@ -1145,7 +1207,7 @@ const StarshadeEconomy = (() => {
   const MAX_EQUIPPED_POWERUPS = 5;
 
   function getEquippedAbilityIds() {
-    const raw = localStorage.getItem(EQUIPPED_ABILITY_KEY);
+    const raw = safeGet(EQUIPPED_ABILITY_KEY);
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
@@ -1155,10 +1217,10 @@ const StarshadeEconomy = (() => {
     }
   }
   function setEquippedAbilityIds(ids) {
-    localStorage.setItem(EQUIPPED_ABILITY_KEY, JSON.stringify(ids));
+    safeSet(EQUIPPED_ABILITY_KEY, JSON.stringify(ids));
   }
   function getEquippedPowerUpIds() {
-    const raw = localStorage.getItem(EQUIPPED_POWERUP_KEY);
+    const raw = safeGet(EQUIPPED_POWERUP_KEY);
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
@@ -1168,7 +1230,7 @@ const StarshadeEconomy = (() => {
     }
   }
   function setEquippedPowerUpIds(ids) {
-    localStorage.setItem(EQUIPPED_POWERUP_KEY, JSON.stringify(ids));
+    safeSet(EQUIPPED_POWERUP_KEY, JSON.stringify(ids));
   }
 
   // Resolved catalog entries (not just ids) for the shop UI and for
@@ -1267,7 +1329,7 @@ const StarshadeEconomy = (() => {
   // needs to change. getEquippedSkin() above checks this list first.
   function getCustomSkins() {
     try {
-      return JSON.parse(localStorage.getItem(CUSTOM_SKINS_KEY)) || [];
+      return JSON.parse(safeGet(CUSTOM_SKINS_KEY)) || [];
     } catch {
       return [];
     }
@@ -1295,11 +1357,11 @@ const StarshadeEconomy = (() => {
     const existingIndex = skins.findIndex((s) => s.id === id);
     if (existingIndex >= 0) skins[existingIndex] = skin;
     else skins.push(skin);
-    localStorage.setItem(CUSTOM_SKINS_KEY, JSON.stringify(skins));
+    safeSet(CUSTOM_SKINS_KEY, JSON.stringify(skins));
     return skin;
   }
   function deleteCustomSkin(id) {
-    localStorage.setItem(
+    safeSet(
       CUSTOM_SKINS_KEY,
       JSON.stringify(getCustomSkins().filter((s) => s.id !== id))
     );
@@ -1308,7 +1370,7 @@ const StarshadeEconomy = (() => {
 
   function getUnlockedSkinIds() {
     try {
-      return JSON.parse(localStorage.getItem(UNLOCKED_KEY)) || [];
+      return JSON.parse(safeGet(UNLOCKED_KEY)) || [];
     } catch {
       return [];
     }
@@ -1329,7 +1391,7 @@ const StarshadeEconomy = (() => {
     const unlocked = getUnlockedSkinIds();
     if (!unlocked.includes(skinId)) {
       unlocked.push(skinId);
-      localStorage.setItem(UNLOCKED_KEY, JSON.stringify(unlocked));
+      safeSet(UNLOCKED_KEY, JSON.stringify(unlocked));
     }
   }
 
@@ -1341,18 +1403,18 @@ const StarshadeEconomy = (() => {
     applyBigSpenderRefund(skin.cost);
     const unlocked = getUnlockedSkinIds();
     unlocked.push(skin.id);
-    localStorage.setItem(UNLOCKED_KEY, JSON.stringify(unlocked));
+    safeSet(UNLOCKED_KEY, JSON.stringify(unlocked));
     return true;
   }
 
   function getEquippedSkinId() {
-    return localStorage.getItem(EQUIPPED_KEY) || "square-default";
+    return safeGet(EQUIPPED_KEY) || "square-default";
   }
 
   function setEquippedSkinId(id) {
-    localStorage.setItem(EQUIPPED_KEY, id);
+    safeSet(EQUIPPED_KEY, id);
     if (id !== "square-default") {
-      localStorage.setItem(EQUIPPED_NON_FREE_SKIN_KEY, "true");
+      safeSet(EQUIPPED_NON_FREE_SKIN_KEY, "true");
     }
   }
 
@@ -1365,7 +1427,7 @@ const StarshadeEconomy = (() => {
 
   function getCompletedLevels() {
     try {
-      return JSON.parse(localStorage.getItem(COMPLETED_LEVELS_KEY)) || [];
+      return JSON.parse(safeGet(COMPLETED_LEVELS_KEY)) || [];
     } catch {
       return [];
     }
@@ -1378,7 +1440,7 @@ const StarshadeEconomy = (() => {
     const completed = getCompletedLevels();
     if (completed.includes(levelNumber)) return 0;
     completed.push(levelNumber);
-    localStorage.setItem(COMPLETED_LEVELS_KEY, JSON.stringify(completed));
+    safeSet(COMPLETED_LEVELS_KEY, JSON.stringify(completed));
     recordHardModeWinIfApplicable();
     const reward = Math.round(LEVEL_COMPLETION_REWARD * getCoinMultiplier());
     addCoins(reward);
@@ -1397,22 +1459,22 @@ const StarshadeEconomy = (() => {
   }
 
   function wasCustomizationUnlockNotified() {
-    return localStorage.getItem(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY) === "true";
+    return safeGet(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY) === "true";
   }
 
   function markCustomizationUnlockNotified() {
-    localStorage.setItem(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY, "true");
+    safeSet(CUSTOMIZATION_UNLOCK_NOTIFIED_KEY, "true");
   }
 
   function isGameCompleted() {
-    return localStorage.getItem(GAME_COMPLETED_KEY) === "true";
+    return safeGet(GAME_COMPLETED_KEY) === "true";
   }
 
   function setGameCompleted() {
     if (isGameCompleted()) return 0;
-    localStorage.setItem(GAME_COMPLETED_KEY, "true");
+    safeSet(GAME_COMPLETED_KEY, "true");
     if (getTotalDeaths() === 0) {
-      localStorage.setItem(COMPLETED_GAME_DEATHLESS_KEY, "true");
+      safeSet(COMPLETED_GAME_DEATHLESS_KEY, "true");
     }
     const bonus = Math.round(GAME_COMPLETION_BONUS * getCoinMultiplier());
     addCoins(bonus);

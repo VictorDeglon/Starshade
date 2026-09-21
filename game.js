@@ -241,8 +241,8 @@ const TOUCH_INPUT_BONUS = isTouchDevice
 // settings.js) — both default to on so existing behavior doesn't change
 // for anyone who's never touched these. `let`, not `const` — same
 // live-update reasoning as difficultySettings above.
-let screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
-let clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+let screenShakeEnabled = safeLocalStorageGet("screenShake") !== "off";
+let clickToJumpEnabled = safeLocalStorageGet("clickToJump") !== "off";
 
 // Re-reads every setting the pause menu's Settings overlay can change, so
 // adjusting one mid-run actually takes effect immediately instead of only
@@ -252,8 +252,8 @@ let clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
 // every change). Exposed on window so settings.js — a separate classic
 // script wrapped in its own IIFE (see its top comment) — can reach it.
 function refreshLiveSettings() {
-  screenShakeEnabled = localStorage.getItem("screenShake") !== "off";
-  clickToJumpEnabled = localStorage.getItem("clickToJump") !== "off";
+  screenShakeEnabled = safeLocalStorageGet("screenShake") !== "off";
+  clickToJumpEnabled = safeLocalStorageGet("clickToJump") !== "off";
   difficultySettings =
     DIFFICULTY_SETTINGS[StarshadeEconomy.getDifficulty()] ||
     DIFFICULTY_SETTINGS.normal;
@@ -261,7 +261,7 @@ function refreshLiveSettings() {
   keyBindings.left = savedKeyBindings.left;
   keyBindings.right = savedKeyBindings.right;
   keyBindings.jump = savedKeyBindings.jump;
-  const liveMusicVolume = parseInt(localStorage.getItem("musicVolume"), 10);
+  const liveMusicVolume = parseInt(safeLocalStorageGet("musicVolume"), 10);
   audio.volume = isNaN(liveMusicVolume) ? 0.33 : liveMusicVolume / 100;
 }
 window.refreshLiveSettings = refreshLiveSettings;
@@ -624,7 +624,7 @@ let skipLaunchCheckpointIndex = -1;
 // Audio
 const audio = new Audio("./assets/music/starshade.mp3");
 audio.loop = true;
-const savedMusicVolume = parseInt(localStorage.getItem("musicVolume"));
+const savedMusicVolume = parseInt(safeLocalStorageGet("musicVolume"));
 audio.volume = isNaN(savedMusicVolume) ? 0.33 : savedMusicVolume / 100;
 
 function startAudioOnInteraction() {
@@ -684,7 +684,13 @@ function requestGameFullscreen() {
   const request = el.requestFullscreen || el.webkitRequestFullscreen;
   if (!request) return;
   try {
-    const result = request.call(el);
+    // `{ navigationUI: "hide" }` is a Chromium extension asking it to
+    // suppress as much of its own browser UI (address bar, tab strip) as
+    // it can while fullscreen, rather than the default "auto" — only the
+    // standard requestFullscreen accepts an options object at all (the
+    // older webkit-prefixed one doesn't, and silently ignores an unknown
+    // extra argument, so passing it unconditionally is safe either way).
+    const result = request.call(el, { navigationUI: "hide" });
     if (result && result.catch) {
       // Rejected — most commonly a browser that only honors the request
       // from specific gesture event types (some accept a tap's `click`
@@ -711,6 +717,24 @@ function stopRequestingGameFullscreen() {
   document.removeEventListener("touchstart", requestGameFullscreen);
   document.removeEventListener("click", requestGameFullscreen);
 }
+
+// Re-arms the listeners above whenever fullscreen ends for any reason
+// this page didn't itself decide on — Android Chrome can drop out of it
+// on its own (a system gesture, certain UI like a file picker or the
+// on-screen keyboard, an OS-level interruption), and without this, that
+// first successful request's own listener removal (see
+// requestGameFullscreen()/stopRequestingGameFullscreen()) meant it could
+// never be requested again for the rest of the session — "fullscreen
+// worked briefly, then the address bar/tabs came back and stayed" was the
+// actual reported bug, not that it never engaged at all.
+function rearmGameFullscreenIfNeeded() {
+  if (!isTouchDevice) return;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  document.addEventListener("touchstart", requestGameFullscreen);
+  document.addEventListener("click", requestGameFullscreen);
+}
+document.addEventListener("fullscreenchange", rearmGameFullscreenIfNeeded);
+document.addEventListener("webkitfullscreenchange", rearmGameFullscreenIfNeeded);
 
 if (isTouchDevice && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
   // Both event types (some browsers only honor the request from one or
@@ -751,6 +775,25 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") requestWakeLock();
 });
 
+// Asks the browser to mark this origin's storage "persistent" — under
+// real storage pressure (a phone genuinely low on space), a browser is
+// otherwise free to silently evict a "best-effort" origin's data,
+// including localStorage, to reclaim room, with no warning and no event
+// to react to; it just isn't there next launch. A granted persist()
+// request makes that origin exempt from that automatic eviction. This is
+// a *different* failure mode than safeLocalStorageGet/Set's own defensive
+// try/catch above (which protects against a write/read throwing, e.g.
+// Safari Private Browsing's 0-byte quota) — this one protects data that
+// was successfully saved from being cleared out from under the game
+// later, between sessions, which reads the same way to a player either
+// way: "my progress reset." Best-effort and silent either way (granted,
+// denied, or unsupported all look the same from here) — there's nothing
+// useful to do differently based on the outcome, so this doesn't branch
+// on it.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+
 // Level state
 let textOpacity = 1;
 let textFadeStartTime = null;
@@ -790,7 +833,7 @@ const MECHANIC_TIP_LOOKAHEAD = 140;
 
 function loadSeenMechanicTips() {
   try {
-    return JSON.parse(localStorage.getItem("seenMechanicTips") || "{}");
+    return JSON.parse(safeLocalStorageGet("seenMechanicTips") || "{}");
   } catch {
     return {};
   }
@@ -800,7 +843,7 @@ function markMechanicTipSeen(key) {
   const seen = loadSeenMechanicTips();
   if (seen[key]) return;
   seen[key] = true;
-  localStorage.setItem("seenMechanicTips", JSON.stringify(seen));
+  safeLocalStorageSet("seenMechanicTips", JSON.stringify(seen));
 }
 
 function mechanicKeyForPlatform(p) {
@@ -847,7 +890,7 @@ function injectMechanicDiscoveryTips() {
 // Unlike the old reload-based flow, this is now only a "resume after a
 // manual browser refresh" convenience — normal level-to-level progress
 // happens in-page via advanceToNextLevel() and never touches this read.
-let currentLevel = parseInt(localStorage.getItem("savedLevel"), 10) || 1;
+let currentLevel = parseInt(safeLocalStorageGet("savedLevel"), 10) || 1;
 
 // How far through the sky's "low altitude to deep cosmos" progression the
 // backdrop should look (see drawBackground()) — 0 at level 1, 1 by
@@ -915,7 +958,7 @@ const DEFAULT_KEY_BINDINGS = {
 
 function loadKeyBindings() {
   try {
-    const saved = JSON.parse(localStorage.getItem("keyBindings"));
+    const saved = JSON.parse(safeLocalStorageGet("keyBindings"));
     if (saved && saved.left && saved.right && saved.jump) return saved;
   } catch (e) {
     // ignore malformed data, fall back to defaults
@@ -942,7 +985,7 @@ const CHECKPOINT_PROGRESS_KEY = "checkpointProgress";
 
 function loadAllCheckpointProgress() {
   try {
-    const saved = JSON.parse(localStorage.getItem(CHECKPOINT_PROGRESS_KEY));
+    const saved = JSON.parse(safeLocalStorageGet(CHECKPOINT_PROGRESS_KEY));
     if (saved && typeof saved === "object") return saved;
   } catch (e) {
     // ignore malformed data
@@ -958,7 +1001,7 @@ function saveCheckpointProgress(levelNumber, index) {
   if (!(levelNumber in all) || index > all[levelNumber]) {
     all[levelNumber] = index;
     try {
-      localStorage.setItem(CHECKPOINT_PROGRESS_KEY, JSON.stringify(all));
+      safeLocalStorageSet(CHECKPOINT_PROGRESS_KEY, JSON.stringify(all));
     } catch (e) {
       // Storage full/unavailable — resuming from the level start instead
       // of losing progress entirely isn't worth crashing over.
@@ -1259,7 +1302,7 @@ function advanceToNextLevel() {
   }
 
   currentLevel++;
-  localStorage.setItem("savedLevel", String(currentLevel));
+  safeLocalStorageSet("savedLevel", String(currentLevel));
 
   return loadLevel(currentLevel).catch(() => {
     // No levelN.js exists for this number — the player has finished the
@@ -1269,7 +1312,7 @@ function advanceToNextLevel() {
     StarshadeAchievements.checkAndNotify();
     // So the next "Play" from the main menu starts a fresh run instead of
     // immediately hitting this same "no next level" case forever.
-    localStorage.setItem("savedLevel", "1");
+    safeLocalStorageSet("savedLevel", "1");
     isFading = false;
   });
 }
@@ -1292,7 +1335,7 @@ document
     // So the main menu's Play button (see below) starts a fresh run
     // instead of trying to resume past the last level again.
     currentLevel = 1;
-    localStorage.setItem("savedLevel", "1");
+    safeLocalStorageSet("savedLevel", "1");
     isFading = false;
     loadLevel(1);
     openMainMenuOverlay();
@@ -1430,7 +1473,7 @@ function openMainMenuOverlay() {
 // — just start fresh at that level instead.
 function startLevelFromOverlay(levelNumber) {
   currentLevel = levelNumber;
-  localStorage.setItem("savedLevel", String(levelNumber));
+  safeLocalStorageSet("savedLevel", String(levelNumber));
   document.getElementById("levelMapOverlay").classList.add("hidden");
   if (!hasGameStarted) {
     hideRootMenus();
@@ -1471,7 +1514,7 @@ document.getElementById("pause-main-menu-button").addEventListener("click", open
 // "Welcome back" greeting using the Display Name set in Settings — nothing
 // shown for a first-time/nameless visitor. Used to live in script.js,
 // which is retired now that this is the only page in the app.
-const savedPlayerName = localStorage.getItem("playerName");
+const savedPlayerName = safeLocalStorageGet("playerName");
 if (savedPlayerName) {
   document.getElementById("welcome-message").textContent = `Welcome back, ${savedPlayerName}!`;
 }
@@ -4606,8 +4649,29 @@ function startGame() {
       // progress so the next Play starts a fresh run.
       const bonus = StarshadeEconomy.setGameCompleted();
       showGameCompleteScreen(bonus);
-      localStorage.setItem("savedLevel", "1");
+      safeLocalStorageSet("savedLevel", "1");
     });
+}
+
+// Warms the browser's HTTP cache for whichever level(s) are about to
+// actually be needed — the level a returning player will resume into,
+// plus the one after it — while the loading screen's own progress bar
+// runs below. Uses the EXACT same URL (including the `?v=2` cache-bust)
+// loadLevel()'s own <script> tag requests moments later (see
+// docs/architecture.md), so that real request resolves from cache
+// instead of a fresh network round-trip — this is what actually makes
+// the loading screen's dwell time useful instead of pure decoration.
+// Deliberately fire-and-forget: never awaited, and errors are swallowed,
+// so a slow or failed prefetch can never delay or break startup — on a
+// bad connection or a 404, the level just loads normally the moment it's
+// really needed, exactly as it always did before this existed.
+try {
+  [currentLevel, currentLevel + 1].forEach((n) => {
+    fetch(`level${n}.js?v=2`).catch(() => {});
+  });
+} catch (e) {
+  // fetch() unsupported or blocked (rare) — no fallback needed, this was
+  // only ever a performance nicety.
 }
 
 // -------------------------------------------------------------

@@ -40,12 +40,12 @@ if (topBackButton) {
 // Display name — saved locally, read back by script.js for the main
 // menu's "Welcome back" greeting.
 const playerNameInput = document.getElementById("player-name");
-const savedPlayerName = localStorage.getItem("playerName");
+const savedPlayerName = safeLocalStorageGet("playerName");
 if (savedPlayerName) playerNameInput.value = savedPlayerName;
 
 playerNameInput.addEventListener("input", () => {
   const trimmed = playerNameInput.value.trim();
-  if (trimmed) localStorage.setItem("playerName", trimmed);
+  if (trimmed) safeLocalStorageSet("playerName", trimmed);
   else localStorage.removeItem("playerName");
 });
 
@@ -54,18 +54,18 @@ playerNameInput.addEventListener("input", () => {
 const volumeSlider = document.getElementById("volume");
 const musicVolumeSlider = document.getElementById("background-volume");
 
-const savedVolume = localStorage.getItem("soundVolume");
+const savedVolume = safeLocalStorageGet("soundVolume");
 if (savedVolume !== null) volumeSlider.value = savedVolume;
 
-const savedMusicVolume = localStorage.getItem("musicVolume");
+const savedMusicVolume = safeLocalStorageGet("musicVolume");
 if (savedMusicVolume !== null) musicVolumeSlider.value = savedMusicVolume;
 
 volumeSlider.addEventListener("input", () => {
-  localStorage.setItem("soundVolume", volumeSlider.value);
+  safeLocalStorageSet("soundVolume", volumeSlider.value);
 });
 
 musicVolumeSlider.addEventListener("input", () => {
-  localStorage.setItem("musicVolume", musicVolumeSlider.value);
+  safeLocalStorageSet("musicVolume", musicVolumeSlider.value);
   // Applies to the actual playing track immediately when embedded, rather
   // than only on the next page load — see game.js's refreshLiveSettings().
   if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
@@ -103,7 +103,7 @@ function displayName(key) {
 
 function loadKeyBindings() {
   try {
-    const saved = JSON.parse(localStorage.getItem("keyBindings"));
+    const saved = JSON.parse(safeLocalStorageGet("keyBindings"));
     if (saved && saved.left && saved.right && saved.jump) return saved;
   } catch (e) {
     // ignore malformed data
@@ -114,7 +114,7 @@ function loadKeyBindings() {
 let keyBindings = loadKeyBindings();
 
 function saveKeyBindings() {
-  localStorage.setItem("keyBindings", JSON.stringify(keyBindings));
+  safeLocalStorageSet("keyBindings", JSON.stringify(keyBindings));
   // Rebinding a key while embedded needs game.js's own `keyBindings`
   // object (a separate copy read once at load — see game.js) to pick up
   // the change immediately, or the new binding wouldn't do anything until
@@ -212,11 +212,11 @@ controlsSelect.addEventListener("change", () => {
 // Mirrors DIFFICULTY_SETTINGS in game.js — kept in sync manually since
 // these are plain scripts with no shared module system.
 const difficultySelect = document.getElementById("difficulty");
-const savedDifficulty = localStorage.getItem("difficulty");
+const savedDifficulty = safeLocalStorageGet("difficulty");
 if (savedDifficulty) difficultySelect.value = savedDifficulty;
 
 difficultySelect.addEventListener("change", () => {
-  localStorage.setItem("difficulty", difficultySelect.value);
+  safeLocalStorageSet("difficulty", difficultySelect.value);
   if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
@@ -228,20 +228,20 @@ difficultySelect.addEventListener("change", () => {
 // disabled "Screen Resolution" placeholder and dead "Mouse Clicks" preset
 // they replaced.
 const clickToJumpSelect = document.getElementById("click-to-jump");
-const savedClickToJump = localStorage.getItem("clickToJump");
+const savedClickToJump = safeLocalStorageGet("clickToJump");
 if (savedClickToJump) clickToJumpSelect.value = savedClickToJump;
 
 clickToJumpSelect.addEventListener("change", () => {
-  localStorage.setItem("clickToJump", clickToJumpSelect.value);
+  safeLocalStorageSet("clickToJump", clickToJumpSelect.value);
   if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
 const screenShakeSelect = document.getElementById("screen-shake");
-const savedScreenShake = localStorage.getItem("screenShake");
+const savedScreenShake = safeLocalStorageGet("screenShake");
 if (savedScreenShake) screenShakeSelect.value = savedScreenShake;
 
 screenShakeSelect.addEventListener("change", () => {
-  localStorage.setItem("screenShake", screenShakeSelect.value);
+  safeLocalStorageSet("screenShake", screenShakeSelect.value);
   if (typeof window.refreshLiveSettings === "function") window.refreshLiveSettings();
 });
 
