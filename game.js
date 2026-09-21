@@ -318,7 +318,24 @@ function snapCameraOffset(x, y) {
   cameraOffsetYRaw = y;
   cameraOffsetX = Math.round(x);
   cameraOffsetY = Math.round(y);
+  ceilingTrackY = y;
 }
+
+// The screen-pinned anti-cheat ceiling (see its check in updatePlayer())
+// needs to track the player's own vertical position much more tightly
+// than the visual camera does — cameraSmoothingY is deliberately laggy
+// for a smoother FEEL, but that same lag, read directly, meant a fast
+// enough upward burst (a double jump chained for height) could outrun the
+// camera and get clipped by a ceiling that hadn't caught up yet: a real,
+// unintended "sometimes can't complete a double jump near the top of the
+// screen" bug, not the deliberate anti-cheat case that boundary exists
+// for. This is a separate accumulator, eased every frame toward the same
+// target the visual camera uses but at CEILING_TRACK_SMOOTHING's much
+// faster rate — invisible, so it can track tightly without looking
+// laggy, while cameraOffsetY itself keeps its own slow, smooth feel for
+// everything actually rendered.
+let ceilingTrackY = 0;
+const CEILING_TRACK_SMOOTHING = 0.25;
 // Slower than this used to be — "the camera should slowly, smoothly
 // follow the player" — lower decay factor means more lag/trailing before
 // catching up (see the comment on cameraSmoothingY below for how this
@@ -3442,10 +3459,13 @@ function updatePlayer(dtScale) {
   // a jump (or a double jump chained purely for height) can never carry
   // the player above the visible play area, let alone skip over hazards
   // below it. Nothing is drawn for this on purpose: it's a boundary, not
-  // a platform. Uses last frame's cameraOffsetY (this frame's hasn't been
-  // computed yet — see the camera easing below) — one frame of lag here is
-  // imperceptible.
-  const screenTop = cameraOffsetY + SCREEN_TOP_MARGIN + player.height / 2;
+  // a platform. Reads ceilingTrackY, NOT the visually-smoothed
+  // cameraOffsetY — see ceilingTrackY's declaration for why: this still
+  // uses last frame's value (this frame's hasn't been computed yet — see
+  // the camera easing below), but ceilingTrackY catches up fast enough
+  // that one frame of its lag is genuinely imperceptible, unlike
+  // cameraOffsetY's deliberately slower lag.
+  const screenTop = ceilingTrackY + SCREEN_TOP_MARGIN + player.height / 2;
   if (player.y < screenTop) {
     player.y = screenTop;
     if (player.dy < 0) player.dy = 0;
@@ -3851,6 +3871,11 @@ function updatePlayer(dtScale) {
     (targetCameraOffsetY - cameraOffsetYRaw) *
     (1 - Math.pow(1 - cameraSmoothingY, dtScale));
   cameraOffsetY = Math.round(cameraOffsetYRaw);
+  // Tracks the same target, much faster — see ceilingTrackY's declaration
+  // above for why this can't just reuse cameraOffsetY/cameraOffsetYRaw.
+  ceilingTrackY +=
+    (targetCameraOffsetY - ceilingTrackY) *
+    (1 - Math.pow(1 - CEILING_TRACK_SMOOTHING, dtScale));
 
   const targetCameraZoom = CAMERA_ZOOM_GROUNDED - openAmount * zoomOpenRange;
   cameraZoom +=
