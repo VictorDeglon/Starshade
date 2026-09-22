@@ -45,3 +45,34 @@ Then open `http://localhost:8123/index.html`.
 
 - Move: `A`/`D` or Arrow Left/Right
 - Jump: `Space`, `W`, or Arrow Up (press again in mid-air for a double jump)
+
+## macOS desktop app
+
+`electron/main.js` and `electron/preload.js` package this exact game as a
+native macOS app — same `index.html`/`game.js`/levels, unmodified, served
+from a local `http://127.0.0.1` origin inside the app (not `file://`, for
+the same dynamic-`<script>` reason as above) so it runs fully offline once
+installed. `desktopUpdate.js` is the only game-side file this touches: it
+feature-detects `window.starshadeDesktop` (injected by the preload script)
+and is a no-op in the plain browser version.
+
+```bash
+npm install        # once
+npm start           # run the desktop app in dev mode
+npm run dist         # build release/Starshade-<version>-arm64.dmg locally, unsigned
+```
+
+**Updates:** on launch, the app calls GitHub's `releases/latest` API for
+this repo and compares the tag against `package.json`'s `version`. If
+newer, a corner banner offers to download that release's `.dmg` and opens
+it in Finder — the user drags the new build over the old one. There's no
+silent auto-update: the app isn't code-signed (no Apple Developer account),
+so Gatekeeper needs a human to approve a new build either way.
+
+**Cutting a release:** bump `version` in `package.json`, commit, then
+`git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release-mac-app.yml`
+builds on `macos-latest` and publishes the `.dmg` to a GitHub Release under
+that tag — that's the release the update check above looks for. Since the
+app is unsigned, first launch needs a right-click → Open (or, on newer
+macOS, System Settings → Privacy & Security → "Open Anyway") to get past
+Gatekeeper.

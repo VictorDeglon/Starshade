@@ -1,0 +1,75 @@
+{
+  "name": "starshade",
+  "productName": "Starshade",
+  "version": "1.0.0",
+  "description": "Starshade - The Cosmic Platformer, packaged as a native macOS app",
+  "private": true,
+  "main": "electron/main.js",
+  "author": "Victor Deglon",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac --publish never",
+    "release": "electron-builder --mac --publish always"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.victordeglon.starshade",
+    "productName": "Starshade",
+    "copyright": "Copyright © Victor Deglon",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*",
+      "!.claude${/*}",
+      "!.github${/*}",
+      "!docs${/*}",
+      "!release${/*}",
+      "!*.md",
+      "!.gitignore"
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Install Starshade",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "VictorDeglon",
+      "repo": "Starshade"
+    }
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
+  }
+}

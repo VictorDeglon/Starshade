@@ -157,6 +157,18 @@
     </div>
 
     <!-- -------------------------------------------------------------
+         DESKTOP UPDATE BANNER — only ever shown inside the Electron app;
+         see desktopUpdate.js. window.starshadeDesktop doesn't exist when
+         this page is served as the plain browser game, so the script that
+         drives this never unhides it there.
+         ------------------------------------------------------------- -->
+    <div id="desktopUpdateBanner" class="desktop-update-banner hidden">
+      <span id="desktopUpdateMessage"></span>
+      <button id="desktopUpdateAction" type="button"></button>
+      <button id="desktopUpdateDismiss" type="button" aria-label="Dismiss">✕</button>
+    </div>
+
+    <!-- -------------------------------------------------------------
          MAIN MENU OVERLAY — shown after loading on desktop/tablet. Skipped
          entirely on a touch device (see game.js's boot sequence), which
          goes straight into the game instead; still reachable from there
@@ -586,5 +598,6 @@
     <script src="shop.js?v=20260920d"></script>
     <script src="profile.js?v=20260920d"></script>
     <script src="overlay-nav.js?v=20260920d"></script>
+    <script src="desktopUpdate.js?v=20260920d"></script>
   </body>
 </html>
