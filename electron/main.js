@@ -17,10 +17,13 @@ const path = require("path");
 const GITHUB_OWNER = "VictorDeglon";
 const GITHUB_REPO = "Starshade";
 
-// In development this is the repo root; packaged, electron-builder copies
-// the "files" listed in package.json into Contents/Resources/app.
+// In development this is the repo root; packaged, electron-builder's
+// default asar packaging puts the "files" listed in package.json into
+// Contents/Resources/app.asar (a single archive file, not a folder named
+// "app") — Electron's patched fs module reads files inside it exactly like
+// files inside a normal directory, so fs.readFile below works unmodified.
 const GAME_ROOT = app.isPackaged
-  ? path.join(process.resourcesPath, "app")
+  ? path.join(process.resourcesPath, "app.asar")
   : path.join(__dirname, "..");
 
 const MIME = {
