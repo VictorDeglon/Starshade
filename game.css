@@ -1259,6 +1259,64 @@ canvas {
 }
 
 /* -------------------------------------------------------------
+   DESKTOP UPDATE BANNER — only ever unhidden inside the Electron app, by
+   desktopUpdate.js. Fixed corner card so it doesn't block any overlay
+   underneath, regardless of which screen is showing when the GitHub check
+   resolves.
+   ------------------------------------------------------------- */
+.desktop-update-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(10, 6, 30, 0.92);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-family: 'Space Grotesk', sans-serif;
+  transition: opacity 0.25s, visibility 0.25s;
+}
+
+.desktop-update-banner #desktopUpdateMessage {
+  font-size: 0.85rem;
+  color: #E4E1F5;
+  line-height: 1.3;
+}
+
+.desktop-update-banner #desktopUpdateAction {
+  flex: none;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #8B5CF6, #22D3EE);
+  color: #050012;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.desktop-update-banner #desktopUpdateAction:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.desktop-update-banner #desktopUpdateDismiss {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: #9C97C4;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+/* -------------------------------------------------------------
    MAIN MENU OVERLAY (was the standalone index.html) — full-bleed
    `.hub-screen`/`.hub-hero`/`.hub-grid`/`.hub-button` (see above) plus
    its own logo/tagline/welcome-message, which nothing else needs. The
